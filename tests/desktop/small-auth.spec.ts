@@ -1,68 +1,11 @@
-import {
-  _electron,
-  expect,
-  test,
-  type ElectronApplication,
-} from "@playwright/test";
+import { _electron, expect, test } from "@playwright/test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { AsyncEntry } from "@napi-rs/keyring";
-
-async function mockSmall(app: ElectronApplication) {
-  await app.evaluate(({ session }) => {
-    const isolated = session.fromPartition("small-auth", { cache: false });
-    let employee = "employee-a";
-    isolated.protocol.handle("https", async (request) => {
-      const path = new URL(request.url).pathname;
-      if (new URL(request.url).origin !== "https://team.small.kz")
-        return new Response(null, { status: 403 });
-      if (path.endsWith("/login")) {
-        const input = await request.json();
-        if (input.password !== "synthetic-password")
-          return new Response(null, { status: 401 });
-        employee = input.username;
-        await isolated.cookies.set({
-          url: "https://team.small.kz",
-          name: "synthetic-refresh",
-          value: employee,
-          secure: true,
-          httpOnly: true,
-          path: "/",
-          sameSite: "lax",
-        });
-      }
-      if (path.endsWith("/login") || path.endsWith("/refresh")) {
-        const cookies = await isolated.cookies.get({
-          url: "https://team.small.kz",
-        });
-        const cookie = cookies.find(
-          (entry) => entry.name === "synthetic-refresh",
-        );
-        if (!cookie) return new Response(null, { status: 401 });
-        employee = cookie.value;
-        const claims = Buffer.from(
-          JSON.stringify({
-            uid: employee,
-            name: employee,
-            preferred_username: employee,
-          }),
-        ).toString("base64url");
-        return Response.json({
-          data: { access_token: `header.${claims}.signature` },
-        });
-      }
-      if (path.endsWith("/logout")) return Response.json({});
-      if (path.endsWith("/info")) {
-        if (!request.headers.get("authorization")?.startsWith("Bearer header."))
-          return new Response(null, { status: 401 });
-        return Response.json({ data: { avatar: null } });
-      }
-      return new Response(null, { status: 404 });
-    });
-  });
-}
+import { mockSmall } from "./fixtures/small-api.js";
+import { calendarToday } from "../../src/shared/calendar-time.js";
 
 test("Small account uses isolated session and Keychain, restores after restart and logs out", async () => {
   const userData = await mkdtemp(join(tmpdir(), "small-auth-e2e-"));
@@ -70,12 +13,16 @@ test("Small account uses isolated session and Keychain, restores after restart a
   const launch = () =>
     _electron.launch({
       ...(executablePath ? { executablePath } : {}),
-      args: [...(executablePath ? [] : ["."]), `--user-data-dir=${userData}`],
+      args: [
+        ...(executablePath ? [] : ["."]),
+        `--user-data-dir=${userData}`,
+        "--host-resolver-rules=MAP team.small.kz ~NOTFOUND",
+      ],
       env: { ...process.env, PATH: "/usr/bin:/bin:/usr/sbin:/sbin" },
     });
   let app = await launch();
   try {
-    await mockSmall(app);
+    await mockSmall(app, calendarToday());
     let page = await app.firstWindow();
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -114,7 +61,7 @@ test("Small account uses isolated session and Keychain, restores after restart a
     await app.close();
     app = await launch();
     // Startup restoration can race this test handler; an explicit read retries safely.
-    await mockSmall(app);
+    await mockSmall(app, calendarToday());
     page = await app.firstWindow();
     const restored = await page.evaluate(() =>
       window.smallDesktop.smallAuth.read(),
