@@ -8,10 +8,25 @@
 ## Состояние проекта
 
 Цели и границы первой версии согласованы на этапе discovery 28 октября 2026 года.
-Спецификация подготовлена для ревью. Рабочая интеграция приложения ещё не реализована. Для проверки UI добавлен
+Спецификация подготовлена для ревью. Реализованы T01–T03: локальное окно
+Electron и диалог через Vercel AI SDK с безопасным синтетическим инструментом,
+streaming и отменой. Упакованная arm64 `.app` проверена на macOS 15.1.
+Рабочая интеграция с Small ещё не реализована. Для проверки UI добавлен
 отдельный [интерактивный React-стенд](docs/prototypes/ui-validation.md) в `prototype/`.
 Запуск: `cd prototype`, `npm ci`, `npm run dev`; адрес http://127.0.0.1:5173.
 Все люди, встречи и ответы ассистента в стенде демонстрационные.
+
+Из корня репозитория на Node.js ≥22.12.0: `npm ci`, затем `npm run dev`
+для запуска Electron. Локальная упаковка: `npm run package:mac`; результат —
+`release/Small Calendar-darwin-arm64/Small Calendar.app`.
+В чате можно проверить «Сложи 2 и 3», неверные аргументы, «Ошибка модели» и отмену.
+Ключи для локального режима не нужны. Полная интеграция календаря пока впереди.
+
+Проверки: `npm test`, `npm run typecheck`, `npm run build`, `npm run format:check`,
+`npm run build:desktop`, `npm run test:desktop`.
+`build` компилирует ядро/тесты в `dist/`, `build:desktop` — приложение в `out/`.
+[Результаты T01](docs/implementation/t01-sdk-runtime.md) и
+[запуск, bridge и ограничения T02–T03](docs/implementation/t02-t03-desktop.md).
 
 - [Результаты discovery](docs/discovery.md) — подтверждённые цели, сценарии и ограничения.
 - [Спецификация первой версии](docs/spec-v1.md) — требования, критерии приёмки и статус вопросов.
@@ -24,22 +39,9 @@
 Направление для AI-харнеса — TypeScript; рассматриваются GLM и DeepSeek Flash.
 Доступ к моделям — Small vLLM либо персональный OpenAI-совместимый endpoint.
 Для харнеса принят Vercel AI SDK (Core + UI), см. ADR-003.
-Electron + React + Dockview Community приняты в ADR-002.
+Electron + React + Dockview Community приняты пользователем в ADR-002.
+Dockview будет интегрирован в T07; текущая компоновка переиспользует UI-стенд.
 Первая целевая система — macOS 15.1 на Apple Silicon.
 Прежнее упоминание Rust в README не было утверждённым решением.
 
 Существующий календарь: [team.small.kz/calendar](https://team.small.kz/calendar).
-
-## SDK-ядро T01
-
-Реализован безопасный синтетический инструмент через Vercel AI SDK.
-Из корня на Node.js ≥22.12.0: `npm ci`, `npm test`, `npm run typecheck`,
-`npm run build`, `npm run format:check`. Проверены 12 тестов.
-Ключи и доступ к Small не нужны. [Отчёт T01](docs/implementation/t01-sdk-runtime.md).
-
-## Desktop-окно T02
-
-`npm run dev` запускает локальный React UI в Electron. `npm run build:desktop`
-собирает приложение; `npm run test:desktop` проверяет окно. `npm run package:mac`
-создаёт `release/Small Calendar-darwin-arm64/Small Calendar.app`.
-[Проверки и ограничения T02](docs/implementation/t02-desktop.md).

@@ -93,13 +93,3 @@ test("local desktop UI runs with an isolated renderer and no external navigation
     await rm(userData, { recursive: true, force: true });
   }
 });
-
-declare global {
-  interface Window {
-    smallDesktop: {
-      platform: string;
-      sandboxed: boolean;
-      contextIsolated: boolean;
-    };
-  }
-}
