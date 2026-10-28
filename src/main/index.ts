@@ -1,6 +1,7 @@
 import { app, BrowserWindow, net, protocol, session } from "electron";
 import { dirname, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { registerAssistantHandlers } from "./assistant.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const rendererRoot = resolve(here, "../renderer");
@@ -65,6 +66,10 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  registerAssistantHandlers(
+    devUrl || localUrl,
+    resolve(here, "agent-worker.js"),
+  );
   session.defaultSession.setPermissionRequestHandler(
     (_contents, _permission, callback) => callback(false),
   );

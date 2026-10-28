@@ -1,0 +1,33 @@
+import type { UIMessageChunk } from "ai";
+
+export const assistantChannels = {
+  start: "assistant:start",
+  cancel: "assistant:cancel",
+  event: "assistant:event",
+} as const;
+export interface AgentRequest {
+  requestId: string;
+  prompt: string;
+}
+export type StartResult = { ok: true } | { ok: false; error: string };
+export type AgentEvent =
+  | { requestId: string; type: "chunk"; chunk: UIMessageChunk }
+  | { requestId: string; type: "end" };
+export type AgentControl =
+  { type: "start"; request: AgentRequest } | { type: "cancel" };
+export interface AssistantBridge {
+  start(request: AgentRequest): Promise<StartResult>;
+  cancel(requestId: string): Promise<void>;
+  subscribe(listener: (event: AgentEvent) => void): () => void;
+}
+export interface DesktopBridge {
+  platform: string;
+  sandboxed: boolean;
+  contextIsolated: boolean;
+  assistant: AssistantBridge;
+}
+declare global {
+  interface Window {
+    smallDesktop: DesktopBridge;
+  }
+}

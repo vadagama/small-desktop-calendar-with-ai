@@ -39,7 +39,9 @@ function readLayout(): { layout: Layout; ratio: number } {
     return { layout: "right", ratio: 68 };
   }
 }
-export default function App() {
+export default function App({
+  AssistantPanel = Assistant,
+}: { AssistantPanel?: typeof Assistant } = {}) {
   const [events, setEvents] = useState<Meeting[]>(DEMO_EVENTS);
   const [date, setDate] = useState(TODAY);
   const [miniMonth, setMiniMonth] = useState(TODAY);
@@ -345,7 +347,7 @@ export default function App() {
             <span />
           </div>
           <div className="assistant-container">
-            <Assistant
+            <AssistantPanel
               events={events}
               add={add}
               state={state}
