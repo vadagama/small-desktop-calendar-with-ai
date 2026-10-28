@@ -8,7 +8,14 @@ export interface AuthTransport {
   restore(value: string): Promise<void>;
   clear(): Promise<void>;
 }
-export class SmallAuthError extends Error {}
+export class SmallAuthError extends Error {
+  constructor(
+    message: string,
+    public code: "auth" | "network" = "network",
+  ) {
+    super(message);
+  }
+}
 const account = "small-auth-session-v1";
 const credentials = z.strictObject({
   username: z.string().trim().min(1).max(200),
@@ -28,13 +35,14 @@ const signedOut: SmallAuthState = { status: "signed-out" };
 export class SmallAuth {
   private pending: Promise<unknown> = Promise.resolve();
   private token: string | null = null;
+  private version = 0;
   private restored = false;
   constructor(
     private transport: AuthTransport,
     private secrets: SecretStore,
   ) {}
 
-  private run(action: () => Promise<SmallAuthState>) {
+  private run<T>(action: () => Promise<T>): Promise<T> {
     const result = this.pending.then(action).catch((error: unknown) => {
       throw error instanceof SmallAuthError
         ? error
@@ -94,21 +102,23 @@ export class SmallAuth {
     await this.keychain(() => this.secrets.set(account, snapshot));
     this.token = parsed.data.data.access_token;
   }
-  private async profile(): Promise<SmallAuthState> {
-    let response = await this.request("/gate/team/api/user/info", "GET");
+  private async authorized(path: string): Promise<Response> {
+    let response = await this.request(path, "GET");
     if (response.status === 401) {
       const refreshed = await this.request("/gate/auth/refresh");
       if (refreshed.status === 401 || refreshed.status === 403) {
         await this.clear();
-        return signedOut;
+        return new Response(null, { status: 401 });
       }
       await this.accept(refreshed);
-      response = await this.request("/gate/team/api/user/info", "GET");
+      response = await this.request(path, "GET");
+      if (response.status === 401) await this.clear();
     }
-    if (response.status === 401) {
-      await this.clear();
-      return signedOut;
-    }
+    return response;
+  }
+  private async profile(): Promise<SmallAuthState> {
+    const response = await this.authorized("/gate/team/api/user/info");
+    if (response.status === 401) return signedOut;
     if (response.status === 403)
       throw new SmallAuthError("Нет доступа к профилю Small.");
     if (!response.ok)
@@ -138,27 +148,71 @@ export class SmallAuth {
       },
     };
   }
-  read() {
-    return this.run(async () => {
-      if (!this.restored) {
-        const saved = await this.keychain(() => this.secrets.get(account));
-        if (!saved) {
-          this.restored = true;
-          return signedOut;
-        }
-        await this.transport.restore(saved);
-        const response = await this.request("/gate/auth/refresh");
-        if (response.status === 401 || response.status === 403) {
-          await this.clear();
-          return signedOut;
-        }
-        await this.accept(response);
+  private async current(): Promise<SmallAuthState> {
+    if (!this.restored) {
+      const saved = await this.keychain(() => this.secrets.get(account));
+      if (!saved) {
         this.restored = true;
+        return signedOut;
       }
-      return this.token ? this.profile() : signedOut;
+      await this.transport.restore(saved);
+      const response = await this.request("/gate/auth/refresh");
+      if (response.status === 401 || response.status === 403) {
+        await this.clear();
+        return signedOut;
+      }
+      await this.accept(response);
+      this.restored = true;
+    }
+    return this.token ? this.profile() : signedOut;
+  }
+  read() {
+    return this.run(() => this.current());
+  }
+  readCalendar<T>(
+    accountId: string,
+    action: (get: (path: string) => Promise<Response>) => Promise<T>,
+  ): Promise<T> {
+    const version = this.version;
+    const assertCurrent = () => {
+      if (version !== this.version)
+        throw new SmallAuthError(
+          "Изменился аккаунт Small. Повторите загрузку.",
+          "auth",
+        );
+    };
+    return this.run(async () => {
+      assertCurrent();
+      const state = await this.current();
+      if (state.status !== "signed-in" || state.profile.id !== accountId)
+        throw new SmallAuthError("Войдите в нужный аккаунт Small.", "auth");
+      const result = await action(async (path) => {
+        assertCurrent();
+        if (!this.token)
+          throw new SmallAuthError(
+            "Сессия Small завершена. Войдите заново.",
+            "auth",
+          );
+        const response = await this.authorized(path);
+        assertCurrent();
+        if (response.status === 401)
+          throw new SmallAuthError(
+            "Сессия Small завершена. Войдите заново.",
+            "auth",
+          );
+        return response;
+      });
+      assertCurrent();
+      if (!this.token)
+        throw new SmallAuthError(
+          "Сессия Small завершена. Войдите заново.",
+          "auth",
+        );
+      return result;
     });
   }
   login(input: unknown) {
+    this.version++;
     return this.run(async () => {
       const parsed = credentials.safeParse(input);
       if (!parsed.success)
@@ -180,7 +234,8 @@ export class SmallAuth {
       }
     });
   }
-  logout() {
+  logout(): Promise<SmallAuthState> {
+    this.version++;
     return this.run(async () => {
       let warning: string | undefined;
       try {
@@ -198,7 +253,7 @@ export class SmallAuth {
           "Локальный выход выполнен. Сервер не подтвердил отзыв сессии.";
       }
       await this.clear();
-      return warning ? { status: "signed-out", warning } : signedOut;
+      return warning ? { status: "signed-out" as const, warning } : signedOut;
     });
   }
 }
