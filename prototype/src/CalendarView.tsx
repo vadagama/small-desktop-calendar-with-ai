@@ -39,6 +39,7 @@ interface Props {
 }
 export function Calendar(p: Props) {
   const today = p.today ?? TODAY;
+  const hasStatus = Boolean(p.statusContent);
   const tooltip = useEventTooltip();
   const scroll = useRef<HTMLDivElement>(null);
   const [now, setNow] = useState(() => new Date());
@@ -48,7 +49,7 @@ export function Calendar(p: Props) {
   }, []);
   useEffect(() => {
     if (scroll.current) scroll.current.scrollTop = 8 * 64;
-  }, [p.view, p.state]);
+  }, [p.view, p.state, hasStatus]);
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Almaty",
     year: "numeric",

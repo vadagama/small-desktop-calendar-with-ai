@@ -47,6 +47,13 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
     };
     await login("employee-a");
     await expect(page.locator(".calendar-event")).toHaveCount(2);
+    await expect
+      .poll(() =>
+        page
+          .locator(".timeline-scroll")
+          .evaluate((element) => element.scrollTop),
+      )
+      .toBe(512);
     await page.setViewportSize({ width: 900, height: 640 });
     await page
       .getByRole("button", { name: "Показать календари", exact: true })
