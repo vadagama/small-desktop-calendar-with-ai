@@ -14,7 +14,7 @@
     "dev": "electron-vite dev",
     "start": "electron-vite preview",
     "build:desktop": "electron-vite build",
-    "package:mac": "npm run build:desktop && electron-packager . \"Small Calendar\" --platform=darwin --arch=arm64 --out=release --asar --overwrite --ignore='^/(?!out(/|$)|package\\.json$|node_modules(/|$))'",
+    "package:mac": "npm run build:desktop && electron-packager . \"Small Calendar\" --platform=darwin --arch=arm64 --out=release --asar --overwrite --icon=build/app.icns --ignore='^/(?!out(/|$)|package\\.json$|node_modules(/|$))'",
     "test:desktop": "playwright test -c playwright.desktop.config.ts",
     "pretest:desktop": "install-electron"
   },
