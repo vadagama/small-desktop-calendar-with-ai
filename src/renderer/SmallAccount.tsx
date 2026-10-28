@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { UserRound, X } from "lucide-react";
 import type { SmallAuthReply, SmallAuthState } from "../shared/small-auth.js";
 
-export function SmallAccount() {
+export function SmallAccount({
+  onChange,
+  revision = 0,
+}: {
+  onChange?: (state: SmallAuthState | null) => void;
+  revision?: number;
+}) {
   const [state, setState] = useState<SmallAuthState>({ status: "signed-out" });
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(true);
@@ -12,12 +18,19 @@ export function SmallAccount() {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     let mounted = true;
+    setBusy(true);
+    onChange?.(null);
     void window.smallDesktop.smallAuth
       .read()
       .then((reply) => {
         if (!mounted) return;
-        if (reply.ok) setState(reply.state);
-        else setError(reply.error);
+        if (reply.ok) {
+          setState(reply.state);
+          onChange?.(reply.state);
+        } else {
+          setError(reply.error);
+          onChange?.(null);
+        }
       })
       .catch(() => {
         if (mounted) setError("Не удалось проверить вход в Small");
@@ -28,18 +41,21 @@ export function SmallAccount() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [onChange, revision]);
   useEffect(() => {
     if (open) dialog.current?.showModal();
   }, [open]);
   async function perform(action: () => Promise<SmallAuthReply>) {
     setBusy(true);
+    onChange?.(null);
     setError("");
     setPassword("");
     try {
       const reply = await action();
-      if (reply.ok) setState(reply.state);
-      else {
+      if (reply.ok) {
+        setState(reply.state);
+        onChange?.(reply.state);
+      } else {
         setState({ status: "signed-out" });
         setError(reply.error);
       }
@@ -87,7 +103,7 @@ export function SmallAccount() {
           </div>
           <p className="modal-description">
             Учётная запись Team Small. Сессия сохраняется в Keychain этого Mac.
-            Календарь пока показывает демонстрационные встречи.
+            После входа доступны ваши календари.
           </p>
           {busy && (
             <p className="form-note" role="status">
