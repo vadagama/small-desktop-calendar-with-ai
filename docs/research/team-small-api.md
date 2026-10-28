@@ -25,11 +25,11 @@ Bundle сохранён только во временной папке, в ре
 
 В `Dqa` и `SJr` перечислены три представления:
 
-| Название | Значение |
-| --- | --- |
-| День | `timeGridDay` |
-| Неделя | `timeGridWeek` |
-| Месяц | `dayGridMonth` |
+| Название | Значение       |
+| -------- | -------------- |
+| День     | `timeGridDay`  |
+| Неделя   | `timeGridWeek` |
+| Месяц    | `dayGridMonth` |
 
 В `OB` исходное представление — день. Store `calendar-storage` сохраняет
 `calendarView` и `selectedCalendars`; есть переключатель `myCalendar`.
@@ -41,15 +41,15 @@ Bundle сохранён только во временной папке, в ре
 
 ## Профиль, права и каталог
 
-| Назначение | Найденный метод | Ограничение вывода |
-| --- | --- | --- |
-| Вход / refresh / выход | `POST /gate/auth/login`, `/refresh`, `/logout` (`htt`, клиент `m0e`) | Refresh использует cookies; серверное поведение отзыва нужно проверить. |
-| Текущий пользователь | `GET /gate/team/api/user/info` (`bF.getUserInfo`) | Схему ответа и стабильный идентификатор проверить авторизованным чтением. |
-| Права Team | `GET /gate/team/api/user/permissions` (`hzn`) | Это отдельный endpoint от прав access-management. |
-| Поиск сотрудников | `GET /gate/employee/api/search/persons` (`qXn`, клиент `g2`) | Параметры `q`, `per_page`, `page`; ответ `data.items` и `data.pagination.current_page/last_page`. |
-| Каталог персон | `/api/persons` присутствует в таблице маршрутов | Не доказаны параметры и пригодность для полного состава команды. |
-| Дерево оргструктуры | `GET https://gate-business.skiftrade.kz/team-persona/org-units/{id}/card-focus` (`S0t`, `s8r`) | Для root передаётся `depth`, для других узлов `parent`. |
-| Сотрудники подразделения | `GET https://gate-business.skiftrade.kz/team-persona/org-units/{id}/card-employees` (`z8s`) | Для не-root передаётся `parent`; полнота, вложенные команды и схема ответа не установлены. |
+| Назначение               | Найденный метод                                                                                | Ограничение вывода                                                                                |
+| ------------------------ | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Вход / refresh / выход   | `POST /gate/auth/login`, `/refresh`, `/logout` (`htt`, клиент `m0e`)                           | Refresh использует cookies; серверное поведение отзыва нужно проверить.                           |
+| Текущий пользователь     | `GET /gate/team/api/user/info` (`bF.getUserInfo`)                                              | Схему ответа и стабильный идентификатор проверить авторизованным чтением.                         |
+| Права Team               | `GET /gate/team/api/user/permissions` (`hzn`)                                                  | Это отдельный endpoint от прав access-management.                                                 |
+| Поиск сотрудников        | `GET /gate/employee/api/search/persons` (`qXn`, клиент `g2`)                                   | Параметры `q`, `per_page`, `page`; ответ `data.items` и `data.pagination.current_page/last_page`. |
+| Каталог персон           | `/api/persons` присутствует в таблице маршрутов                                                | Не доказаны параметры и пригодность для полного состава команды.                                  |
+| Дерево оргструктуры      | `GET https://gate-business.skiftrade.kz/team-persona/org-units/{id}/card-focus` (`S0t`, `s8r`) | Для root передаётся `depth`, для других узлов `parent`.                                           |
+| Сотрудники подразделения | `GET https://gate-business.skiftrade.kz/team-persona/org-units/{id}/card-employees` (`z8s`)    | Для не-root передаётся `parent`; полнота, вложенные команды и схема ответа не установлены.        |
 
 Поиск использует `person_guid`. Нельзя автоматически считать его календарным
 `participant_id`: нужен подтверждённый mapping по реальным ответам/исходникам.
@@ -60,20 +60,20 @@ Bundle сохранён только во временной папке, в ре
 
 Клиент `Zi` имеет base URL `/gate/team/api`; объект методов — `Tf`.
 
-| Операция | Метод и путь относительно base URL |
-| --- | --- |
-| Мои события | `GET /calendars/my/events` |
-| Доступные публичные календари | `GET /calendars/public` |
-| События календаря | `GET /calendars/{id}/events` |
-| Карточка | `GET /calendar/events/{id}` |
-| Создать / изменить | `POST /calendar/events`, `PUT /calendar/events/{id}`, query `force` |
-| Отменить / удалить | `POST /calendar/events/{id}/cancel`, `DELETE /calendar/events/{id}` |
-| Занятость | `POST /calendar/events/busy-intervals` |
-| Слоты | `POST /calendar/events/find-slots` |
-| Ответить на приглашение | `PATCH /calendar/events/{id}/participant-status`, `accepted` / `declined` |
-| Проверить доступность | `POST /calendar/events/{id}/check-availability` |
-| Получить виртуальное вхождение | `GET /calendar/events/generated?original_event_id=…&date=…` |
-| Материализовать вхождение | `POST /calendar/events/from-template` |
+| Операция                       | Метод и путь относительно base URL                                        |
+| ------------------------------ | ------------------------------------------------------------------------- |
+| Мои события                    | `GET /calendars/my/events`                                                |
+| Доступные публичные календари  | `GET /calendars/public`                                                   |
+| События календаря              | `GET /calendars/{id}/events`                                              |
+| Карточка                       | `GET /calendar/events/{id}`                                               |
+| Создать / изменить             | `POST /calendar/events`, `PUT /calendar/events/{id}`, query `force`       |
+| Отменить / удалить             | `POST /calendar/events/{id}/cancel`, `DELETE /calendar/events/{id}`       |
+| Занятость                      | `POST /calendar/events/busy-intervals`                                    |
+| Слоты                          | `POST /calendar/events/find-slots`                                        |
+| Ответить на приглашение        | `PATCH /calendar/events/{id}/participant-status`, `accepted` / `declined` |
+| Проверить доступность          | `POST /calendar/events/{id}/check-availability`                           |
+| Получить виртуальное вхождение | `GET /calendar/events/generated?original_event_id=…&date=…`               |
+| Материализовать вхождение      | `POST /calendar/events/from-template`                                     |
 
 В `x8a` запрос занятости включает `participant_ids`, `date`, `timezone`
 и необязательные `calendar_ids`. В `S8a` поиск использует `participant_ids`,
@@ -105,3 +105,17 @@ Bundle сохранён только во временной папке, в ре
 проверять на синтетических событиях в тестовом окружении. Не переносить
 персональные данные из ответов в репозиторий. Пределы API фиксировать по
 серверной документации или результатам согласованных проверок, не угадывать.
+
+## Уточнение для T06 — 29 октября 2026 года
+
+В той же публичной сборке `sht` передаёт `start_date` и `end_date`, полученные
+из границ видимого периода, и читает `data` как массив либо объект событий.
+`gse` читает массив публичных календарей, UI использует `id`/`name`.
+`ktr` использует `starts_at`/`ends_at`, `title`, `creator_name`, `calendar_ids`,
+`id` и `original_event_id`; `ltr` также читает `description` и `location`.
+Виртуальную карточку можно получить GET-запросом `/calendar/events/generated`
+с `original_event_id` и локальной датой, без материализации.
+
+На этом клиентском контракте основана [реализация T06](../implementation/t06-calendar-read.md).
+Авторизованные production-ответы, полнота и серверная схема по-прежнему
+не проверены. Эти сведения не разрешают записи календаря.
