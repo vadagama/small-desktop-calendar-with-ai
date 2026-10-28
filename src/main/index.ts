@@ -6,6 +6,8 @@ import { ProfileStore } from "./profiles.js";
 import { KeychainSecrets } from "./keychain.js";
 import { registerProfileHandlers } from "./profile-ipc.js";
 
+import { CalendarService } from "./calendar.js";
+import { registerCalendarHandlers } from "./calendar-ipc.js";
 import { SmallAuth } from "./small-auth.js";
 import { createSmallSession } from "./small-session.js";
 import { registerSmallAuthHandlers } from "./small-auth-ipc.js";
@@ -83,11 +85,13 @@ app.whenReady().then(async () => {
     (signal) => profiles.resolveActive(signal),
   );
   registerProfileHandlers(profiles, assistant.trusted, assistant.cancelActive);
+  const smallAuth = new SmallAuth(
+    createSmallSession(),
+    new KeychainSecrets(app.getPath("userData")),
+  );
+  registerCalendarHandlers(new CalendarService(smallAuth), assistant.trusted);
   registerSmallAuthHandlers(
-    new SmallAuth(
-      createSmallSession(),
-      new KeychainSecrets(app.getPath("userData")),
-    ),
+    smallAuth,
     assistant.trusted,
     assistant.cancelActive,
   );
