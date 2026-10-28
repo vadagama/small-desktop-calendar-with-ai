@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { SmallAuthError, type AuthTransport } from "./small-auth.js";
 
+import { isCalendarReadPath } from "./calendar.js";
+
 const origin = "https://team.small.kz";
 const paths = new Set([
   "/gate/auth/login",
@@ -38,7 +40,10 @@ export function createSmallSession(): AuthTransport {
   isolated.setPermissionCheckHandler(() => false);
   return {
     async request(path, init) {
-      if (!paths.has(path))
+      if (
+        !paths.has(path) &&
+        !(init.method === "GET" && isCalendarReadPath(path))
+      )
         throw new SmallAuthError("Операция Small недоступна.");
       return isolated.fetch(origin + path, {
         ...init,

@@ -1,3 +1,4 @@
+import type { CalendarBridge } from "./calendar.js";
 import type { SmallAuthBridge } from "./small-auth.js";
 import type { UIMessageChunk } from "ai";
 import type { ModelConnection, ProfileBridge } from "./profiles.js";
@@ -30,6 +31,7 @@ export interface DesktopBridge {
   assistant: AssistantBridge;
   profiles: ProfileBridge;
   smallAuth: SmallAuthBridge;
+  calendar: CalendarBridge;
 }
 declare global {
   interface Window {

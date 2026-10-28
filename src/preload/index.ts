@@ -4,6 +4,7 @@ import {
   type AgentEvent,
   type DesktopBridge,
 } from "../shared/assistant.js";
+import { calendarChannels } from "../shared/calendar.js";
 import { smallAuthChannels } from "../shared/small-auth.js";
 import { profileChannels } from "../shared/profiles.js";
 
@@ -21,6 +22,11 @@ const bridge: DesktopBridge = {
       ipcRenderer.on(assistantChannels.event, handler);
       return () => ipcRenderer.removeListener(assistantChannels.event, handler);
     },
+  },
+  calendar: {
+    calendars: (input) => ipcRenderer.invoke(calendarChannels.calendars, input),
+    events: (input) => ipcRenderer.invoke(calendarChannels.events, input),
+    detail: (input) => ipcRenderer.invoke(calendarChannels.detail, input),
   },
   smallAuth: {
     read: () => ipcRenderer.invoke(smallAuthChannels.read),

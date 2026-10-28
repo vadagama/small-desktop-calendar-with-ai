@@ -179,3 +179,40 @@ test("queued logout cannot be undone by an earlier profile refresh", async () =>
   assert.equal(f.saved(), null);
   assert.equal((await f.auth.read()).status, "signed-out");
 });
+
+test("calendar reads reject another account before any calendar request", async () => {
+  const f = setup();
+  await f.auth.login(login);
+  let requested = false;
+  await assert.rejects(
+    f.auth.readCalendar("employee-b", async (get) => {
+      requested = true;
+      return get("/gate/team/api/calendars/public");
+    }),
+    /аккаунт/,
+  );
+  assert.equal(requested, false);
+});
+
+test("a pending calendar response is invalidated as soon as logout is requested", async () => {
+  const f = setup();
+  await f.auth.login(login);
+  let release!: () => void;
+  let entered!: () => void;
+  const started = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const read = f.auth.readCalendar("employee-a", async () => {
+    entered();
+    await held;
+    return "private synthetic event";
+  });
+  await started;
+  const logout = f.auth.logout();
+  release();
+  await assert.rejects(read, /аккаунт|сесси/);
+  assert.equal((await logout).status, "signed-out");
+});
