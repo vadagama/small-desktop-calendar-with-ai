@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+prototype/test-results/
+prototype/playwright-report/
+.impeccable/review/
+.impeccable/mocks/
