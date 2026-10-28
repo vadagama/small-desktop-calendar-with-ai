@@ -1,3 +1,4 @@
+import type { SmallAuthBridge } from "./small-auth.js";
 import type { UIMessageChunk } from "ai";
 import type { ModelConnection, ProfileBridge } from "./profiles.js";
 
@@ -28,6 +29,7 @@ export interface DesktopBridge {
   contextIsolated: boolean;
   assistant: AssistantBridge;
   profiles: ProfileBridge;
+  smallAuth: SmallAuthBridge;
 }
 declare global {
   interface Window {

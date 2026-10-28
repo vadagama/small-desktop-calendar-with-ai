@@ -6,6 +6,10 @@ import { ProfileStore } from "./profiles.js";
 import { KeychainSecrets } from "./keychain.js";
 import { registerProfileHandlers } from "./profile-ipc.js";
 
+import { SmallAuth } from "./small-auth.js";
+import { createSmallSession } from "./small-session.js";
+import { registerSmallAuthHandlers } from "./small-auth-ipc.js";
+
 const here = dirname(fileURLToPath(import.meta.url));
 const rendererRoot = resolve(here, "../renderer");
 const localUrl = "small-app://workspace/index.html";
@@ -79,6 +83,14 @@ app.whenReady().then(async () => {
     (signal) => profiles.resolveActive(signal),
   );
   registerProfileHandlers(profiles, assistant.trusted, assistant.cancelActive);
+  registerSmallAuthHandlers(
+    new SmallAuth(
+      createSmallSession(),
+      new KeychainSecrets(app.getPath("userData")),
+    ),
+    assistant.trusted,
+    assistant.cancelActive,
+  );
   session.defaultSession.setPermissionRequestHandler(
     (_contents, _permission, callback) => callback(false),
   );
