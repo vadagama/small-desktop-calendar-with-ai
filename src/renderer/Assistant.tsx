@@ -1,18 +1,19 @@
+import { createPortal } from "react-dom";
 import { useChat } from "@ai-sdk/react";
-import {
-  ArrowUp,
-  GripVertical,
-  Settings2,
-  Sparkles,
-  Square,
-} from "lucide-react";
+import { ArrowUp, Settings2, Sparkles, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { DesktopTransport } from "./transport";
 import { MessageList } from "./MessageList";
 import { ModelSettings } from "./ModelSettings";
 import type { ProfileState } from "../shared/profiles.js";
 
-export function DesktopAssistant({ swap }: { swap: () => void }) {
+export function DesktopAssistant({
+  swap,
+  headerTarget,
+}: {
+  swap: () => void;
+  headerTarget: HTMLElement | null;
+}) {
   const [transport] = useState(
     () => new DesktopTransport(window.smallDesktop.assistant),
   );
@@ -69,30 +70,23 @@ export function DesktopAssistant({ swap }: { swap: () => void }) {
       className="desktop-assistant assistant-panel"
       aria-label="AI-ассистент"
     >
-      <div
-        className="panel-caption"
-        draggable
-        onDragStart={(event) =>
-          event.dataTransfer.setData("text/plain", "assistant")
-        }
-        onDoubleClick={swap}
-      >
-        <span>
-          <GripVertical size={14} />
-          Ассистент
-        </span>
-        <span className="subtle model-name" title={modelLabel}>
-          {modelLabel}
-        </span>
-        <button
-          className="icon-button"
-          aria-label="Настройки модели"
-          disabled={!profiles}
-          onClick={() => setSettings(true)}
-        >
-          <Settings2 size={18} />
-        </button>
-      </div>
+      {headerTarget &&
+        createPortal(
+          <div className="assistant-header-actions" onDoubleClick={swap}>
+            <span className="subtle model-name" title={modelLabel}>
+              {modelLabel}
+            </span>
+            <button
+              className="icon-button"
+              aria-label="Настройки модели"
+              disabled={!profiles}
+              onClick={() => setSettings(true)}
+            >
+              <Settings2 size={18} />
+            </button>
+          </div>,
+          headerTarget,
+        )}
       <div className="assistant-scroll" ref={scroll}>
         {!messages.length && (
           <div className="assistant-intro">

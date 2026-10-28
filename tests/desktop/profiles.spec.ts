@@ -113,9 +113,9 @@ test("model settings persist only metadata and use a real Keychain key through t
       .getByRole("textbox", { name: "Сообщение ассистенту" })
       .fill("Проверь отказ");
     await page.getByRole("button", { name: "Отправить сообщение" }).click();
-    await expect(page.getByRole("alert")).toContainText(
-      "Не удалось получить ответ",
-    );
+    await expect(
+      page.getByRole("region", { name: "AI-ассистент" }).getByRole("alert"),
+    ).toContainText("Не удалось получить ответ");
     const afterError = await page.evaluate(() =>
       window.smallDesktop.profiles.read(),
     );

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { CalendarDays, UsersRound } from "lucide-react";
+import { CalendarDays, Settings2, UsersRound } from "lucide-react";
 import { Calendar } from "../../prototype/src/CalendarView";
 import type { Meeting } from "../../prototype/src/types";
 import { DesktopAssistant } from "./Assistant";
+import { DockWorkspace } from "./DockWorkspace";
 import { SmallAccount } from "./SmallAccount";
 import { CalendarFilters } from "./CalendarFilters";
 import { EventDetails } from "./EventDetails";
@@ -20,7 +21,7 @@ export function DesktopWorkspace() {
   const [revision, setRevision] = useState(0);
   const [date, setDate] = useState(calendarToday);
   const [view, setView] = useState<CalendarView>("week");
-  const [reversed, setReversed] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selected, setSelected] = useState<{
     accountId: string;
@@ -68,7 +69,6 @@ export function DesktopWorkspace() {
         (calendar.issues.length
           ? "Нет подтверждённых данных за этот период."
           : "Выберите хотя бы один календарь.");
-  const swap = () => setReversed((value) => !value);
   return (
     <div
       className={`app-shell desktop-workspace ${filtersOpen ? "sidebar-open" : ""}`}
@@ -85,9 +85,22 @@ export function DesktopWorkspace() {
         >
           <CalendarDays size={19} />
         </button>
+        <button
+          className="rail-settings"
+          aria-label="Настройки пространства"
+          title="Настройки пространства"
+          onClick={() => setSettingsOpen(true)}
+        >
+          <Settings2 size={19} />
+        </button>
         <SmallAccount onChange={setAccount} revision={revision} />
       </nav>
-      <CalendarFilters calendar={calendar} enabled={Boolean(accountId)} />
+      <CalendarFilters
+        calendar={calendar}
+        enabled={Boolean(accountId)}
+        date={date}
+        setDate={setDate}
+      />
       {filtersOpen && (
         <button
           className="sidebar-scrim"
@@ -107,72 +120,81 @@ export function DesktopWorkspace() {
             {account?.status === "signed-in" ? account.profile.name : ""}
           </span>
         </header>
-        <div
-          className={`workspace ${reversed ? "reversed" : ""}`}
-          style={{ "--calendar-ratio": "68%" } as React.CSSProperties}
-        >
-          <div className="calendar-container live-calendar">
-            {calendar.issues.length > 0 && (
-              <div className="calendar-warning" role="alert">
-                <strong>
-                  Данные неполные. Занятость неизвестна для части календарей.
-                </strong>
-                {calendar.issues.map((issue, index) => (
-                  <p key={index}>
-                    {calendar.calendars.find((c) => c.id === issue.source)
-                      ?.name ??
-                      (issue.source === "my" ? "Мой календарь" : issue.source)}
-                    : {issue.message}
-                  </p>
-                ))}
-              </div>
-            )}
-            {!unavailable &&
-              !calendar.events.length &&
-              !calendar.issues.length && (
-                <p className="calendar-warning" role="status">
-                  В этом периоде встреч нет.
-                </p>
+        <DockWorkspace
+          settingsOpen={settingsOpen}
+          closeSettings={() => setSettingsOpen(false)}
+          calendar={(swap) => (
+            <div className="calendar-container live-calendar">
+              {calendar.issues.length > 0 && (
+                <div className="calendar-warning" role="alert">
+                  <strong>
+                    Данные неполные. Занятость неизвестна для части календарей.
+                  </strong>
+                  {calendar.issues.map((issue, index) => (
+                    <p key={index}>
+                      {calendar.calendars.find((c) => c.id === issue.source)
+                        ?.name ??
+                        (issue.source === "my"
+                          ? "Мой календарь"
+                          : issue.source)}
+                      : {issue.message}
+                    </p>
+                  ))}
+                </div>
               )}
-            <Calendar
-              date={date}
-              setDate={setDate}
-              view={view}
-              setView={setView}
-              events={meetings}
-              select={(meeting) => {
-                const event = byId.get(meeting.id);
-                if (event && accountId) setSelected({ accountId, event });
-              }}
-              change={() => {}}
-              state="ready"
-              retry={calendar.refresh}
-              swap={swap}
-              readOnly
-              today={calendarToday()}
-              footerLabel="Данные Small · только чтение"
-              statusContent={
-                unavailable ? (
-                  <div className="state-screen" role="status">
-                    <CalendarDays size={30} />
-                    <h3>{status}</h3>
-                    {accountId && !calendar.loading && (
-                      <button className="secondary" onClick={calendar.refresh}>
-                        Повторить загрузку
-                      </button>
-                    )}
-                  </div>
-                ) : undefined
-              }
-            />
-          </div>
-          <div className="splitter" aria-hidden="true">
-            <span />
-          </div>
-          <div className="assistant-container">
-            <DesktopAssistant key={accountId ?? "signed-out"} swap={swap} />
-          </div>
-        </div>
+              {!unavailable &&
+                !calendar.events.length &&
+                !calendar.issues.length && (
+                  <p className="calendar-warning" role="status">
+                    В этом периоде встреч нет.
+                  </p>
+                )}
+              <Calendar
+                date={date}
+                setDate={setDate}
+                view={view}
+                setView={setView}
+                events={meetings}
+                select={(meeting) => {
+                  const event = byId.get(meeting.id);
+                  if (event && accountId) setSelected({ accountId, event });
+                }}
+                change={() => {}}
+                state="ready"
+                retry={calendar.refresh}
+                swap={swap}
+                readOnly
+                today={calendarToday()}
+                footerLabel="Данные Small · только чтение"
+                statusContent={
+                  unavailable ? (
+                    <div className="state-screen" role="status">
+                      <CalendarDays size={30} />
+                      <h3>{status}</h3>
+                      {accountId && !calendar.loading && (
+                        <button
+                          className="secondary"
+                          onClick={calendar.refresh}
+                        >
+                          Повторить загрузку
+                        </button>
+                      )}
+                    </div>
+                  ) : undefined
+                }
+              />
+            </div>
+          )}
+          assistant={(swap, headerTarget) => (
+            <div className="assistant-container">
+              <DesktopAssistant
+                key={accountId ?? "signed-out"}
+                swap={swap}
+                headerTarget={headerTarget}
+              />
+            </div>
+          )}
+        />
         <footer className="workspace-footer">
           <span>Small Calendar</span>
           <span>Чтение Team API · Asia/Almaty</span>
