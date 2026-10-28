@@ -15,11 +15,13 @@
 - [Спецификация первой версии](docs/spec-v1.md) — требования, критерии приёмки и статус вопросов.
 - [Исследование API Team Small](docs/research/team-small-api.md) — факты из текущей сборки и ограничения проверки.
 - [Предложения по правилам встреч](docs/proposals/meeting-rules.md) — серии, аналитика и напоминания.
-- [ADR-001](docs/decisions/001-desktop-and-agent-harness.md) — рекомендуемая архитектура для ревью.
+- [ADR-002: десктопный стек](docs/decisions/002-desktop-stack.md) — оболочка, UI и интеграция с macOS.
+- [ADR-003: AI-харнес](docs/decisions/003-agent-harness.md) — аргументы и сравнение конкурентов.
 
 Направление для AI-харнеса — TypeScript; рассматриваются GLM и DeepSeek Flash.
 Доступ к моделям — Small vLLM либо персональный OpenAI-совместимый endpoint.
-ADR-001 предлагает Electron + React и харнес поверх AI SDK; решение ещё не принято.
+ADR-002 предлагает Electron + React; ADR-003 — харнес поверх AI SDK
+с проверкой ближайшей альтернативы Pi-core. Оба решения ещё не приняты.
 Первая целевая система — macOS 15.1 на Apple Silicon.
 Прежнее упоминание Rust в README не было утверждённым решением.
 
