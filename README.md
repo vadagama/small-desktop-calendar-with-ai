@@ -29,3 +29,10 @@ ADR-002 отдельно предлагает Electron + React; десктопн
 Прежнее упоминание Rust в README не было утверждённым решением.
 
 Существующий календарь: [team.small.kz/calendar](https://team.small.kz/calendar).
+
+## SDK-ядро T01
+
+Реализован безопасный синтетический инструмент через Vercel AI SDK.
+Из корня на Node.js ≥22.12.0: `npm ci`, `npm test`, `npm run typecheck`,
+`npm run build`, `npm run format:check`. Проверены 12 тестов.
+Ключи и доступ к Small не нужны. [Отчёт T01](docs/implementation/t01-sdk-runtime.md).
