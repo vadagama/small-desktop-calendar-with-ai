@@ -1,0 +1,26 @@
+{
+  "name": "small-desktop-calendar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "test": "node --import tsx --test tests/agent/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.json",
+    "format:check": "prettier --check package.json tsconfig.json src tests"
+  },
+  "dependencies": {
+    "@ai-sdk/openai-compatible": "3.0.80",
+    "ai": "7.0.155",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "prettier": "3.9.10",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  }
+}
