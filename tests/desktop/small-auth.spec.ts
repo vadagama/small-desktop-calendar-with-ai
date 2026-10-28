@@ -34,7 +34,9 @@ test("Small account uses isolated session and Keychain, restores after restart a
     await page
       .getByRole("button", { name: "Войти в Small", exact: true })
       .click();
-    await expect(page.getByRole("alert")).toContainText("Логин или пароль");
+    await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
+      "Логин или пароль",
+    );
     await expect(page.getByLabel("Пароль", { exact: true })).toHaveValue("");
     await page.getByLabel("Пароль", { exact: true }).fill("synthetic-password");
     await page

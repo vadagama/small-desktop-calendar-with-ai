@@ -40,27 +40,36 @@
 }
 
 .desktop-workspace .icon-rail .rail-avatar {
-  margin-top: auto;
+  margin-top: 3px;
 }
-.small-calendar-filters {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+.small-sidebar-scroll {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
 }
-.calendar-choice {
+.desktop-workspace .mini-grid {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.small-sidebar-footer {
+  flex-shrink: 0;
+  padding: 16px 2px;
+  border-top: 1px solid var(--line);
+}
+.small-sidebar-footer .settings-link {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 14px;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.desktop-workspace .calendar-filters label {
   overflow-wrap: anywhere;
 }
-.calendar-choice input {
-  width: 16px;
-  height: 16px;
+.desktop-workspace .calendar-filters .custom-check {
   flex-shrink: 0;
-  accent-color: var(--primary);
+  pointer-events: none;
+}
+.desktop-workspace .calendar-filters input:disabled + .custom-check {
+  opacity: 0.45;
 }
 .live-calendar {
   display: flex;
@@ -111,4 +120,146 @@
     grid-template-columns: 1fr;
     gap: 8px;
   }
+}
+
+.dock-workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.small-dock {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.dock-tab-label {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 11px;
+  gap: 7px;
+  color: #727272;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: grab;
+}
+.small-dock .calendar-container,
+.small-dock .assistant-container {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.small-dock .calendar-panel > .panel-caption {
+  display: none;
+}
+/* Dockview uses the same single caption strip as the prototype panels. */
+.small-dock .dockview-theme-light {
+  --dv-tabs-and-actions-container-height: 36px;
+  --dv-background-color: #f9f9f9;
+  --dv-group-view-background-color: var(--surface);
+  --dv-tabs-and-actions-container-background-color: var(--soft);
+  --dv-activegroup-visiblepanel-tab-background-color: var(--soft);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--soft);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--soft);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--soft);
+  --dv-activegroup-visiblepanel-tab-color: #727272;
+  --dv-inactivegroup-visiblepanel-tab-color: #727272;
+  --dv-tab-divider-color: transparent;
+  --dv-separator-border: transparent;
+  --dv-active-sash-color: #d0d0d0;
+}
+.small-dock .dv-tabs-and-actions-container {
+  border-bottom: 1px solid #ededed;
+}
+.small-dock .dv-grid-view {
+  background: var(--dv-background-color);
+}
+.dock-header-actions,
+.assistant-header-actions {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  min-width: 0;
+  gap: 8px;
+  padding-right: 4px;
+}
+.dock-header-actions .subtle {
+  font-size: 11px;
+}
+.assistant-header-actions .model-name {
+  max-width: 220px;
+}
+.dock-header-actions .icon-button {
+  width: 36px;
+  height: 36px;
+  color: var(--muted);
+}
+
+.small-dock .state-screen {
+  min-height: 0;
+  overflow: auto;
+}
+.workspace-settings .modal-description {
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+.workspace-size-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 24px 0 16px;
+}
+.workspace-size-actions > span {
+  margin-right: auto;
+  color: var(--muted);
+}
+.workspace-size-actions .secondary {
+  width: 38px;
+  padding: 8px;
+}
+
+.small-dock .dv-tab {
+  padding: 0;
+}
+.small-dock .dv-right-actions-container {
+  min-width: 0;
+  max-width: calc(100% - 112px);
+}
+.assistant-header-actions .icon-button {
+  flex-shrink: 0;
+}
+.small-dock .dv-sash::before {
+  content: "";
+  position: absolute;
+  inset: 0 -1px;
+  border-left: 1px solid #e9e9e9;
+  border-right: 1px solid #e9e9e9;
+  pointer-events: none;
+}
+.small-dock .dv-vertical > .dv-sash-container > .dv-sash::before {
+  inset: -1px 0;
+  border: 0;
+  border-top: 1px solid #e9e9e9;
+  border-bottom: 1px solid #e9e9e9;
+}
+.small-dock .dv-sash::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 26px;
+  border-radius: 2px;
+  background: #d0d0d0;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.small-dock .dv-vertical > .dv-sash-container > .dv-sash::after {
+  width: 26px;
+  height: 2px;
 }

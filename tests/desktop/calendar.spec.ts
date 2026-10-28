@@ -28,6 +28,26 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
       if (["warning", "error"].includes(message.type()))
         errors.push(message.text());
     });
+    const mini = page.getByRole("region", { name: "Выбор даты" });
+    await expect(mini).toBeVisible();
+    const month = (await mini.locator(".mini-heading strong").textContent())!;
+    const title = await page.locator(".calendar-toolbar h2").innerText();
+    await mini
+      .getByRole("button", { name: "Следующий месяц", exact: true })
+      .click();
+    await expect(mini.locator(".mini-heading strong")).not.toHaveText(month);
+    await expect(page.locator(".calendar-toolbar h2")).toHaveText(title);
+    const day = mini
+      .locator("button[aria-pressed=false]:not(.muted-day)")
+      .first();
+    const chosenLabel = await day.getAttribute("aria-label");
+    await day.click();
+    await expect(
+      mini.getByRole("button", { name: chosenLabel!, exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "Сегодня", exact: true }).click();
+    await expect(mini.locator(".mini-heading strong")).toHaveText(month);
+    await expect(page.locator(".calendar-toolbar h2")).toHaveText(title);
     await expect(page.locator(".calendar-event")).toHaveCount(0);
     await page
       .getByRole("button", { name: "Профиль Small", exact: true })
@@ -59,8 +79,9 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
       .getByRole("button", { name: "Показать календари", exact: true })
       .click();
     await expect(
-      page.getByRole("radio", { name: "Публичные календари" }),
+      page.getByRole("button", { name: "Переговорные", exact: true }),
     ).toBeVisible();
+    await expect(mini).toBeVisible();
     await page.screenshot({ path: "test-results/desktop/calendar-900.png" });
     await page
       .getByRole("button", { name: "Закрыть список календарей", exact: true })
@@ -96,7 +117,22 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
     await page.getByRole("button", { name: "Месяц", exact: true }).click();
     await expect(page.locator(".month-day")).toHaveCount(35);
     await expect(page.locator(".month-event")).toHaveCount(2);
-    await page.getByRole("radio", { name: "Публичные календари" }).check();
+    await page
+      .getByRole("button", { name: "Переговорные", exact: true })
+      .click();
+    await page
+      .getByRole("checkbox", { name: "Тестовая переговорная", exact: true })
+      .check();
+    await expect(page.locator(".month-event")).toHaveCount(2);
+    await page
+      .getByRole("checkbox", { name: "Мой календарь", exact: true })
+      .check();
+    await expect(
+      page.getByRole("checkbox", {
+        name: "Тестовая переговорная",
+        exact: true,
+      }),
+    ).not.toBeChecked();
     await page
       .getByRole("checkbox", { name: "Тестовая переговорная", exact: true })
       .check();
