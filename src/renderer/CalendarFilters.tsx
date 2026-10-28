@@ -9,7 +9,11 @@ export function CalendarFilters({
   enabled: boolean;
 }) {
   return (
-    <aside className="sidebar" aria-label="Календари Small">
+    <aside
+      id="small-calendar-filters"
+      className="sidebar"
+      aria-label="Календари Small"
+    >
       <div className="sidebar-tabs">
         <strong>Календари</strong>
       </div>

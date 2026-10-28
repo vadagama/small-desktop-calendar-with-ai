@@ -21,6 +21,7 @@ export function DesktopWorkspace() {
   const [date, setDate] = useState(calendarToday);
   const [view, setView] = useState<CalendarView>("week");
   const [reversed, setReversed] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [selected, setSelected] = useState<{
     accountId: string;
     event: CalendarEvent;
@@ -69,17 +70,31 @@ export function DesktopWorkspace() {
           : "Выберите хотя бы один календарь.");
   const swap = () => setReversed((value) => !value);
   return (
-    <div className="app-shell desktop-workspace">
+    <div
+      className={`app-shell desktop-workspace ${filtersOpen ? "sidebar-open" : ""}`}
+    >
       <nav className="icon-rail" aria-label="Разделы Small">
         <div className="small-emblem" title="Small">
           <UsersRound size={22} />
         </div>
-        <button className="active" aria-label="Календарь">
+        <button
+          className="active"
+          aria-label="Показать календари"
+          aria-controls="small-calendar-filters"
+          onClick={() => setFiltersOpen((open) => !open)}
+        >
           <CalendarDays size={19} />
         </button>
         <SmallAccount onChange={setAccount} revision={revision} />
       </nav>
       <CalendarFilters calendar={calendar} enabled={Boolean(accountId)} />
+      {filtersOpen && (
+        <button
+          className="sidebar-scrim"
+          aria-label="Закрыть список календарей"
+          onClick={() => setFiltersOpen(false)}
+        />
+      )}
       <main className="main-shell">
         <header className="workspace-header">
           <div className="workspace-title">
