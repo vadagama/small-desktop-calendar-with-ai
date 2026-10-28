@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-28T17:07:20.737955+00:00",
+  "title": "Design System: Small Calendar — UI prototype",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Чёрное основное действие"
+      },
+      "accent": {
+        "role": "secondary",
+        "displayName": "Оранжевая эмблема"
+      },
+      "event-outline": {
+        "role": "secondary",
+        "displayName": "Голубой контур события"
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Белая рабочая поверхность"
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Заголовок ассистента",
+        "purpose": "Приветствие ассистента; 18px на мобильном и от 1600px."
+      },
+      "event-title": {
+        "displayName": "Название события",
+        "purpose": "Компактный заголовок календарной встречи."
+      }
+    },
+    "shadows": [
+      {
+        "name": "view-selected",
+        "value": "0 1px 3px #2e2e2e12",
+        "purpose": "Выбранный вид календаря."
+      },
+      {
+        "name": "sidebar-selected",
+        "value": "0 1px 2px #0000000d",
+        "purpose": "Выбранная вкладка боковой панели."
+      },
+      {
+        "name": "dialog",
+        "value": "0 22px 90px #27272740",
+        "purpose": "Диалог над рабочим пространством."
+      },
+      {
+        "name": "toast",
+        "value": "0 8px 26px #29292924",
+        "purpose": "Временное сообщение."
+      }
+    ],
+    "motion": [
+      {
+        "name": "button-colors",
+        "value": "background-color 0.16s, color 0.16s",
+        "purpose": "Переход кнопок; отключается при reduced motion."
+      },
+      {
+        "name": "thinking",
+        "value": "thinking 1s infinite",
+        "purpose": "Пульсация opacity до 0.3 на середине цикла; задержки 0.15s и 0.3s."
+      },
+      {
+        "name": "loading",
+        "value": "spin 1.4s linear infinite",
+        "purpose": "Вращение загрузки на 360deg."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile-max",
+        "value": "759px"
+      },
+      {
+        "name": "tablet-min",
+        "value": "760px"
+      },
+      {
+        "name": "tablet-max",
+        "value": "960px"
+      },
+      {
+        "name": "compact-max",
+        "value": "1150px"
+      },
+      {
+        "name": "wide-min",
+        "value": "1600px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Основная кнопка",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Общее основное действие; верхняя «Создать» использует компактный вариант.",
+      "html": "<button class=\"ds-primary\">Добавить демо-встречу</button>",
+      "css": ".ds-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:38px;padding:10px 14px;border:0;border-radius:7px;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;font-weight:550;cursor:pointer;transition:background-color 0.16s,color 0.16s;background:var(--primary,#111111);color:#fff}.ds-primary:hover{background:#292929;filter:brightness(0.98)}.ds-primary:focus-visible { outline:2px solid #0999e8; outline-offset:3px; }.ds-primary:disabled{opacity:0.45;cursor:default}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none}}"
+    },
+    {
+      "name": "Вторичная кнопка",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Вспомогательное действие.",
+      "html": "<button class=\"ds-secondary\">Повторить загрузку</button>",
+      "css": ".ds-secondary{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:38px;padding:10px 14px;border:0;border-radius:7px;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;font-weight:550;cursor:pointer;transition:background-color 0.16s,color 0.16s;background:#f4f4f4;color:#333}.ds-secondary:hover{filter:brightness(0.98)}.ds-secondary:focus-visible { outline:2px solid #0999e8; outline-offset:3px; }@media(prefers-reduced-motion:reduce){.ds-secondary{transition:none}}"
+    },
+    {
+      "name": "Поле формы",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Белое поле с тонкой обводкой.",
+      "html": "<label class=\"ds-label\">Название встречи<input class=\"ds-field\" placeholder=\"Название\" /></label>",
+      "css": ".ds-label{display:grid;gap:8px;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;font-size:11px;color:#555}.ds-field{width:100%;min-width:0;border:1px solid #ddd;border-radius:6px;color:var(--ink,#242424);background:#fff;padding:10px 11px;font:inherit;accent-color:var(--primary,#111111);caret-color:var(--primary,#111111)}.ds-field:focus-visible { outline:2px solid #0999e8; outline-offset:3px; }"
+    },
+    {
+      "name": "Переключатель вида",
+      "kind": "nav",
+      "description": "День, неделя и месяц; выбранная кнопка белая.",
+      "html": "<nav class=\"ds-switch\" aria-label=\"Вид календаря\"><button>День</button><button class=\"ds-selected\">Неделя</button><button>Месяц</button></nav>",
+      "css": ".ds-switch{display:flex;gap:1px;border-radius:6px;padding:3px;background:#f4f4f4;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif}.ds-switch button{border:0;border-radius:4px;color:#525252;font:inherit;font-size:10px;padding:6px 8px;background:none;cursor:pointer}.ds-switch .ds-selected{color:#111;background:#fff;box-shadow:0 1px 3px #2e2e2e12}.ds-switch button:hover{filter:brightness(0.98)}.ds-switch button:focus-visible { outline:2px solid #0999e8; outline-offset:3px; }"
+    },
+    {
+      "name": "Месячная метка события",
+      "kind": "chip",
+      "refersTo": "event-tag",
+      "description": "Однострочная метка месячного календаря.",
+      "html": "<button class=\"ds-event-tag\"><span>10:00</span> Синхронизация</button>",
+      "css": ".ds-event-tag{width:100%;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;font-size:8px;padding:5px 4px;text-align:left;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;color:#222;background:#e5f4fe;border:1px solid #8ed3f8;border-radius:1px;cursor:pointer}.ds-event-tag span{font-variant-numeric:tabular-nums}.ds-event-tag:hover{filter:brightness(0.98)}.ds-event-tag:focus-visible { outline:2px solid #0999e8; outline-offset:3px; }"
+    },
+    {
+      "name": "Черновик встречи",
+      "kind": "card",
+      "refersTo": "draft-card",
+      "description": "Контейнер перед подтверждением; организатор показан отдельно от участников.",
+      "html": "<article class=\"ds-draft\"><div class=\"ds-draft-heading\">Черновик встречи</div><h3>Рабочая встреча</h3><dl><dt>Организатор</dt><dd>Алексей</dd><dt>Участники</dt><dd>Демо-команда</dd></dl></article>",
+      "css": ".ds-draft{border:1px solid #e5e5e5;padding:14px;margin-top:20px;background:#fff;border-radius:7px;color:var(--ink,#242424);font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif}.ds-draft-heading{font-size:10px;color:#666}.ds-draft h3{font-size:15px;font-weight:600;line-height:1.5;margin:13px 0}.ds-draft dl{font-size:9px;line-height:1.6;margin:12px 0;padding:12px 0;border-top:1px solid var(--line,#ebebeb);border-bottom:1px solid var(--line,#ebebeb)}.ds-draft dt{color:#777}.ds-draft dd{margin:0 0 7px}"
+    },
+    {
+      "name": "Контурное событие",
+      "kind": "custom",
+      "refersTo": "event",
+      "description": "Фрагмент недельной сетки с названием, временем и местом.",
+      "html": "<button class=\"ds-event\"><strong>Рабочая встреча</strong><span>11:30 – 12:30</span><small>Онлайн</small></button>",
+      "css": ".ds-event{position:relative;text-align:left;display:flex;flex-direction:column;overflow:hidden;min-height:26px;padding:4px 4px;border:1px solid #42baff;border-radius:1px;color:#252525;gap:2px;background:#fff;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;cursor:pointer}.ds-event strong{font-size:10px;font-weight:450;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.ds-event>span{font-size:9px;white-space:nowrap;font-variant-numeric:tabular-nums}.ds-event small{font-size:8px;line-height:1.2;color:#5d6870;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-event:hover{filter:brightness(0.98)}.ds-event:focus-visible { outline:2px solid #0999e8; outline-offset:3px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Small по пользовательскому скриншоту",
+    "overview": "Визуальная основа — явно выбранный пользователем скриншот Small: белые рабочие поверхности, серая иконная панель, оранжевый знак, чёрные основные действия и голубые события. Это реконструкция для проверки прототипа, а не официальные токены или импорт компонентной библиотеки Small. Знак собран из круглой оранжевой подложки и иконки `UsersRound`; официальный логотип не предоставлен.",
+    "keyCharacteristics": [
+      "Компактный системный sans-serif и тонкая сетка.",
+      "Белые панели без декоративных теней.",
+      "Чёрные действия, оранжевая эмблема, голубые контуры и заливки событий.",
+      "Изменяемые размеры и порядок календаря и ассистента."
+    ],
+    "rules": [],
+    "dos": [
+      "**Do** сохранять белые панели, чёрные основные действия и голубые события выбранного референса Small.",
+      "**Do** читать итоговый каскад CSS: поздние правила переопределяют старые цветовые классы.",
+      "**Do** сохранять видимый клавиатурный фокус, разделение организатора и участников и мобильный разделитель между панелями.",
+      "**Do** явно обозначать демонстрационные данные и подтверждение операции."
+    ],
+    "donts": [
+      "**Don't** представлять реконструкцию как официальную библиотеку, логотип или подтверждённые брендовые токены Small.",
+      "**Don't** возвращать шалфейную палитру предыдущего эксперимента вместо пользовательского референса.",
+      "**Don't** вводить декоративные тени на основные панели или сильно скруглять события календаря.",
+      "**Don't** считать мелкую типографику стенда подтверждением полной доступности или готовности к производству."
+    ]
+  }
+}
