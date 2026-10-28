@@ -14,6 +14,10 @@ import { registerSmallAuthHandlers } from "./small-auth-ipc.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const rendererRoot = resolve(here, "../renderer");
+const appIcon = resolve(
+  app.isPackaged ? rendererRoot : resolve(here, "../../prototype/public"),
+  "app-icon.png",
+);
 const localUrl = "small-app://workspace/index.html";
 const configuredDevUrl = !app.isPackaged
   ? process.env.ELECTRON_RENDERER_URL
@@ -51,6 +55,7 @@ async function createWindow() {
     minWidth: 900,
     minHeight: 640,
     backgroundColor: "#ffffff",
+    icon: appIcon,
     show: false,
     webPreferences: {
       preload: resolve(here, "../preload/index.cjs"),
@@ -75,6 +80,7 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  app.dock?.setIcon(appIcon);
   const profiles = new ProfileStore(
     app.getPath("userData"),
     new KeychainSecrets(app.getPath("userData")),

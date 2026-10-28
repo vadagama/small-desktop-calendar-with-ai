@@ -20,6 +20,9 @@ streaming и отменой. Упакованная arm64 `.app` провере�
 Из корня репозитория на Node.js ≥22.12.0: `npm ci`, затем `npm run dev`
 для запуска Electron. Локальная упаковка: `npm run package:mac`; результат —
 `release/Small Calendar-darwin-arm64/Small Calendar.app`.
+Иконка приложения: `build/app.icns` для macOS-сборки,
+`prototype/public/app-icon.png` для окна и Dock, `prototype/public/favicon.svg`
+для локального интерфейса и UI-стенда.
 В чате можно проверить «Сложи 2 и 3», неверные аргументы, «Ошибка модели» и отмену.
 Ключи для локального режима не нужны. Полная интеграция календаря пока впереди.
 
