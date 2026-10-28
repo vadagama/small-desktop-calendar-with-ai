@@ -30,3 +30,11 @@
   gap: 12px;
   margin-top: 8px;
 }
+
+.small-account {
+  width: min(520px, calc(100vw - 32px));
+}
+.small-account .modal-description {
+  margin-bottom: 20px;
+  line-height: 1.6;
+}

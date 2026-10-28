@@ -41,7 +41,11 @@ function readLayout(): { layout: Layout; ratio: number } {
 }
 export default function App({
   AssistantPanel = Assistant,
-}: { AssistantPanel?: typeof Assistant } = {}) {
+  ProfileControl,
+}: {
+  AssistantPanel?: typeof Assistant;
+  ProfileControl?: React.ReactNode;
+} = {}) {
   const [events, setEvents] = useState<Meeting[]>(DEMO_EVENTS);
   const [date, setDate] = useState(TODAY);
   const [miniMonth, setMiniMonth] = useState(TODAY);
@@ -164,18 +168,26 @@ export default function App({
         >
           <Settings2 size={19} />
         </button>
-        <button
-          className="rail-avatar"
-          aria-label="Профиль"
-          title="Профиль"
-          popoverTarget="profile-popover"
-        >
-          А
-        </button>
-        <div id="profile-popover" className="profile-popover" popover="auto">
-          <strong>Алексей</strong>
-          <p>Демо-профиль</p>
-        </div>
+        {ProfileControl ?? (
+          <>
+            <button
+              className="rail-avatar"
+              aria-label="Профиль"
+              title="Профиль"
+              popoverTarget="profile-popover"
+            >
+              А
+            </button>
+            <div
+              id="profile-popover"
+              className="profile-popover"
+              popover="auto"
+            >
+              <strong>Алексей</strong>
+              <p>Демо-профиль</p>
+            </div>
+          </>
+        )}
       </nav>
       <Sidebar
         showRooms={() => {
