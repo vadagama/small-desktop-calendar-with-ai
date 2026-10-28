@@ -1,18 +1,16 @@
 import { useChat } from "@ai-sdk/react";
-import { isToolUIPart } from "ai";
-import { ArrowUp, GripVertical, Sparkles, Square } from "lucide-react";
+import {
+  ArrowUp,
+  GripVertical,
+  Settings2,
+  Sparkles,
+  Square,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { DesktopTransport } from "./transport";
-
-function sumLabel(output: unknown) {
-  return typeof output === "object" &&
-    output !== null &&
-    "sum" in output &&
-    typeof output.sum === "number" &&
-    Number.isFinite(output.sum)
-    ? String(output.sum)
-    : "Результат недоступен";
-}
+import { MessageList } from "./MessageList";
+import { ModelSettings } from "./ModelSettings";
+import type { ProfileState } from "../shared/profiles.js";
 
 export function DesktopAssistant({ swap }: { swap: () => void }) {
   const [transport] = useState(
@@ -20,17 +18,46 @@ export function DesktopAssistant({ swap }: { swap: () => void }) {
   );
   const [input, setInput] = useState("");
   const [stopped, setStopped] = useState(false);
+  const [profiles, setProfiles] = useState<ProfileState | null>(null);
+  const [profileError, setProfileError] = useState("");
+  const [settings, setSettings] = useState(false);
   const scroll = useRef<HTMLDivElement>(null);
   const { messages, sendMessage, status, stop, error, clearError } = useChat({
     transport,
+    onFinish: ({ isAbort }) => {
+      if (isAbort) setStopped(true);
+    },
   });
+  useEffect(() => {
+    let mounted = true;
+    void window.smallDesktop.profiles
+      .read()
+      .then((reply) => {
+        if (!mounted) return;
+        if (reply.ok) setProfiles(reply.state);
+        else setProfileError(reply.error);
+      })
+      .catch(() => {
+        if (mounted) setProfileError("Не удалось прочитать настройки модели");
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  const activeProfile = profiles?.profiles.find(
+    (profile) => profile.id === profiles.active,
+  );
+  const local = profiles?.active === "synthetic";
+  const modelLabel =
+    activeProfile?.modelId ??
+    (local ? "Локальная проверка" : "Загрузка профиля…");
   const busy = status === "submitted" || status === "streaming";
   useEffect(() => () => transport.close(), [transport]);
   useEffect(() => {
     scroll.current?.scrollTo({ top: scroll.current.scrollHeight });
   }, [messages, error, status, stopped]);
   function send() {
-    if (busy || !input.trim()) return;
+    if (busy || !profiles || !input.trim()) return;
     clearError();
     setStopped(false);
     const text = input.trim();
@@ -54,7 +81,17 @@ export function DesktopAssistant({ swap }: { swap: () => void }) {
           <GripVertical size={14} />
           Ассистент
         </span>
-        <span className="subtle">Локальная проверка</span>
+        <span className="subtle model-name" title={modelLabel}>
+          {modelLabel}
+        </span>
+        <button
+          className="icon-button"
+          aria-label="Настройки модели"
+          disabled={!profiles}
+          onClick={() => setSettings(true)}
+        >
+          <Settings2 size={18} />
+        </button>
       </div>
       <div className="assistant-scroll" ref={scroll}>
         {!messages.length && (
@@ -65,51 +102,16 @@ export function DesktopAssistant({ swap }: { swap: () => void }) {
             <h2>Проверим диалог?</h2>
             <p>
               Напишите «Сложи 2 и 3». Ассистент покажет ход вычисления и ответ.
-              Модель синтетическая, календарь ещё не подключён.
+              {local
+                ? "Модель синтетическая."
+                : activeProfile
+                  ? `Выбрана ${activeProfile.modelId}.`
+                  : "Загружаю настройки."}{" "}
+              Календарь ещё не подключён.
             </p>
           </div>
         )}
-        <div className="messages" role="log" aria-live="polite">
-          {messages.map((message) => (
-            <div className={`message ${message.role}`} key={message.id}>
-              {message.role === "assistant" && (
-                <span className="message-icon">
-                  <Sparkles size={15} />
-                </span>
-              )}
-              <div>
-                {message.parts.map((part, index) => {
-                  if (part.type === "text")
-                    return <span key={index}>{part.text}</span>;
-                  if (isToolUIPart(part))
-                    return (
-                      <div
-                        className="draft-card sdk-tool"
-                        key={part.toolCallId}
-                        data-tool-state={part.state}
-                      >
-                        <strong>Сложение чисел</strong>
-                        {part.state === "input-streaming" && (
-                          <p>Получаю параметры…</p>
-                        )}
-                        {part.state === "input-available" && <p>Вычисляю…</p>}
-                        {part.state === "output-available" && (
-                          <p>Сумма: {sumLabel(part.output)}</p>
-                        )}
-                        {part.state === "output-error" && (
-                          <p>
-                            Не удалось вычислить: проверьте, что введены два
-                            целых числа от −1 000 000 до 1 000 000.
-                          </p>
-                        )}
-                      </div>
-                    );
-                  return null;
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
+        <MessageList messages={messages} />
         <p role="status" className="tool-status">
           {stopped
             ? "Запрос остановлен"
@@ -126,6 +128,11 @@ export function DesktopAssistant({ swap }: { swap: () => void }) {
         )}
       </div>
       <div className="composer-area">
+        {profileError && (
+          <p className="form-error" role="alert">
+            {profileError}
+          </p>
+        )}
         <form
           className="composer"
           onSubmit={(event) => {
@@ -154,7 +161,11 @@ export function DesktopAssistant({ swap }: { swap: () => void }) {
           <div>
             <span>
               <Sparkles size={13} />
-              Синтетическая модель
+              {local
+                ? "Синтетическая модель"
+                : activeProfile
+                  ? activeProfile.modelId
+                  : "Загрузка…"}
             </span>
             {busy ? (
               <button
@@ -171,15 +182,25 @@ export function DesktopAssistant({ swap }: { swap: () => void }) {
               <button
                 type="submit"
                 aria-label="Отправить сообщение"
-                disabled={!input.trim()}
+                disabled={!profiles || !input.trim()}
               >
                 <ArrowUp size={17} />
               </button>
             )}
           </div>
         </form>
-        <p>Локальный режим · без календарных операций</p>
+        <p>
+          {local ? "Локальная проверка" : "Выбранный LLM-профиль"} · без
+          календарных операций
+        </p>
       </div>
+      {settings && profiles && (
+        <ModelSettings
+          initial={profiles}
+          update={setProfiles}
+          close={() => setSettings(false)}
+        />
+      )}
     </section>
   );
 }

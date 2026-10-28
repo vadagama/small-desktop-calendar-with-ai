@@ -54,8 +54,8 @@
 
 ## T04 — Подключение выбранного LLM-профиля
 
-- [ ] UI позволяет задать Small vLLM либо персональный OpenAI-compatible профиль.
-- [ ] Ключ сохраняется через Keychain; смена origin не пересылает старый ключ.
+- [x] UI позволяет задать Small vLLM либо персональный OpenAI-compatible профиль.
+- [x] Ключ сохраняется через Keychain; смена origin не пересылает старый ключ.
 - [ ] Реальные streaming/tool calls проверены отдельно от синтетического теста;
   нет скрытого fallback между профилями.
 
@@ -63,6 +63,11 @@
 секретом и очисткой; реальный endpoint после настройки пользователем.
 Зависимости: T03. Файлы: profile model, provider adapter, Keychain adapter,
 settings UI и integration test. Размер: M.
+
+Реализовано в `codex/t04-llm-profiles`: локальный HTTP streaming/tool loop и
+настоящий Keychain проверены, включая упакованную сборку. Проверка выбранной
+GLM на Small endpoint остаётся открытой до ввода ключа пользователем в UI.
+Подробности: [отчёт T04](../docs/implementation/t04-llm-profiles.md).
 
 ## T05 — Вход сотрудника в Small
 

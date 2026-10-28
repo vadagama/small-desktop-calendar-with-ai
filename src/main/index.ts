@@ -2,6 +2,9 @@ import { app, BrowserWindow, net, protocol, session } from "electron";
 import { dirname, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { registerAssistantHandlers } from "./assistant.js";
+import { ProfileStore } from "./profiles.js";
+import { KeychainSecrets } from "./keychain.js";
+import { registerProfileHandlers } from "./profile-ipc.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const rendererRoot = resolve(here, "../renderer");
@@ -66,10 +69,16 @@ async function createWindow() {
 }
 
 app.whenReady().then(async () => {
-  registerAssistantHandlers(
+  const profiles = new ProfileStore(
+    app.getPath("userData"),
+    new KeychainSecrets(app.getPath("userData")),
+  );
+  const assistant = registerAssistantHandlers(
     devUrl || localUrl,
     resolve(here, "agent-worker.js"),
+    (signal) => profiles.resolveActive(signal),
   );
+  registerProfileHandlers(profiles, assistant.trusted, assistant.cancelActive);
   session.defaultSession.setPermissionRequestHandler(
     (_contents, _permission, callback) => callback(false),
   );

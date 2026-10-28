@@ -7,3 +7,26 @@
 .desktop-assistant .sdk-tool p {
   padding-left: 0;
 }
+
+.model-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 55%;
+}
+.model-settings {
+  width: min(600px, calc(100vw - 32px));
+}
+.model-settings .modal-description {
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+.model-settings label {
+  font-size: 14px;
+}
+.model-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}

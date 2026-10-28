@@ -1,4 +1,5 @@
 import type { UIMessageChunk } from "ai";
+import type { ModelConnection, ProfileBridge } from "./profiles.js";
 
 export const assistantChannels = {
   start: "assistant:start",
@@ -14,7 +15,8 @@ export type AgentEvent =
   | { requestId: string; type: "chunk"; chunk: UIMessageChunk }
   | { requestId: string; type: "end" };
 export type AgentControl =
-  { type: "start"; request: AgentRequest } | { type: "cancel" };
+  | { type: "start"; request: AgentRequest; profile: ModelConnection | null }
+  | { type: "cancel" };
 export interface AssistantBridge {
   start(request: AgentRequest): Promise<StartResult>;
   cancel(requestId: string): Promise<void>;
@@ -25,6 +27,7 @@ export interface DesktopBridge {
   sandboxed: boolean;
   contextIsolated: boolean;
   assistant: AssistantBridge;
+  profiles: ProfileBridge;
 }
 declare global {
   interface Window {
