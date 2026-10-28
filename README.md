@@ -24,7 +24,7 @@
 Направление для AI-харнеса — TypeScript; рассматриваются GLM и DeepSeek Flash.
 Доступ к моделям — Small vLLM либо персональный OpenAI-совместимый endpoint.
 Для харнеса принят Vercel AI SDK (Core + UI), см. ADR-003.
-ADR-002 отдельно предлагает Electron + React; десктопный стек ещё на ревью.
+Electron + React + Dockview Community приняты в ADR-002.
 Первая целевая система — macOS 15.1 на Apple Silicon.
 Прежнее упоминание Rust в README не было утверждённым решением.
 
@@ -36,3 +36,10 @@ ADR-002 отдельно предлагает Electron + React; десктопн
 Из корня на Node.js ≥22.12.0: `npm ci`, `npm test`, `npm run typecheck`,
 `npm run build`, `npm run format:check`. Проверены 12 тестов.
 Ключи и доступ к Small не нужны. [Отчёт T01](docs/implementation/t01-sdk-runtime.md).
+
+## Desktop-окно T02
+
+`npm run dev` запускает локальный React UI в Electron. `npm run build:desktop`
+собирает приложение; `npm run test:desktop` проверяет окно. `npm run package:mac`
+создаёт `release/Small Calendar-darwin-arm64/Small Calendar.app`.
+[Проверки и ограничения T02](docs/implementation/t02-desktop.md).
