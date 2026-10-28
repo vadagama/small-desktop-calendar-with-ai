@@ -12,5 +12,10 @@
     "rootDir": ".",
     "outDir": "dist"
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "electron.vite.config.ts",
+    "playwright.desktop.config.ts"
+  ]
 }
