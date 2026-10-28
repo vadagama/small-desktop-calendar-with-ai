@@ -16,13 +16,13 @@
 - [Исследование API Team Small](docs/research/team-small-api.md) — факты из текущей сборки и ограничения проверки.
 - [Предложения по правилам встреч](docs/proposals/meeting-rules.md) — серии, аналитика и напоминания.
 - [ADR-002: десктопный стек](docs/decisions/002-desktop-stack.md) — оболочка, UI и интеграция с macOS.
-- [ADR-003: AI-харнес](docs/decisions/003-agent-harness.md) — аргументы и сравнение конкурентов.
+- [ADR-003: AI-харнес](docs/decisions/003-agent-harness.md) — принятый выбор Vercel AI SDK и рассмотренные альтернативы.
+- [План реализации](tasks/plan.md) и [задачи](tasks/todo.md) — следующий этап и проверки.
 
 Направление для AI-харнеса — TypeScript; рассматриваются GLM и DeepSeek Flash.
 Доступ к моделям — Small vLLM либо персональный OpenAI-совместимый endpoint.
-ADR-002 предлагает Electron + React; ADR-003 — сначала оценить готовую
-основу eve поверх Vercel AI SDK. Собственный SDK-loop и Pi-core остаются
-альтернативами. Окончательные решения ещё не приняты.
+Для харнеса принят Vercel AI SDK (Core + UI), см. ADR-003.
+ADR-002 отдельно предлагает Electron + React; десктопный стек ещё на ревью.
 Первая целевая система — macOS 15.1 на Apple Silicon.
 Прежнее упоминание Rust в README не было утверждённым решением.
 
