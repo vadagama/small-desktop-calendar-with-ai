@@ -23,7 +23,7 @@ test("local desktop UI runs with an isolated renderer and no external navigation
         errors.push(message.text());
     });
     await expect(
-      page.getByRole("heading", { name: "26 октября — 1 ноября" }),
+      page.getByRole("heading", { name: "Календарь Small", exact: true }),
     ).toBeVisible();
     expect(page.url()).toBe(rendererUrl);
     expect(
@@ -67,7 +67,13 @@ test("local desktop UI runs with an isolated renderer and no external navigation
     expect(localSecurity.csp).toContain("object-src 'none'");
     expect(localSecurity.traversal).toBe(404);
     await page.getByRole("button", { name: "Месяц", exact: true }).click();
-    await expect(page.locator(".month-day")).toHaveCount(35);
+    await expect(
+      page.getByRole("button", { name: "Месяц", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator(".month-day")).toHaveCount(0);
+    await expect(
+      page.getByText("Войдите в Small через кнопку профиля внизу слева."),
+    ).toBeVisible();
     await page.screenshot({ path: "test-results/desktop/window.png" });
     await page.evaluate(() => {
       window.open("https://example.invalid");
@@ -81,7 +87,7 @@ test("local desktop UI runs with an isolated renderer and no external navigation
     // Inspect the document and native URL directly after the cancelled attempt.
     expect(
       await page.evaluate(() => document.querySelectorAll(".month-day").length),
-    ).toBe(35);
+    ).toBe(0);
     expect(
       await app.evaluate(({ BrowserWindow }) =>
         BrowserWindow.getAllWindows()[0]!.webContents.getURL(),

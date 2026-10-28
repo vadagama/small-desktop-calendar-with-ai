@@ -14,7 +14,7 @@ test("SDK chat streams a tool, handles errors, cancellation and a new turn", asy
   try {
     const page = await app.firstWindow();
     await expect(
-      page.getByRole("heading", { name: "26 октября — 1 ноября" }),
+      page.getByRole("heading", { name: "Календарь Small", exact: true }),
     ).toBeVisible();
     const invalid = await page.evaluate(async () => ({
       invalidId: await window.smallDesktop.assistant.start({
@@ -101,7 +101,9 @@ test("SDK chat streams a tool, handles errors, cancellation and a new turn", asy
     );
     await send("Сложи 100 и 200");
     await page.getByRole("button", { name: "Остановить ответ" }).click();
-    await expect(page.getByRole("status")).toContainText("Запрос остановлен");
+    await expect(
+      page.getByRole("region", { name: "AI-ассистент" }).getByRole("status"),
+    ).toContainText("Запрос остановлен");
     await send("Сложи 7 и 8");
     await expect(page.getByRole("log")).toContainText("Результат: 15");
     await expect(page.getByRole("log")).not.toContainText("Результат: 300");
