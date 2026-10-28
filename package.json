@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "3.0.80",
+    "@napi-rs/keyring": "2.1.2",
     "ai": "7.0.155",
     "zod": "4.6.7"
   },

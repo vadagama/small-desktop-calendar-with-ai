@@ -4,6 +4,7 @@ import {
   type AgentEvent,
   type DesktopBridge,
 } from "../shared/assistant.js";
+import { profileChannels } from "../shared/profiles.js";
 
 const bridge: DesktopBridge = {
   platform: process.platform,
@@ -19,6 +20,12 @@ const bridge: DesktopBridge = {
       ipcRenderer.on(assistantChannels.event, handler);
       return () => ipcRenderer.removeListener(assistantChannels.event, handler);
     },
+  },
+  profiles: {
+    read: () => ipcRenderer.invoke(profileChannels.read),
+    save: (input) => ipcRenderer.invoke(profileChannels.save, input),
+    activate: (id) => ipcRenderer.invoke(profileChannels.activate, id),
+    remove: (id) => ipcRenderer.invoke(profileChannels.remove, id),
   },
 };
 contextBridge.exposeInMainWorld("smallDesktop", bridge);

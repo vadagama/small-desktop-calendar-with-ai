@@ -13,6 +13,8 @@ import {
   type AgentEvent,
   type StartResult,
 } from "../shared/assistant.js";
+import { ProfileError } from "./profiles.js";
+import type { ModelConnection } from "../shared/profiles.js";
 
 const requestSchema = z.strictObject({
   requestId: z.uuid(),
@@ -22,7 +24,8 @@ interface Job {
   ownerId: number;
   requestId: string;
   owner: WebContents;
-  worker: UtilityProcess;
+  worker?: UtilityProcess;
+  controller: AbortController;
   timeout: NodeJS.Timeout;
   stop: () => void;
 }
@@ -30,6 +33,7 @@ interface Job {
 export function registerAssistantHandlers(
   rendererUrl: string,
   workerPath: string,
+  resolveProfile: (signal: AbortSignal) => Promise<ModelConnection | null>,
 ) {
   const jobs = new Map<number, Job>();
   const workers = new Set<UtilityProcess>();
@@ -47,11 +51,21 @@ export function registerAssistantHandlers(
     clearTimeout(job.timeout);
     job.owner.removeListener("destroyed", job.stop);
     job.owner.removeListener("did-start-navigation", job.stop);
-    send(job, { requestId: job.requestId, type: "end" });
     if (cancel) {
-      job.worker.postMessage({ type: "cancel" } satisfies AgentControl);
-      setTimeout(() => job.worker.kill(), 250).unref();
-    } else job.worker.kill();
+      job.controller.abort();
+      send(job, {
+        requestId: job.requestId,
+        type: "chunk",
+        chunk: { type: "abort" },
+      });
+    }
+    send(job, { requestId: job.requestId, type: "end" });
+    const worker = job.worker;
+    if (!worker) return;
+    if (cancel) {
+      worker.postMessage({ type: "cancel" } satisfies AgentControl);
+      setTimeout(() => worker.kill(), 250).unref();
+    } else worker.kill();
   };
   app.on("before-quit", () => {
     for (const worker of workers) worker.kill();
@@ -59,7 +73,7 @@ export function registerAssistantHandlers(
 
   ipcMain.handle(
     assistantChannels.start,
-    (event, input: unknown): StartResult => {
+    async (event, input: unknown): Promise<StartResult> => {
       const parsed = requestSchema.safeParse(input);
       if (!trusted(event) || !parsed.success)
         return { ok: false, error: "Некорректный запрос ассистенту" };
@@ -67,23 +81,11 @@ export function registerAssistantHandlers(
       const ownerId = owner.id;
       if (jobs.has(ownerId))
         return { ok: false, error: "Дождитесь ответа или остановите запрос" };
-      let worker: UtilityProcess;
-      try {
-        // https://www.electronjs.org/docs/latest/api/utility-process
-        // T03 requires no credentials; do not inherit the main process environment.
-        worker = utilityProcess.fork(workerPath, [], {
-          env: {},
-          serviceName: "Small Synthetic Assistant",
-        });
-      } catch {
-        return { ok: false, error: "Не удалось запустить ассистента" };
-      }
-      workers.add(worker);
       const job: Job = {
         ownerId,
         requestId: parsed.data.requestId,
         owner,
-        worker,
+        controller: new AbortController(),
         timeout: setTimeout(() => {
           send(job, {
             requestId: job.requestId,
@@ -100,11 +102,44 @@ export function registerAssistantHandlers(
       jobs.set(ownerId, job);
       owner.once("destroyed", job.stop);
       owner.on("did-start-navigation", job.stop);
+      let worker: UtilityProcess;
+      let profile: ModelConnection | null;
+      try {
+        profile = await resolveProfile(job.controller.signal);
+        if (jobs.get(ownerId) !== job) return { ok: true };
+        if (!trusted(event)) {
+          finish(job, true);
+          return { ok: true };
+        }
+        // Keys travel only over the privileged main/utility channel, never renderer IPC.
+        worker = utilityProcess.fork(workerPath, [], {
+          env: {},
+          serviceName: "Small Assistant",
+        });
+        job.worker = worker;
+        workers.add(worker);
+      } catch (error) {
+        if (jobs.get(ownerId) !== job) return { ok: true };
+        send(job, {
+          requestId: job.requestId,
+          type: "chunk",
+          chunk: {
+            type: "error",
+            errorText:
+              error instanceof ProfileError
+                ? error.message
+                : "Не удалось запустить ассистента",
+          },
+        });
+        finish(job);
+        return { ok: true };
+      }
       worker.once("spawn", () => {
         if (jobs.get(ownerId) === job)
           worker.postMessage({
             type: "start",
             request: parsed.data,
+            profile,
           } satisfies AgentControl);
         else worker.kill();
       });
@@ -135,4 +170,10 @@ export function registerAssistantHandlers(
     const job = jobs.get(event.sender.id);
     if (job && job.requestId === requestId) finish(job, true);
   });
+  return {
+    trusted,
+    cancelActive: () => {
+      for (const job of [...jobs.values()]) finish(job, true);
+    },
+  };
 }

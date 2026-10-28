@@ -1,6 +1,8 @@
 import { toUIMessageStream } from "ai";
 import { streamSyntheticTurn } from "../agent/runtime.js";
 import { createSyntheticModel } from "../agent/synthetic-model.js";
+import { createProfileModel } from "../agent/provider.js";
+import type { ModelConnection } from "../shared/profiles.js";
 import type {
   AgentControl,
   AgentEvent,
@@ -12,15 +14,22 @@ if (!port) throw new Error("Assistant requires an Electron utility process");
 const controller = new AbortController();
 const send = (event: AgentEvent) => port.postMessage(event);
 
-async function run({ requestId, prompt }: AgentRequest) {
+async function run(
+  { requestId, prompt }: AgentRequest,
+  profile: ModelConnection | null,
+) {
   try {
-    const result = await streamSyntheticTurn(createSyntheticModel(prompt), {
-      prompt,
-      abortSignal: controller.signal,
-    });
+    const result = await streamSyntheticTurn(
+      profile ? createProfileModel(profile) : createSyntheticModel(prompt),
+      {
+        prompt,
+        abortSignal: controller.signal,
+      },
+    );
     // https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text
     const stream = toUIMessageStream({
       stream: result.stream,
+      sendReasoning: false,
       onError: () => "Не удалось получить ответ. Попробуйте ещё раз.",
     });
     for await (const chunk of stream) send({ requestId, type: "chunk", chunk });
@@ -41,5 +50,5 @@ async function run({ requestId, prompt }: AgentRequest) {
 }
 port.on("message", ({ data }: { data: AgentControl }) => {
   if (data.type === "cancel") controller.abort();
-  else void run(data.request);
+  else void run(data.request, data.profile);
 });
