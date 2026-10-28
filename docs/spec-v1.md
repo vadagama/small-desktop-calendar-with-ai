@@ -169,8 +169,9 @@ endpoint. Правила передачи календарных данных п
 
 - [ADR-002](decisions/002-desktop-stack.md) предлагает Electron, локальный
   React UI и Dockview. [ADR-003](decisions/003-agent-harness.md) отдельно
-  рекомендует прикладной харнес поверх AI SDK Core/UI и сравнение с Pi-core
-  в прототипе. Решения ещё не приняты и не проверены spike.
+  рекомендует сначала проверить готовую основу eve + eve Chat Template.
+  Собственный Vercel AI SDK Core/UI-loop и Pi-core остаются альтернативами,
+  если eve не подойдёт. Решения ещё не приняты и не проверены spike.
 - LLM-профили: корпоративный Small vLLM или персональный OpenAI-совместимый
   endpoint с отдельными URL, model ID и токеном в Keychain. Автоматический
   fallback между профилями не предусматривается. Точные модели GLM / DeepSeek
