@@ -24,18 +24,37 @@ const interval = z
     end: z.iso.datetime({ offset: true }),
   })
   .refine((value) => Date.parse(value.start) < Date.parse(value.end));
+const responseStatus = z.literal("success").optional();
 const slotsResponse = z.strictObject({
-  data: z.strictObject({ available_slots: z.array(interval).max(1000) }),
+  status: responseStatus,
+  data: z.strictObject({
+    available_slots: z.array(interval).max(1000),
+    has_more: z.boolean().optional(),
+  }),
 });
 // Aggregate/omitted records do not establish that every participant was checked.
 const busyResponse = z.strictObject({
+  status: responseStatus,
   data: z
     .array(
-      z.strictObject({
-        type: z.literal("participant"),
-        participant_id: z.string(),
-        busy_slots: z.array(interval).max(5000),
-      }),
+      z
+        .strictObject({
+          type: z.literal("participant"),
+          id: z.string().min(1).optional(),
+          participant_id: z.string().min(1).optional(),
+          busy_slots: z.array(interval).max(5000),
+        })
+        .refine(
+          (record) =>
+            Boolean(record.id || record.participant_id) &&
+            (!record.id ||
+              !record.participant_id ||
+              record.id === record.participant_id),
+        )
+        .transform((record) => ({
+          participant_id: record.id ?? record.participant_id!,
+          busy_slots: record.busy_slots,
+        })),
     )
     .max(20),
 });
@@ -78,6 +97,11 @@ export class AvailabilityService {
         throw new CalendarError(
           "invalid",
           "Small вернул неизвестный формат свободных слотов.",
+        );
+      if (rawSlots.data.data.has_more)
+        throw new CalendarError(
+          "invalid",
+          "Small вернул неполный список свободных интервалов. Доступность не подтверждена.",
         );
       const rawBusy = busyResponse.safeParse(
         await calendarJson(
