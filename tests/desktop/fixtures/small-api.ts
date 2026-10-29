@@ -17,6 +17,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
     inspection.syntheticMeetingWrites = 0;
     inspection.syntheticEventMutations = 0;
     let movedTime: { starts_at: string; ends_at: string } | null = null;
+    const deletedFor = new Set<string>();
     const created: Array<{
       id: string;
       title: string;
@@ -205,8 +206,10 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       if (
         path === "/gate/team/api/calendar/events/42" &&
         request.method === "DELETE"
-      )
+      ) {
+        deletedFor.add(employee);
         return new Response(null, { status: 204 });
+      }
       if (request.method !== "GET") return new Response(null, { status: 405 });
       if (path === "/gate/employee/api/search/persons") {
         const q = url.searchParams.get("q");
@@ -310,7 +313,9 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         ends_at: `${date}T11:30:00+05:00`,
       };
       if (path.endsWith("/calendar/events/42"))
-        return Response.json({ data: event });
+        return deletedFor.has(employee)
+          ? new Response(null, { status: 404 })
+          : Response.json({ data: event });
       if (path.endsWith("/calendar/events/generated"))
         return Response.json({ data: recurring });
       if (path.endsWith("/events")) {
@@ -326,7 +331,9 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         if (!start || !end) return new Response(null, { status: 400 });
         return Response.json({
           data: [
-            { ...event, is_recurring: undefined },
+            ...(deletedFor.has(employee)
+              ? []
+              : [{ ...event, is_recurring: undefined }]),
             recurring,
             ...created,
           ].filter(
