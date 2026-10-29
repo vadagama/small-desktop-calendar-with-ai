@@ -41,7 +41,15 @@ const detail = z.object({
 });
 /** Read-only preparation. A preview is never authorization for a later write. */
 export class EventChangeService {
-  constructor(private session: CalendarSession) {}
+  constructor(
+    private session: CalendarSession,
+    private owner: (accountId: string) => Promise<string> = async (id) => id,
+    private register?: (
+      accountId: string,
+      raw: unknown,
+      change: { kind: "rename"; title: string } | { kind: "cancel" },
+    ) => Promise<string>,
+  ) {}
   async preview(input: unknown): Promise<EventChangePreview> {
     const parsed = query.safeParse(input);
     if (!parsed.success)
@@ -50,12 +58,12 @@ export class EventChangeService {
         "Некорректные параметры изменения встречи.",
       );
     const q = parsed.data;
+    const ownerId = await this.owner(q.accountId);
     return this.session.readCalendar(q.accountId, async (get) => {
-      const result = detail.safeParse(
-        await calendarJson(
-          await get(`/gate/team/api/calendar/events/${q.eventId}`),
-        ),
-      );
+      const raw = (await calendarJson(
+        await get(`/gate/team/api/calendar/events/${q.eventId}`),
+      )) as { data: unknown };
+      const result = detail.safeParse(raw);
       if (!result.success)
         throw new CalendarError(
           "invalid",
@@ -72,7 +80,7 @@ export class EventChangeService {
           "denied",
           "Изменение серий и их вхождений пока недоступно.",
         );
-      if (e.creator_id !== q.accountId)
+      if (e.creator_id !== ownerId)
         throw new CalendarError(
           "denied",
           "Подготовить изменение может только организатор встречи.",
@@ -83,6 +91,11 @@ export class EventChangeService {
           "Новое название совпадает с текущим.",
         );
       return {
+        ...(this.register
+          ? {
+              operationId: await this.register(q.accountId, raw.data, q.change),
+            }
+          : {}),
         eventId: e.id,
         kind: q.change.kind,
         before: {
