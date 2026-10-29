@@ -50,9 +50,6 @@ test("the calendar follows server changes without a refresh and keeps data on sc
       .locator(".calendar-event")
       .filter({ hasText: "Первое название" });
     await expect(event).toContainText("09:00 – 09:30");
-    await expect(page.locator(".calendar-freshness")).toContainText(
-      "Обновлено",
-    );
     // Keep the card open: its owner's changes must be announced.
     await event.click();
     const details = page.getByRole("dialog", { name: "Первое название" });
@@ -106,13 +103,12 @@ test("the calendar follows server changes without a refresh and keeps data on sc
       starts_at: `${date}T10:00:00+05:00`,
       ends_at: `${date}T10:30:00+05:00`,
     });
-    await page.getByRole("button", { name: "Обновить календарь" }).click();
+    await page.getByRole("button", { name: "Обновить", exact: true }).click();
     await expect(
       page.locator(".calendar-event").filter({ hasText: "Вручную обновлено" }),
     ).toBeVisible();
-    await expect(page.locator(".calendar-freshness")).toContainText(
-      "Обновлено только что",
-    );
+    // Nothing is wrong, so no freshness panel is shown.
+    await expect(page.locator(".calendar-freshness")).toHaveCount(0);
     expect(await sawLoading()).toBe(false);
     // The sidebar button does the same.
     await serve({

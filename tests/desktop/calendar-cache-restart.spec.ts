@@ -63,9 +63,6 @@ test("after a restart the events are on screen from the cache while Small cannot
     await expect(card()).toBeVisible({ timeout: 5000 });
     // What Small could not confirm does not replace what was confirmed earlier.
     await expect(page.locator(".calendar-warning")).toHaveCount(0);
-    await expect(page.locator(".calendar-freshness")).toContainText(
-      /Обновлено|Нет связи/,
-    );
 
     // Signing out afterwards leaves nothing for the next start.
     await page
