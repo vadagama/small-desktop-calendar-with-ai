@@ -51,16 +51,33 @@ export class ReminderStore {
       data.settings = settings;
     });
   }
-  claim(id: string, endsAt: number, now: number) {
+  /**
+   * True when this occurrence was not delivered yet. It counts as delivered if `id` or any
+   * of `seen` (hashes of its aliases) is recorded. `id` and `also` are recorded either way,
+   * so later checks match directly; `seen` entries are only refreshed.
+   */
+  claim(
+    id: string,
+    endsAt: number,
+    now: number,
+    links: { seen?: string[]; also?: string[] } = {},
+  ) {
+    const hashes = [id, ...(links.seen ?? []), ...(links.also ?? [])];
+    for (const hash of hashes)
+      if (!/^[a-f0-9]{64}$/.test(hash))
+        return Promise.reject(new Error("Invalid reminder id"));
     return this.change((data) => {
       for (const [key, end] of Object.entries(data.sent))
         if (end < now - 30 * 86400000) delete data.sent[key];
-      if (data.sent[id] !== undefined) {
-        data.sent[id] = Math.max(data.sent[id]!, endsAt);
-        return false;
-      }
-      data.sent[id] = endsAt;
-      return true;
+      const delivered = [id, ...(links.seen ?? [])].some(
+        (hash) => data.sent[hash] !== undefined,
+      );
+      for (const hash of [id, ...(links.also ?? [])])
+        data.sent[hash] = Math.max(data.sent[hash] ?? endsAt, endsAt);
+      for (const hash of links.seen ?? [])
+        if (data.sent[hash] !== undefined)
+          data.sent[hash] = Math.max(data.sent[hash]!, endsAt);
+      return !delivered;
     });
   }
 }

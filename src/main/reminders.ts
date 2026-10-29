@@ -42,6 +42,10 @@ interface Dependencies {
   open(url: string): Promise<void>;
   now?: () => number;
 }
+const hashKey = (accountId: string, key: string) =>
+  createHash("sha256")
+    .update(JSON.stringify([accountId, key]))
+    .digest("hex");
 export class Reminders {
   private items = new Map<string, ReminderItem>();
   private notifications = new Map<string, () => void>();
@@ -147,9 +151,7 @@ export class Reminders {
     const active = new Map<string, CalendarEvent>();
     for (const event of events) {
       if (Date.parse(event.endsAt) <= this.now()) continue;
-      const id = createHash("sha256")
-        .update(JSON.stringify([accountId, event.key]))
-        .digest("hex");
+      const id = hashKey(accountId, event.key);
       active.set(id, event);
     }
     for (const [id, item] of this.items) {
@@ -166,10 +168,20 @@ export class Reminders {
       const due = Date.parse(event.startsAt) - settings.minutes * 60000;
       if (due > this.now()) continue;
       const item = { id, event, canJoin: Boolean(meetingUrl(event.location)) };
+      // Aliases recognise the same occurrence in another view (virtual ↔ materialized).
+      // Only a virtual view records its date alias, so two separate events of one
+      // series on one day never silence each other.
+      const aliasIds = (event.aliases ?? []).map((alias) =>
+        hashKey(accountId, alias),
+      );
       const claimed = await this.store.claim(
         id,
         Date.parse(event.endsAt),
         this.now(),
+        {
+          seen: aliasIds,
+          also: "id" in event.lookup ? [] : aliasIds,
+        },
       );
       if (!current()) return;
       this.items.set(id, item);
