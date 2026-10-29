@@ -31,6 +31,8 @@ const bridge: DesktopBridge = {
     reconcile: (input) => ipcRenderer.invoke(meetingChannels.reconcile, input),
   },
   calendar: {
+    previewChange: (input) =>
+      ipcRenderer.invoke(calendarChannels.previewChange, input),
     people: (input) => ipcRenderer.invoke(calendarChannels.people, input),
     slots: (input) => ipcRenderer.invoke(calendarChannels.slots, input),
     calendars: (input) => ipcRenderer.invoke(calendarChannels.calendars, input),

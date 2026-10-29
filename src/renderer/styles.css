@@ -339,3 +339,23 @@
   box-sizing: border-box;
   font: inherit;
 }
+
+.event-change {
+  border-top: 1px solid var(--line);
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+.event-change .form-note {
+  margin: 0.5rem 0 1rem;
+}
+.event-change > section {
+  margin-top: 1rem;
+}
+.event-change-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.event-change dd {
+  overflow-wrap: anywhere;
+}

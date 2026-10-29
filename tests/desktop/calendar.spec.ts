@@ -104,6 +104,52 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
     await expect(details).toContainText("09:00:00");
     await expect(details).toContainText("Синтетическая повестка");
     await expect(details).toContainText("Asia/Almaty");
+    await details.getByLabel("Новое название").fill("Новый синтетический план");
+    await details
+      .getByRole("button", { name: "Предпросмотр названия", exact: true })
+      .click();
+    const preview = details.getByRole("region", {
+      name: "Предпросмотр изменения",
+    });
+    await expect(preview).toContainText("Синтетическая встреча A");
+    await expect(preview).toContainText("Новый синтетический план");
+    await expect(preview).toContainText("Синтетическая повестка");
+    await expect(preview).toContainText("employee-a, synthetic-b");
+    await expect(preview).toContainText("Ничего не применено");
+    await page.setViewportSize({ width: 900, height: 640 });
+    await page.screenshot({
+      path: "test-results/desktop/event-change-preview.png",
+    });
+    await details.getByLabel("Новое название").fill("Другой план");
+    await expect(preview).toHaveCount(0);
+    await details
+      .getByRole("button", { name: "Предпросмотр отмены", exact: true })
+      .click();
+    await expect(preview).toContainText("Отменить всю разовую встречу");
+    await expect(preview).toContainText("Ничего не применено");
+    await app.evaluate(() => {
+      (
+        globalThis as typeof globalThis & { syntheticEventOwner: string }
+      ).syntheticEventOwner = "other";
+    });
+    await details
+      .getByRole("button", { name: "Предпросмотр отмены", exact: true })
+      .click();
+    await expect(details.getByRole("alert")).toContainText(
+      "только организатор",
+    );
+    await expect(preview).toHaveCount(0);
+    expect(
+      await app.evaluate(
+        () =>
+          (
+            globalThis as typeof globalThis & {
+              syntheticEventMutations: number;
+            }
+          ).syntheticEventMutations,
+      ),
+    ).toBe(0);
+    await page.setViewportSize({ width: 1440, height: 960 });
     await page.screenshot({ path: "test-results/desktop/calendar-detail.png" });
     await page.keyboard.press("Escape");
     await page
@@ -113,6 +159,9 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
     await expect(
       page.getByRole("dialog", { name: "Синтетическая серия A" }),
     ).toContainText("11:00:00");
+    await expect(
+      page.getByRole("button", { name: "Предпросмотр отмены", exact: true }),
+    ).toHaveCount(0);
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Месяц", exact: true }).click();
     await expect(page.locator(".month-day")).toHaveCount(35);

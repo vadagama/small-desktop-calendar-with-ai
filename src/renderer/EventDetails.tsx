@@ -1,3 +1,4 @@
+import { EventChangeForm } from "./EventChangeForm.js";
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import type { CalendarEvent, EventLookup } from "../shared/calendar.js";
@@ -96,9 +97,14 @@ export function EventDetails({
           <dd>{event.description || "Нет описания"}</dd>
         </dl>
       )}
-      <p className="form-note">
-        Просмотр данных Small. Изменение встречи пока недоступно.
-      </p>
+      {event && (
+        <EventChangeForm
+          key={`${accountId}:${event.key}`}
+          accountId={accountId}
+          event={event}
+          expired={expired}
+        />
+      )}
     </dialog>
   );
 }
