@@ -4,6 +4,7 @@ import {
   validCalendarDate,
 } from "../shared/calendar-time.js";
 import type { CalendarEvent, CalendarIssue } from "../shared/calendar.js";
+import { OccurrenceSet } from "../shared/occurrence-key.js";
 import type { CalendarService } from "./calendar.js";
 import { collectEvents, schedulePeriod } from "./schedule.js";
 import type {
@@ -117,7 +118,13 @@ export function analyzeMeetings(input: {
   let sum = 0;
   let regularCount = 0;
   let regularMinutes = 0;
-  for (const event of input.events) {
+  // One view per occurrence first (virtual and materialized collapse into the materialized
+  // one, which carries the current time); the identity check below keeps catching repeats.
+  const collapsed = new OccurrenceSet();
+  for (const event of input.events) collapsed.add(event);
+  const unique = collapsed.values();
+  duplicates += input.events.length - unique.length;
+  for (const event of unique) {
     const identity =
       "id" in event.lookup
         ? `id:${event.lookup.id}`

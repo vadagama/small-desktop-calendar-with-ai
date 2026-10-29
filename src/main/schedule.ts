@@ -4,7 +4,7 @@ import {
   calendarRange,
 } from "../shared/calendar-time.js";
 import { scheduleToolInput, type ScheduleResult } from "../shared/schedule.js";
-import type { CalendarEvent } from "../shared/calendar.js";
+import { OccurrenceSet } from "../shared/occurrence-key.js";
 import type { CalendarService } from "./calendar.js";
 
 export function schedulePeriod(input: unknown, now = new Date().toISOString()) {
@@ -31,7 +31,7 @@ export async function collectEvents(
 ) {
   const start = Date.parse(calendarRange(period.from, "day").start);
   const end = Date.parse(calendarRange(period.to, "day").end);
-  const events = new Map<string, CalendarEvent>();
+  const events = new OccurrenceSet();
   const issues: ScheduleResult["issues"] = [];
   for (let date = period.from; date <= period.to;) {
     signal.throwIfAborted();
@@ -46,15 +46,17 @@ export async function collectEvents(
     issues.push(...result.issues);
     for (const event of result.events) {
       if (Date.parse(event.startsAt) < end && Date.parse(event.endsAt) > start)
-        events.set(event.key, event);
+        events.add(event);
     }
     date = calendarDateAt(calendarRange(date, "week").end);
   }
-  const sorted = [...events.values()].sort(
-    (a, b) =>
-      Date.parse(a.startsAt) - Date.parse(b.startsAt) ||
-      a.key.localeCompare(b.key),
-  );
+  const sorted = events
+    .values()
+    .sort(
+      (a, b) =>
+        Date.parse(a.startsAt) - Date.parse(b.startsAt) ||
+        a.key.localeCompare(b.key),
+    );
   return { events: sorted, issues };
 }
 
