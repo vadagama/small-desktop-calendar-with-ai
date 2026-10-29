@@ -121,7 +121,9 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         const day = input.start_date ?? input.date;
         if (path.endsWith("/find-slots"))
           return Response.json({
+            status: "success",
             data: {
+              has_more: false,
               available_slots:
                 input.duration_minutes === 60
                   ? []
@@ -138,11 +140,12 @@ export async function mockSmall(app: ElectronApplication, date: string) {
             },
           });
         return Response.json({
+          status: "success",
           data: input.participant_ids
             .filter((id: string) => id !== "unknown")
             .map((participant_id: string) => ({
               type: "participant",
-              participant_id,
+              id: participant_id,
               busy_slots:
                 participant_id === "synthetic-b"
                   ? [

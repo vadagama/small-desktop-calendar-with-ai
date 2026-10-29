@@ -210,3 +210,52 @@ test("manual creation can explicitly check weekend slots without changing the de
     true,
   );
 });
+
+test("Small success envelopes and busy participant id fields are accepted", async () => {
+  const f = setup(
+    { status: "success", data: { available_slots: [slot], has_more: false } },
+    {
+      status: "success",
+      data: coverage.map(({ participant_id, ...record }) => ({
+        ...record,
+        id: participant_id,
+      })),
+    },
+  );
+  assert.deepEqual((await f.service.find(query)).slots, [slot]);
+});
+test("Small id records still require full and unambiguous participant coverage", async () => {
+  for (const data of [
+    [{ type: "participant", id: "a", busy_slots: [] }],
+    [
+      { type: "participant", id: "a", participant_id: "b", busy_slots: [] },
+      { type: "participant", id: "b", busy_slots: [] },
+    ],
+    [
+      { type: "participant", id: "a", busy_slots: [] },
+      { type: "participant", id: "a", busy_slots: [] },
+    ],
+  ])
+    await assert.rejects(
+      setup(undefined, { status: "success", data }).service.find(query),
+    );
+});
+
+test("incomplete slot results and non-success envelopes never establish availability", async () => {
+  await assert.rejects(
+    setup({
+      status: "success",
+      data: { available_slots: [slot], has_more: true },
+    }).service.find(query),
+    /неполный/,
+  );
+  await assert.rejects(
+    setup({
+      status: "error",
+      data: { available_slots: [slot], has_more: false },
+    }).service.find(query),
+  );
+  await assert.rejects(
+    setup(undefined, { status: "error", data: coverage }).service.find(query),
+  );
+});
