@@ -1,3 +1,4 @@
+import { createCalendarToolExecutor } from "./calendar-tools.js";
 import { app, BrowserWindow, net, protocol, session } from "electron";
 import { dirname, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -86,21 +87,33 @@ app.whenReady().then(async () => {
     app.getPath("userData"),
     new KeychainSecrets(app.getPath("userData")),
   );
-  const assistant = registerAssistantHandlers(
-    devUrl || localUrl,
-    resolve(here, "agent-worker.js"),
-    (signal) => profiles.resolveActive(signal),
-  );
-  registerProfileHandlers(profiles, assistant.trusted, assistant.cancelActive);
   const smallAuth = new SmallAuth(
     createSmallSession(),
     new KeychainSecrets(app.getPath("userData")),
   );
-  registerCalendarHandlers(
-    new CalendarService(smallAuth),
-    assistant.trusted,
-    new AvailabilityService(smallAuth),
+  const calendar = new CalendarService(smallAuth);
+  const availability = new AvailabilityService(smallAuth);
+  const assistant = registerAssistantHandlers(
+    devUrl || localUrl,
+    resolve(here, "agent-worker.js"),
+    (signal) => profiles.resolveActive(signal),
+    async (prompt, signal) => {
+      const state = await smallAuth.read();
+      signal.throwIfAborted();
+      return state.status === "signed-in"
+        ? createCalendarToolExecutor(
+            state.profile.id,
+            prompt,
+            signal,
+            calendar,
+            availability,
+          )
+        : null;
+    },
   );
+  registerProfileHandlers(profiles, assistant.trusted, assistant.cancelActive);
+
+  registerCalendarHandlers(calendar, assistant.trusted, availability);
   registerSmallAuthHandlers(
     smallAuth,
     assistant.trusted,

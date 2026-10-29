@@ -1,3 +1,7 @@
+import type {
+  CalendarToolExecutor,
+  CalendarToolCall,
+} from "../shared/calendar-tools.js";
 import {
   app,
   ipcMain,
@@ -34,6 +38,10 @@ export function registerAssistantHandlers(
   rendererUrl: string,
   workerPath: string,
   resolveProfile: (signal: AbortSignal) => Promise<ModelConnection | null>,
+  resolveCalendar: (
+    prompt: string,
+    signal: AbortSignal,
+  ) => Promise<CalendarToolExecutor | null>,
 ) {
   const jobs = new Map<number, Job>();
   const workers = new Set<UtilityProcess>();
@@ -51,8 +59,8 @@ export function registerAssistantHandlers(
     clearTimeout(job.timeout);
     job.owner.removeListener("destroyed", job.stop);
     job.owner.removeListener("did-start-navigation", job.stop);
+    job.controller.abort();
     if (cancel) {
-      job.controller.abort();
       send(job, {
         requestId: job.requestId,
         type: "chunk",
@@ -104,8 +112,14 @@ export function registerAssistantHandlers(
       owner.on("did-start-navigation", job.stop);
       let worker: UtilityProcess;
       let profile: ModelConnection | null;
+      let calendar: CalendarToolExecutor | null = null;
       try {
         profile = await resolveProfile(job.controller.signal);
+        if (profile)
+          calendar = await resolveCalendar(
+            parsed.data.prompt,
+            job.controller.signal,
+          );
         if (jobs.get(ownerId) !== job) return { ok: true };
         if (!trusted(event)) {
           finish(job, true);
@@ -140,13 +154,28 @@ export function registerAssistantHandlers(
             type: "start",
             request: parsed.data,
             profile,
+            calendar: calendar !== null,
           } satisfies AgentControl);
         else worker.kill();
       });
-      worker.on("message", (message: AgentEvent) => {
+      worker.on("message", (message: AgentEvent | CalendarToolCall) => {
         if (jobs.get(ownerId) !== job || message.requestId !== job.requestId)
           return;
-        if (message.type === "end") finish(job);
+        if (message.type === "calendar-tool") {
+          if (!calendar || !z.uuid().safeParse(message.callId).success) return;
+          void calendar(message.name, message.input)
+            .then((result) => {
+              if (jobs.get(ownerId) === job)
+                worker.postMessage({
+                  type: "calendar-result",
+                  callId: message.callId,
+                  result,
+                } satisfies AgentControl);
+            })
+            .catch(() => {
+              if (jobs.get(ownerId) === job) finish(job, true);
+            });
+        } else if (message.type === "end") finish(job);
         else send(job, message);
       });
       worker.once("exit", () => {
