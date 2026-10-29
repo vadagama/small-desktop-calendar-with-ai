@@ -169,6 +169,7 @@ app.whenReady().then(async () => {
   const writer: MeetingWriter = {
     preflight: (draft) => meetingWriter.preflight(draft),
     verify: (draft, eventId) => meetingWriter.verify(draft, eventId),
+    wasDeleted: (draft, eventId) => meetingWriter.wasDeleted(draft, eventId),
     create: async (draft) => {
       try {
         return await meetingWriter.create(draft);

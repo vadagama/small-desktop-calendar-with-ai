@@ -44,6 +44,43 @@ const writer = (create: MeetingWriter["create"]): MeetingWriter => ({
   create,
   verify: async () => true,
 });
+test("three adjacent drafts create independently and remain idempotent after restart", async () =>
+  fixture(async (dir) => {
+    let calls = 0;
+    const port = writer(async () => String(++calls));
+    const service = new MeetingOperations(new MeetingJournal(dir), port);
+    const drafts = [0, 1, 2].map((offset) => {
+      const base = draft();
+      return service.register({
+        ...base,
+        title: `Synthetic ${offset + 1}`,
+        startsAt: new Date(
+          Date.parse(base.startsAt) + offset * 1800000,
+        ).toISOString(),
+        endsAt: new Date(
+          Date.parse(base.endsAt) + offset * 1800000,
+        ).toISOString(),
+      });
+    });
+    const results = await Promise.all(
+      drafts.map((d) => service.confirm("a", d.id, 1)),
+    );
+    assert.deepEqual(
+      results.map((r) => r.phase),
+      ["succeeded", "succeeded", "succeeded"],
+    );
+    assert.equal(new Set(results.map((r) => r.eventId)).size, 3);
+    assert.equal(calls, 3);
+    const restarted = new MeetingOperations(new MeetingJournal(dir), port);
+    for (const d of drafts) {
+      const restored = restarted.register(d);
+      assert.equal(
+        (await restarted.confirm("a", restored.id, 1)).phase,
+        "succeeded",
+      );
+    }
+    assert.equal(calls, 3);
+  }));
 test("only explicit current-version confirmation creates once under simultaneous requests", async () =>
   fixture(async (dir) => {
     let calls = 0;
@@ -181,4 +218,60 @@ test("a definitive rejection releases the claim, but never retries automatically
     assert.equal((await service.read("a", d.id, 1)).phase, "preview");
     assert.equal((await service.confirm("a", d.id, 1)).phase, "succeeded");
     assert.equal(calls, 2);
+  }));
+
+test("a fresh draft can reuse a slot after the previously verified event was deleted", async () =>
+  fixture(async (dir) => {
+    let calls = 0;
+    let deleted = false;
+    const port = {
+      ...writer(async () => String(++calls)),
+      wasDeleted: async () => deleted,
+    };
+    const service = new MeetingOperations(new MeetingJournal(dir), port);
+    const first = service.register(draft());
+    assert.equal((await service.confirm("a", first.id, 1)).phase, "succeeded");
+    deleted = true;
+    const restarted = new MeetingOperations(new MeetingJournal(dir), port);
+    const second = restarted.register({
+      ...first,
+      id: randomUUID(),
+      title: "New meeting",
+    });
+    assert.equal((await restarted.read("a", second.id, 1)).phase, "preview");
+    assert.equal(calls, 1);
+    const sameSlot = restarted.register({ ...second, id: randomUUID() });
+    const results = await Promise.all([
+      restarted.confirm("a", second.id, 1),
+      restarted.confirm("a", sameSlot.id, 1),
+    ]);
+    assert.ok(results.some((r) => r.phase === "succeeded"));
+    assert.equal(calls, 2);
+    // Re-confirming an old card must never create the deleted meeting again.
+    await service.confirm("a", first.id, 1);
+    assert.equal(calls, 2);
+  }));
+
+test("deletion checks never release a previous attempt with an unknown outcome", async () =>
+  fixture(async (dir) => {
+    let calls = 0;
+    const port = {
+      ...writer(async () => {
+        calls++;
+        throw new Error("timeout");
+      }),
+      verify: async () => false,
+      wasDeleted: async () => true,
+    };
+    const service = new MeetingOperations(new MeetingJournal(dir), port);
+    const first = service.register(draft());
+    assert.equal((await service.confirm("a", first.id, 1)).phase, "unknown");
+    const restarted = new MeetingOperations(new MeetingJournal(dir), port);
+    const second = restarted.register({
+      ...first,
+      id: randomUUID(),
+      title: "Changed",
+    });
+    assert.equal((await restarted.confirm("a", second.id, 1)).phase, "blocked");
+    assert.equal(calls, 1);
   }));

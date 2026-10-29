@@ -131,6 +131,21 @@ export class SmallMeetingWriter implements MeetingWriter {
     const body = await calendarJson(response);
     return z.object({ data: z.object({ id }) }).parse(body).data.id;
   }
+  async wasDeleted(d: MeetingDraft, eventId: string): Promise<boolean> {
+    return this.auth.readCalendar(d.organizer.id, async (get) => {
+      const response = await get(
+        `/gate/team/api/calendar/events/${id.parse(eventId)}`,
+      );
+      // A bare 404 may be a stale replica or lost access; require Small's explicit cancellation.
+      if (response.status === 404) return false;
+      const parsed = z
+        .object({
+          data: z.object({ id, status: z.literal("cancelled") }),
+        })
+        .safeParse(await calendarJson(response));
+      return parsed.success && parsed.data.data.id === eventId;
+    });
+  }
   async verify(d: MeetingDraft, eventId?: string) {
     if (!eventId) {
       // A list match cannot prove which write created an event. Read, but never retry or claim success.

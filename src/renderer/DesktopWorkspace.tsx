@@ -20,6 +20,7 @@ import { EventDetails } from "./EventDetails";
 import { CalendarFreshnessBar } from "./CalendarFreshnessBar";
 import { eventFromCreatedMeeting } from "../shared/calendar-view-state.js";
 import type { MeetingView } from "../shared/meeting-operations.js";
+import type { MeetingDeletion } from "../shared/calendar-tools.js";
 import { meetingInvalidation } from "../shared/calendar-invalidation.js";
 import {
   beginMove,
@@ -111,9 +112,20 @@ export function DesktopWorkspace() {
       if (result.draft.organizer.id !== currentAccount.current) return;
       showCreated(result);
     };
+    const deleted = (event: Event) => {
+      const result = (event as CustomEvent<MeetingDeletion>).detail;
+      if (result.accountId !== currentAccount.current) return;
+      calendar.refreshAfterWrite(
+        { eventIds: [result.eventId], windows: [] },
+        true,
+      );
+    };
     events.addEventListener("assistant-meeting-created", created);
-    return () =>
+    events.addEventListener("assistant-meeting-deleted", deleted);
+    return () => {
       events.removeEventListener("assistant-meeting-created", created);
+      events.removeEventListener("assistant-meeting-deleted", deleted);
+    };
   }, [showCreated]);
   const range = calendarRange(date, view);
   const byId = new Map<string, CalendarEvent>();

@@ -38,6 +38,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
     inspection.syntheticEventMutations = 0;
     let movedTime: { starts_at: string; ends_at: string } | null = null;
     const deletedFor = new Set<string>();
+    const deletedCreated = new Set<string>();
     const created: Array<{
       id: string;
       title: string;
@@ -132,6 +133,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
           ),
           participants: body.participant_ids.map((id: string) => ({ id })),
           creator_name: employee,
+          creator_id: "synthetic-organizer",
         };
         created.push(event);
         // Server applied the write but its response cannot establish the outcome.
@@ -142,8 +144,19 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       const savedEvent = created.find(
         (event) => path === `/gate/team/api/calendar/events/${event.id}`,
       );
+      if (savedEvent && request.method === "DELETE") {
+        deletedCreated.add(savedEvent.id);
+        return new Response(null, { status: 204 });
+      }
       if (savedEvent && request.method === "GET")
-        return Response.json({ data: savedEvent });
+        return Response.json({
+          data: {
+            ...savedEvent,
+            ...(deletedCreated.has(savedEvent.id)
+              ? { status: "cancelled" }
+              : {}),
+          },
+        });
       if (path.endsWith("/find-slots") || path.endsWith("/busy-intervals")) {
         if (request.method !== "POST")
           return new Response(null, { status: 405 });
@@ -397,7 +410,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
                   },
                 ]),
             recurring,
-            ...created,
+            ...created.filter((event) => !deletedCreated.has(event.id)),
           ].filter(
             (entry) =>
               Date.parse(entry.starts_at) < Date.parse(end) &&

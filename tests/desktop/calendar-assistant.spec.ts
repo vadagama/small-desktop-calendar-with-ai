@@ -86,6 +86,7 @@ test("calendar tools cross utility/main boundary and render trusted results", as
       `--user-data-dir=${userData}`,
       "--host-resolver-rules=MAP team.small.kz ~NOTFOUND",
     ],
+    env: { ...process.env, SMALL_TEST_SYNC_INTERVAL_MS: "600000" },
   });
   try {
     await mockSmall(app, calendarToday());
@@ -101,6 +102,10 @@ test("calendar tools cross utility/main boundary and render trusted results", as
       .click();
     await page.getByLabel("Логин", { exact: true }).fill("employee-a");
     await page.getByLabel("Пароль", { exact: true }).fill("synthetic-password");
+    await page.getByLabel("Пароль", { exact: true }).press("Tab");
+    await expect(page.getByLabel("Пароль", { exact: true })).toHaveValue(
+      "synthetic-password",
+    );
     await page
       .getByRole("button", { name: "Войти в Small", exact: true })
       .click();
@@ -125,9 +130,21 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     await dialog.getByRole("button", { name: "Сохранить" }).click();
     await expect(dialog).toHaveCount(0);
     const send = async (prompt: string) => {
+      await expect(
+        page.getByRole("button", { name: "Отправить сообщение" }),
+      ).toBeVisible();
       await page
         .getByRole("textbox", { name: "Сообщение ассистенту" })
         .fill(prompt);
+      await page
+        .getByRole("textbox", { name: "Сообщение ассистенту" })
+        .press("Tab");
+      await expect(
+        page.getByRole("textbox", { name: "Сообщение ассистенту" }),
+      ).toHaveValue(prompt);
+      await expect(
+        page.getByRole("button", { name: "Отправить сообщение" }),
+      ).toBeEnabled();
       await page.getByRole("button", { name: "Отправить сообщение" }).click();
       await expect(
         page.getByRole("button", { name: "Отправить сообщение" }),
@@ -494,6 +511,36 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     ) as { data: { participantIds: string[] } };
     expect(personalOutput.data.participantIds).toEqual(["synthetic-organizer"]);
 
+    await app.evaluate(() => {
+      (
+        globalThis as typeof globalThis & {
+          syntheticListAfterCreateDelayMs: number;
+        }
+      ).syntheticListAfterCreateDelayMs = 2000;
+    });
+    await personal
+      .getByRole("button", { name: "Создать встречу", exact: true })
+      .click();
+    await expect(personal.getByRole("status")).toContainText(
+      "Встреча создана:",
+      { timeout: 15000 },
+    );
+    await expect(
+      page.locator(".calendar-event").filter({ hasText: "Личный слот" }),
+    ).toBeVisible({ timeout: 1000 });
+    await app.evaluate(() => {
+      (
+        globalThis as typeof globalThis & {
+          syntheticListAfterCreateDelayMs: number;
+        }
+      ).syntheticListAfterCreateDelayMs = 0;
+    });
+    await page.getByRole("button", { name: "Сегодня", exact: true }).click();
+    const calendarEvent = page
+      .locator(".calendar-event")
+      .filter({ hasText: "Синтетическая встреча A" });
+    await expect(calendarEvent).toBeVisible();
+
     turn++;
     plan = [
       { name: "loadSkill", input: { name: "meeting-delete" } },
@@ -526,15 +573,141 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     await deletion.screenshot({
       path: "test-results/desktop/assistant-delete-preview.png",
     });
+    await app.evaluate(() => {
+      (
+        globalThis as typeof globalThis & { syntheticListDelayMs: number }
+      ).syntheticListDelayMs = 3000;
+    });
     await deletion
       .getByRole("button", { name: "Удалить встречу", exact: true })
       .click();
     await expect(deletion.getByRole("status")).toHaveText(
       "Событие успешно удалено",
     );
+    await expect(calendarEvent).toHaveCount(0, { timeout: 1000 });
+    await app.evaluate(() => {
+      (
+        globalThis as typeof globalThis & { syntheticListDelayMs: number }
+      ).syntheticListDelayMs = 0;
+    });
     expect((await readEvent()).ok).toBe(false);
     await expect(deletion.getByRole("button")).toHaveCount(0);
     expect(errors).toEqual([]);
+    // Three adjacent meetings in one assistant turn are separate operations.
+    turn++;
+    const batchSlots = [
+      { start: "2099-11-02T13:00:00+05:00", end: "2099-11-02T13:30:00+05:00" },
+      { start: "2099-11-02T13:30:00+05:00", end: "2099-11-02T14:00:00+05:00" },
+      { start: "2099-11-02T14:00:00+05:00", end: "2099-11-02T14:30:00+05:00" },
+    ];
+    await app.evaluate((_electron, slots) => {
+      (
+        globalThis as typeof globalThis & {
+          syntheticAvailableSlots: typeof slots;
+        }
+      ).syntheticAvailableSlots = slots;
+    }, batchSlots);
+    plan = batchSlots.map((slot, index) => ({
+      name: "prepareMeetingDraft",
+      input: {
+        ...draftInput,
+        title: `Последовательно ${index + 1}`,
+        startsAt: slot.start,
+        participantIds: [],
+      },
+    }));
+    const writesBeforeBatch = await writes();
+    await send(
+      "Подготовь три личные встречи подряд по полчаса второго ноября с 13:00",
+    );
+    for (const index of [1, 2, 3]) {
+      const card = page
+        .getByRole("region", { name: "Черновик встречи", exact: true })
+        .filter({
+          has: page.getByRole("heading", {
+            name: `Последовательно ${index}`,
+            exact: true,
+          }),
+        });
+      await expect(card).not.toContainText("уже отправлялся другой черновик");
+      await card
+        .getByRole("button", { name: "Создать встречу", exact: true })
+        .click();
+      await expect(card.getByRole("status")).toContainText("Встреча создана:");
+    }
+    await expect(
+      page.locator(".calendar-event").filter({ hasText: "Последовательно" }),
+    ).toHaveCount(3);
+    expect(await writes()).toBe(writesBeforeBatch + 3);
+    expect(errors).toEqual([]);
+    const firstBatchDraft = outputs.findLast(
+      (output) =>
+        typeof output === "object" &&
+        output !== null &&
+        "data" in output &&
+        (output.data as { title?: string })?.title === "Последовательно 1",
+    ) as { data: { id: string; revision: number } };
+    const createdBatch = await page.evaluate(
+      (ref) =>
+        window.smallDesktop.meetings.read({
+          id: ref.id,
+          revision: ref.revision,
+        }),
+      firstBatchDraft.data,
+    );
+    if (!createdBatch.ok || !createdBatch.data.eventId)
+      throw new Error("Missing created event");
+    const removedBatch = await page.evaluate(
+      (eventId) =>
+        window.smallDesktop.calendar.applyChange({
+          accountId: "employee-a",
+          eventId,
+          change: { kind: "cancel" },
+        }),
+      createdBatch.data.eventId,
+    );
+    expect(removedBatch.ok).toBe(true);
+    turn++;
+    plan = [
+      {
+        name: "prepareMeetingDraft",
+        input: {
+          ...draftInput,
+          title: "Новая встреча после удаления",
+          startsAt: batchSlots[0]!.start,
+          participantIds: [],
+        },
+      },
+    ];
+    await send(
+      "Подготовь новую личную встречу на освободившиеся 13:00 второго ноября",
+    );
+    const replacement = page
+      .getByRole("region", { name: "Черновик встречи", exact: true })
+      .filter({
+        has: page.getByRole("heading", {
+          name: "Новая встреча после удаления",
+          exact: true,
+        }),
+      });
+    await expect(
+      replacement.getByRole("button", { name: "Создать встречу", exact: true }),
+    ).toBeEnabled();
+    await replacement
+      .getByRole("button", { name: "Создать встречу", exact: true })
+      .click();
+    await expect(replacement.getByRole("status")).toContainText(
+      "Встреча создана:",
+    );
+    await expect(
+      page.locator(".calendar-event").filter({ hasText: "Последовательно" }),
+    ).toHaveCount(2);
+    await expect(
+      page
+        .locator(".calendar-event")
+        .filter({ hasText: "Новая встреча после удаления" }),
+    ).toHaveCount(1);
+    expect(await writes()).toBe(writesBeforeBatch + 4);
     // An unavailable Small session must retain its actionable error, and a failed
     // start must release the job so the same conversation can recover.
     const beforeFailure = requests.length;

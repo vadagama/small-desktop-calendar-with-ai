@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import type { MeetingDeletion } from "../shared/calendar-tools.js";
 import { useAssistantPresentation } from "./AssistantPresentation";
-import { notifySuccess } from "./notification-events.js";
+import { events, notifySuccess } from "./notification-events.js";
 
 export function MeetingDeletionCard({
   deletion,
@@ -39,6 +39,9 @@ export function MeetingDeletionCard({
       });
       if (reply.ok) {
         setDeleted(true);
+        events.dispatchEvent(
+          new CustomEvent("assistant-meeting-deleted", { detail: deletion }),
+        );
         notifySuccess("Событие успешно удалено");
       } else {
         setUnknown(reply.unknownOutcome === true);
