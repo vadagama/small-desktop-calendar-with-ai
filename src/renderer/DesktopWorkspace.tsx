@@ -438,11 +438,6 @@ export function DesktopWorkspace() {
                     В этом периоде встреч нет.
                   </p>
                 )}
-              {savingTime && (
-                <p className="calendar-warning" role="status">
-                  Сохраняю время встречи…
-                </p>
-              )}
 
               <Calendar
                 date={date}
