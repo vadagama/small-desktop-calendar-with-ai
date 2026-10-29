@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { CalendarError } from "./calendar.js";
+import { isAvailabilityRequest } from "./availability-request.js";
 import type { SecretStore } from "./profiles.js";
 import type { SmallAuthState } from "../shared/small-auth.js";
 
@@ -44,7 +46,7 @@ export class SmallAuth {
 
   private run<T>(action: () => Promise<T>): Promise<T> {
     const result = this.pending.then(action).catch((error: unknown) => {
-      throw error instanceof SmallAuthError
+      throw error instanceof SmallAuthError || error instanceof CalendarError
         ? error
         : new SmallAuthError(
             "Не удалось связаться с Small. Проверьте сеть и повторите.",
@@ -102,8 +104,9 @@ export class SmallAuth {
     await this.keychain(() => this.secrets.set(account, snapshot));
     this.token = parsed.data.data.access_token;
   }
-  private async authorized(path: string): Promise<Response> {
-    let response = await this.request(path, "GET");
+  private async authorized(path: string, body?: unknown): Promise<Response> {
+    const method = body === undefined ? "GET" : "POST";
+    let response = await this.request(path, method, body);
     if (response.status === 401) {
       const refreshed = await this.request("/gate/auth/refresh");
       if (refreshed.status === 401 || refreshed.status === 403) {
@@ -111,7 +114,7 @@ export class SmallAuth {
         return new Response(null, { status: 401 });
       }
       await this.accept(refreshed);
-      response = await this.request(path, "GET");
+      response = await this.request(path, method, body);
       if (response.status === 401) await this.clear();
     }
     return response;
@@ -171,7 +174,9 @@ export class SmallAuth {
   }
   readCalendar<T>(
     accountId: string,
-    action: (get: (path: string) => Promise<Response>) => Promise<T>,
+    action: (
+      get: (path: string, body?: unknown) => Promise<Response>,
+    ) => Promise<T>,
   ): Promise<T> {
     const version = this.version;
     const assertCurrent = () => {
@@ -186,14 +191,16 @@ export class SmallAuth {
       const state = await this.current();
       if (state.status !== "signed-in" || state.profile.id !== accountId)
         throw new SmallAuthError("Войдите в нужный аккаунт Small.", "auth");
-      const result = await action(async (path) => {
+      const result = await action(async (path, body) => {
         assertCurrent();
+        if (body !== undefined && !isAvailabilityRequest(path, body))
+          throw new SmallAuthError("Операция Small недоступна.");
         if (!this.token)
           throw new SmallAuthError(
             "Сессия Small завершена. Войдите заново.",
             "auth",
           );
-        const response = await this.authorized(path);
+        const response = await this.authorized(path, body);
         assertCurrent();
         if (response.status === 401)
           throw new SmallAuthError(

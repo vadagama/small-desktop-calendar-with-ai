@@ -263,3 +263,62 @@
   width: 26px;
   height: 2px;
 }
+
+.availability {
+  width: min(560px, calc(100vw - 32px));
+}
+.availability .modal-description {
+  margin-bottom: 16px;
+}
+.availability-section {
+  margin: 20px 0;
+}
+.availability-section h3 {
+  font-size: 14px;
+  margin: 0 0 12px;
+}
+.people-options,
+.selected-people {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+}
+.people-options .person-option {
+  align-items: flex-start;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.people-options input {
+  margin-top: 4px;
+}
+.availability small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.selected-people {
+  padding: 0;
+  list-style: none;
+}
+.selected-people li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+.available-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+.available-slots li {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+}

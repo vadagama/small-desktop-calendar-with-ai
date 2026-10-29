@@ -216,3 +216,58 @@ test("a pending calendar response is invalidated as soon as logout is requested"
   await assert.rejects(read, /аккаунт|сесси/);
   assert.equal((await logout).status, "signed-out");
 });
+
+test("availability POST refresh preserves body and cannot become an event write", async () => {
+  const f = setup();
+  await f.auth.login(login);
+  const request = f.transport.request;
+  const body = {
+    participant_ids: ["synthetic-a"],
+    date: "2026-10-29",
+    timezone: "Asia/Almaty",
+  };
+  const sent: RequestInit[] = [];
+  f.transport.request = async (path, init) => {
+    if (path.endsWith("/busy-intervals")) {
+      sent.push(init);
+      return sent.length === 1
+        ? new Response(null, { status: 401 })
+        : Response.json({ data: [] });
+    }
+    return request(path, init);
+  };
+  await f.auth.readCalendar("employee-a", (get) =>
+    get("/gate/team/api/calendar/events/busy-intervals", body),
+  );
+  assert.equal(sent.length, 2);
+  for (const init of sent) {
+    assert.equal(init.method, "POST");
+    assert.deepEqual(JSON.parse(String(init.body)), body);
+  }
+  const before = f.calls.length;
+  await assert.rejects(
+    f.auth.readCalendar("employee-a", (get) =>
+      get("/gate/team/api/calendar/events", body),
+    ),
+    /недоступна/,
+  );
+  assert.equal(
+    f.calls.slice(before).includes("/gate/team/api/calendar/events"),
+    false,
+  );
+});
+
+test("calendar domain failures retain safe kinds and messages across session boundary", async () => {
+  const { CalendarError } = await import("../../src/main/calendar.js");
+  const f = setup();
+  await f.auth.login(login);
+  await assert.rejects(
+    f.auth.readCalendar("employee-a", async () => {
+      throw new CalendarError("invalid", "Занятость неизвестна.");
+    }),
+    (error: unknown) =>
+      error instanceof CalendarError &&
+      error.kind === "invalid" &&
+      error.message === "Занятость неизвестна.",
+  );
+});

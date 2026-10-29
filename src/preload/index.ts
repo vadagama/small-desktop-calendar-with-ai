@@ -24,6 +24,8 @@ const bridge: DesktopBridge = {
     },
   },
   calendar: {
+    people: (input) => ipcRenderer.invoke(calendarChannels.people, input),
+    slots: (input) => ipcRenderer.invoke(calendarChannels.slots, input),
     calendars: (input) => ipcRenderer.invoke(calendarChannels.calendars, input),
     events: (input) => ipcRenderer.invoke(calendarChannels.events, input),
     detail: (input) => ipcRenderer.invoke(calendarChannels.detail, input),
