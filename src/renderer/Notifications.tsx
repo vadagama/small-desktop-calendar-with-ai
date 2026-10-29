@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { useEffect, useRef, useState } from "react";
-import { CheckCircle2, CircleAlert, X } from "lucide-react";
+import { CheckCircle2, CircleAlert, Info, X } from "lucide-react";
 
 import { events, type Notice } from "./notification-events.js";
 function Notification({
@@ -14,7 +14,7 @@ function Notification({
   const pause = () => clearTimeout(timer.current);
   const resume = () => {
     pause();
-    if (notice.type === "success")
+    if (notice.type !== "error")
       timer.current = setTimeout(() => dismiss(notice.id), 5000);
   };
   useEffect(() => {
@@ -32,11 +32,19 @@ function Notification({
     >
       {notice.type === "success" ? (
         <CheckCircle2 size={20} />
+      ) : notice.type === "info" ? (
+        <Info size={20} />
       ) : (
         <CircleAlert size={20} />
       )}
       <div>
-        <strong>{notice.type === "success" ? "Успешно" : "Ошибка"}</strong>
+        <strong>
+          {notice.type === "success"
+            ? "Успешно"
+            : notice.type === "info"
+              ? "Обновление"
+              : "Ошибка"}
+        </strong>
         <p>{notice.message}</p>
       </div>
       <button

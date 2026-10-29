@@ -7,11 +7,14 @@ export function EventChangeForm({
   event,
   expired,
   saved,
+  locked,
 }: {
   accountId: string;
   event: CalendarEvent;
   expired: () => void;
   saved: () => void;
+  /** The event is gone from Small: nothing can be saved any more. */
+  locked: boolean;
 }) {
   const [title, setTitle] = useState(event.title);
   const [busy, setBusy] = useState(false);
@@ -53,13 +56,15 @@ export function EventChangeForm({
           value={title}
           maxLength={200}
           required
-          disabled={busy}
+          disabled={busy || locked}
           onChange={(e) => setTitle(e.target.value)}
         />
       </label>
       <button
         className="primary"
-        disabled={busy || !title.trim() || title.trim() === event.title}
+        disabled={
+          busy || locked || !title.trim() || title.trim() === event.title
+        }
       >
         {busy ? "Сохраняю…" : "Сохранить"}
       </button>
