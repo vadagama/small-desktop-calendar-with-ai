@@ -49,6 +49,7 @@ export interface DesktopBridge {
   profiles: ProfileBridge;
   agentSettings: AgentSettingsBridge;
   topicRules: import("./analytics.js").TopicRulesBridge;
+  series: import("./series-scope.js").SeriesBridge;
   smallAuth: SmallAuthBridge;
   calendar: CalendarBridge;
   meetings: MeetingBridge;

@@ -108,6 +108,7 @@ function normalize(value: unknown, participantId?: string): CalendarEvent {
           : e.is_informed === false
             ? "invited"
             : "unknown",
+    ...(e.original_event_id ? { originalEventId: e.original_event_id } : {}),
     ...(e.original_event_id
       ? { recurring: true }
       : typeof e.is_recurring === "boolean"

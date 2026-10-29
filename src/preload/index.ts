@@ -1,4 +1,5 @@
 import { topicRuleChannels } from "../shared/topic-rule-channels.js";
+import { seriesChannels } from "../shared/series-channels.js";
 import { agentSettingsChannels } from "../shared/agent-settings.js";
 import {
   reminderChannels,
@@ -78,6 +79,10 @@ const bridge: DesktopBridge = {
   topicRules: {
     read: () => ipcRenderer.invoke(topicRuleChannels.read),
     save: (rules) => ipcRenderer.invoke(topicRuleChannels.save, rules),
+  },
+  series: {
+    gate: (request) => ipcRenderer.invoke(seriesChannels.gate, request),
+    apply: (request) => ipcRenderer.invoke(seriesChannels.apply, request),
   },
   profiles: {
     read: () => ipcRenderer.invoke(profileChannels.read),
