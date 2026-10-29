@@ -9,7 +9,11 @@ test("workspace moves and resizes panels without losing the conversation, draft 
   const app = await _electron.launch({
     ...(executablePath ? { executablePath } : {}),
     args: [...(executablePath ? [] : ["."]), `--user-data-dir=${userData}`],
-    env: { ...process.env, PATH: "/usr/bin:/bin:/usr/sbin:/sbin" },
+    env: {
+      ...process.env,
+      SMALL_TEST_SYNTHETIC: "1",
+      PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
+    },
   });
   try {
     const page = await app.firstWindow();

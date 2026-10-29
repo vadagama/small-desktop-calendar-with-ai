@@ -21,8 +21,26 @@
   margin-bottom: 20px;
   line-height: 1.6;
 }
+.model-settings .modal-header h2 {
+  font-size: var(--font-dialog-title);
+}
 .model-settings label {
-  font-size: 14px;
+  font-size: var(--font-body);
+}
+.model-key-field {
+  position: relative;
+  display: block;
+}
+.model-key-field input {
+  width: 100%;
+  padding-right: 40px !important;
+}
+.model-key-applied {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
 }
 .model-actions {
   display: flex;
@@ -52,14 +70,18 @@
 }
 .small-sidebar-footer {
   flex-shrink: 0;
-  padding: 16px 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: 8px 2px;
   border-top: 1px solid var(--line);
 }
 .small-sidebar-footer .settings-link {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
+  margin: 0;
 }
 .desktop-workspace .calendar-filters label {
   overflow-wrap: anywhere;
@@ -1140,6 +1162,7 @@
   animation: notification-enter 180ms ease-out;
   font-size: var(--font-compact);
 }
+.model-key-applied,
 .notification-success > svg,
 .notification-success strong {
   color: #008b65;

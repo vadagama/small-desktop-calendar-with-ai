@@ -1,5 +1,5 @@
 import { _electron, expect, test } from "@playwright/test";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:http";
@@ -80,13 +80,84 @@ test("model settings persist only metadata and use a real Keychain key through t
     await dialog.getByLabel("Base URL").fill(baseURL);
     await dialog.getByLabel("Model ID").fill("synthetic-profile-model");
     await dialog.getByLabel("API-ключ", { exact: true }).fill(key);
-    await dialog
-      .getByRole("button", { name: "Сохранить и использовать" })
+    await dialog.getByRole("button", { name: "Сохранить" }).click();
+    await expect(dialog).toHaveCount(0);
+    await page
+      .getByRole("button", { name: "Настройки модели", exact: true })
       .click();
-    await expect(dialog.getByRole("status")).toContainText("Профиль сохранён");
     await expect(dialog.getByLabel("API-ключ", { exact: true })).toHaveValue(
       "",
     );
+    await expect(
+      dialog.getByLabel("API-ключ", { exact: true }),
+    ).toHaveAttribute("placeholder", `••••${key.slice(-4)}`);
+    await expect(
+      dialog.getByRole("img", { name: "Ключ сохранён и применён" }),
+    ).toBeVisible();
+    await dialog
+      .getByLabel("API-ключ", { exact: true })
+      .fill("replacement-draft");
+    await expect(
+      dialog.getByRole("img", { name: "Ключ сохранён и применён" }),
+    ).toHaveCount(0);
+    await dialog.getByLabel("API-ключ", { exact: true }).fill("");
+    await expect(dialog.locator(".model-actions button")).toHaveText([
+      "Сохранить",
+      "Удалить ключ",
+    ]);
+    await expect(dialog.locator("h2")).toHaveCSS("font-size", "18px");
+    await expect(dialog.getByLabel("API-ключ", { exact: true })).toHaveCSS(
+      "font-size",
+      "14px",
+    );
+    await page.screenshot({
+      path: "test-results/desktop/model-settings-saved.png",
+    });
+    await page.evaluate(() =>
+      window.smallDesktop.profiles.activate("synthetic"),
+    );
+    await dialog
+      .getByRole("button", { name: "Закрыть настройки модели" })
+      .click();
+    await page
+      .getByRole("textbox", { name: "Сообщение ассистенту" })
+      .fill("Привет");
+    await page.getByRole("button", { name: "Отправить сообщение" }).click();
+    await expect(
+      page.getByRole("region", { name: "AI-ассистент" }).getByRole("alert"),
+    ).toContainText("Профиль сохранён, но не выбран");
+    expect(calls).toBe(0);
+    await page
+      .getByRole("button", { name: "Настройки модели", exact: true })
+      .click();
+    await dialog
+      .getByRole("button", { name: "Сохранить", exact: true })
+      .click();
+    await expect(dialog).toHaveCount(0);
+    const settingsDirectory = await app.evaluate(({ app }) =>
+      app.getPath("userData"),
+    );
+    const settingsPath = join(settingsDirectory, "llm-profiles.json");
+    const originalSettings = await readFile(settingsPath, "utf8");
+    const pendingCleanup = JSON.parse(originalSettings);
+    pendingCleanup.retired = [
+      { ...pendingCleanup.profiles[0], credentialId: crypto.randomUUID() },
+    ];
+    await writeFile(settingsPath, JSON.stringify(pendingCleanup));
+    await page.reload();
+    await page
+      .getByRole("button", { name: "Настройки модели", exact: true })
+      .click();
+    await expect(
+      dialog.getByRole("img", { name: "Ключ сохранён и применён" }),
+    ).toBeVisible();
+    await expect(dialog.getByRole("status")).toContainText(
+      "Предыдущий ключ пока не удалён",
+    );
+    await page.screenshot({
+      path: "test-results/desktop/model-key-with-cleanup.png",
+    });
+    await writeFile(settingsPath, originalSettings);
     const state = await page.evaluate(() =>
       window.smallDesktop.profiles.read(),
     );
@@ -95,7 +166,9 @@ test("model settings persist only metadata and use a real Keychain key through t
     expect(
       await readFile(join(directory, "llm-profiles.json"), "utf8"),
     ).not.toContain(key);
-    await dialog.getByRole("button", { name: "Готово", exact: true }).click();
+    await dialog
+      .getByRole("button", { name: "Закрыть настройки модели", exact: true })
+      .click();
     await page
       .getByRole("textbox", { name: "Сообщение ассистенту" })
       .fill("Сложи 2 и 3");
@@ -137,9 +210,7 @@ test("model settings persist only metadata and use a real Keychain key through t
     );
     expect(changed.ok).toBe(false);
     await page.screenshot({ path: "test-results/desktop/model-settings.png" });
-    await dialog
-      .getByRole("button", { name: "Удалить ключ и профиль" })
-      .click();
+    await dialog.getByRole("button", { name: "Удалить ключ" }).click();
     await expect(dialog.getByRole("status")).toContainText(
       "Ключ и профиль удалены",
     );

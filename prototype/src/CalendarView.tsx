@@ -44,6 +44,7 @@ interface Props {
   pending?: Record<string, "saving" | "unknown">;
   today?: string;
   footerLabel?: string;
+  hideFooter?: boolean;
   statusContent?: React.ReactNode;
 }
 export function Calendar(p: Props) {
@@ -536,19 +537,21 @@ export function Calendar(p: Props) {
         </div>
       )}
       {tooltip.tooltip}
-      <div className="calendar-footer">
-        <span>
-          <span className="status-dot" />
-          {p.footerLabel ?? "Демонстрационные данные"}
-        </span>
-        <span>
-          {p.view === "week"
-            ? "Неделя · Пн–Вс"
-            : p.view === "day"
-              ? "День"
-              : "Месяц"}
-        </span>
-      </div>
+      {!p.hideFooter && (
+        <div className="calendar-footer">
+          <span>
+            <span className="status-dot" />
+            {p.footerLabel ?? "Демонстрационные данные"}
+          </span>
+          <span>
+            {p.view === "week"
+              ? "Неделя · Пн–Вс"
+              : p.view === "day"
+                ? "День"
+                : "Месяц"}
+          </span>
+        </div>
+      )}
     </section>
   );
 }

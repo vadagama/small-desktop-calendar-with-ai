@@ -53,9 +53,8 @@ export class KeychainSecrets implements SecretStore {
     await this.remember(
       account,
       (async () => {
-        const old = await previous?.catch(() => undefined);
-        if (old !== value)
-          await this.entry(this.service, account).setPassword(value);
+        await previous?.catch(() => undefined);
+        await this.entry(this.service, account).setPassword(value);
         return value;
       })(),
     );

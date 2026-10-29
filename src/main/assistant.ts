@@ -138,6 +138,10 @@ export function registerAssistantHandlers(
       try {
         configuration = await resolveSettings();
         profile = await resolveProfile(job.controller.signal);
+        if (!profile && process.env.SMALL_TEST_SYNTHETIC !== "1")
+          throw new ProfileError(
+            "Модель не настроена. Откройте настройки модели и сохраните API-ключ.",
+          );
         if (profile)
           calendar = await resolveCalendar(
             parsed.data.prompt,

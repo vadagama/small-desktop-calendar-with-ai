@@ -80,14 +80,31 @@ export class ProfileStore {
       await rm(temporary, { force: true });
     }
   }
-  private view(config: Config): ProfileState {
+  private async view(config: Config): Promise<ProfileState> {
     return {
       active: config.active,
-      profiles: config.profiles.map(({ id, baseURL, modelId }) => ({
-        id,
-        baseURL,
-        modelId,
-      })),
+      profiles: await Promise.all(
+        config.profiles.map(async (profile) => {
+          const { id, baseURL, modelId } = profile;
+          let keySuffix: string | undefined;
+          let hasKey = false;
+          try {
+            const key = await this.secrets.get(accountFor(profile));
+            hasKey = Boolean(key);
+            // Never reveal an entire short credential or return the full key.
+            if (key && key.length > 4) keySuffix = key.slice(-4);
+          } catch {
+            // Settings must remain accessible when Keychain is locked.
+          }
+          return {
+            id,
+            baseURL,
+            modelId,
+            hasKey,
+            ...(keySuffix ? { keySuffix } : {}),
+          };
+        }),
+      ),
       ...(config.retired.length
         ? {
             warning:
@@ -132,7 +149,13 @@ export class ProfileStore {
   async resolveActive(signal?: AbortSignal): Promise<ModelConnection | null> {
     await this.pending;
     const config = await this.read();
-    if (config.active === "synthetic") return null;
+    if (config.active === "synthetic") {
+      if (config.profiles.length)
+        throw new ProfileError(
+          "Профиль сохранён, но не выбран для чата. Откройте настройки модели, выберите профиль и нажмите «Сохранить». Повторно вводить сохранённый ключ не нужно.",
+        );
+      return null;
+    }
     const profile = config.profiles.find(
       (profile) => profile.id === config.active,
     );
@@ -180,8 +203,15 @@ export class ProfileStore {
         } catch {
           throw new ProfileError("Не удалось сохранить ключ в Keychain");
         }
-      } else if (!(await this.secrets.get(accountFor(next))))
-        throw new ProfileError("Ключ отсутствует в Keychain");
+      } else {
+        const existingKey = await this.secrets.get(accountFor(next));
+        if (!existingKey) throw new ProfileError("Ключ отсутствует в Keychain");
+        try {
+          await this.secrets.set(accountFor(next), existingKey);
+        } catch {
+          throw new ProfileError("Не удалось обновить ключ в Keychain");
+        }
+      }
       config.profiles = [
         ...config.profiles.filter((profile) => profile.id !== id),
         next,

@@ -461,7 +461,7 @@ export function DesktopWorkspace() {
                 retry={calendar.refresh}
                 swap={swap}
                 today={calendarToday()}
-                footerLabel="Данные Small"
+                hideFooter
                 statusContent={
                   unavailable ? (
                     <div className="state-screen" role="status">
@@ -492,7 +492,6 @@ export function DesktopWorkspace() {
           )}
         />
         <footer className="workspace-footer">
-          <span>Small Calendar</span>
           <span>Team API · Asia/Almaty</span>
         </footer>
       </main>

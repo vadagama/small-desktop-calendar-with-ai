@@ -68,6 +68,7 @@ export class SmallMeetingWriter implements MeetingWriter {
       date: calendarDateAt(d.startsAt),
       durationMinutes: d.durationMinutes,
       includeWeekends: true,
+      exactInterval: { start: d.startsAt, end: d.endsAt },
     });
     if (
       !available.slots.some(
