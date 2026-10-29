@@ -4,6 +4,8 @@ import {
   validCalendarDate,
 } from "../shared/calendar-time.js";
 import type { CalendarEvent, CalendarIssue } from "../shared/calendar.js";
+import type { CalendarService } from "./calendar.js";
+import { collectEvents, schedulePeriod } from "./schedule.js";
 import type {
   AnalyticsBucket,
   AnalyticsEvent,
@@ -204,4 +206,42 @@ export function analyzeMeetings(input: {
     events,
     issues,
   };
+}
+
+export const analyticsEventLimit = 1000;
+
+/** Reads "my calendar" for a period and calculates the report; no writes. */
+export async function readAnalytics(
+  accountId: string,
+  participantId: string,
+  input: unknown,
+  calendar: Pick<CalendarService, "events">,
+  signal: AbortSignal,
+  rules: TopicRule[] = [],
+  now?: string,
+) {
+  const period = schedulePeriod(input, now);
+  const { events, issues } = await collectEvents(
+    accountId,
+    period,
+    calendar,
+    signal,
+  );
+  signal.throwIfAborted();
+  const truncated = events.length > analyticsEventLimit;
+  const all = truncated
+    ? issues.concat({
+        source: "my",
+        kind: "invalid",
+        message: `Прочитаны первые ${analyticsEventLimit} встреч. Уточните более короткий период.`,
+      })
+    : issues;
+  return analyzeMeetings({
+    ...period,
+    participantId,
+    events: events.slice(0, analyticsEventLimit),
+    issues: all,
+    truncated,
+    rules,
+  });
 }

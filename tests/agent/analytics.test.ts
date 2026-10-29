@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { analyzeMeetings } from "../../src/main/analytics.js";
+import {
+  analyzeMeetings,
+  analyticsEventLimit,
+  readAnalytics,
+} from "../../src/main/analytics.js";
 import type { CalendarEvent } from "../../src/shared/calendar.js";
 
 // Almaty is UTC+5: the day 2026-10-29 is [2026-10-28T19:00Z, 2026-10-29T19:00Z).
@@ -260,4 +264,129 @@ test("invalid periods are rejected", () => {
     assert.throws(() =>
       analyzeMeetings({ from, to, participantId: me, events: [] }),
     );
+});
+
+const never = new AbortController().signal;
+const week = (events: CalendarEvent[], issues: unknown[] = []) => ({
+  events: async (input: unknown) => {
+    calls.push(input);
+    return { events, issues } as never;
+  },
+});
+const calls: unknown[] = [];
+
+test("analytics reads my calendar per week with full events and the signed-in participant", async () => {
+  calls.length = 0;
+  const own = { id: me, name: "Я", status: "accepted", organizer: false };
+  const r = await readAnalytics(
+    "account-a",
+    me,
+    { period: "custom", from: "2026-10-31", to: "2026-11-03" },
+    week([
+      event("in", "2026-11-02T05:00:00Z", "2026-11-02T06:00:00Z", {
+        participation: "invited",
+        participants: [own],
+        recurring: true,
+      }),
+      event("outside", "2026-11-10T05:00:00Z", "2026-11-10T06:00:00Z"),
+    ]),
+    never,
+  );
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0], {
+    accountId: "account-a",
+    date: "2026-10-31",
+    view: "week",
+    myCalendar: true,
+    calendarIds: [],
+  });
+  assert.equal(r.totals.count, 1);
+  assert.equal(r.totals.regularCount, 1);
+  assert.deepEqual([r.from, r.to], ["2026-10-31", "2026-11-03"]);
+  assert.equal(r.complete, true);
+});
+
+test("analytics is not limited to the 200 events of the schedule tool", async () => {
+  const many = Array.from({ length: 300 }, (_, i) =>
+    event(`e${i}`, "2026-10-29T05:00:00Z", "2026-10-29T05:05:00Z"),
+  );
+  const r = await readAnalytics(
+    "a",
+    me,
+    { period: "today" },
+    week(many),
+    never,
+    [],
+    "2026-10-29T05:00:00Z",
+  );
+  assert.equal(r.totals.count, 300);
+  assert.equal(r.complete, true);
+});
+
+test("analytics marks the report partial after the event limit or read issues", async () => {
+  const many = Array.from({ length: analyticsEventLimit + 1 }, (_, i) =>
+    event(`e${i}`, "2026-10-29T05:00:00Z", "2026-10-29T05:05:00Z"),
+  );
+  const cut = await readAnalytics(
+    "a",
+    me,
+    { period: "today" },
+    week(many),
+    never,
+    [],
+    "2026-10-29T05:00:00Z",
+  );
+  assert.equal(cut.totals.count, analyticsEventLimit);
+  assert.equal(cut.complete, false);
+  assert.match(cut.issues.at(-1)?.message ?? "", /первые 1000/);
+  const issue = { source: "my", kind: "denied", message: "Нет доступа" };
+  const partial = await readAnalytics(
+    "a",
+    me,
+    { period: "today" },
+    week([], [issue]),
+    never,
+    [],
+    "2026-10-29T05:00:00Z",
+  );
+  assert.equal(partial.complete, false);
+  assert.deepEqual(partial.issues, [issue]);
+  const empty = await readAnalytics(
+    "a",
+    me,
+    { period: "today" },
+    week([]),
+    never,
+    [],
+    "2026-10-29T05:00:00Z",
+  );
+  assert.equal(empty.complete, true);
+  assert.equal(empty.totals.count, 0);
+});
+
+test("analytics rejects unknown input and propagates cancellation", async () => {
+  await assert.rejects(
+    readAnalytics(
+      "a",
+      me,
+      { period: "today", accountId: "other" },
+      week([]),
+      never,
+    ),
+  );
+  await assert.rejects(
+    readAnalytics(
+      "a",
+      me,
+      { period: "custom", from: "2026-01-01", to: "2026-03-01" },
+      week([]),
+      never,
+    ),
+  );
+  const controller = new AbortController();
+  controller.abort();
+  await assert.rejects(
+    readAnalytics("a", me, { period: "today" }, week([]), controller.signal),
+    { name: "AbortError" },
+  );
 });
