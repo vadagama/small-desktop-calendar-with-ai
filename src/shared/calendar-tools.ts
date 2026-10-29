@@ -1,3 +1,4 @@
+import type { MeetingDraft } from "./meeting-draft.js";
 import { z } from "zod";
 import { validCalendarDate } from "./calendar-time.js";
 import type { CalendarReply, PeoplePage, SlotsResult } from "./calendar.js";
@@ -15,7 +16,9 @@ export const slotsToolInput = z.strictObject({
   date: z.string().refine(validCalendarDate),
   durationMinutes: z.number().int().min(1).max(480),
 });
-export type CalendarToolResult = CalendarReply<PeoplePage | SlotsResult>;
+export type CalendarToolResult = CalendarReply<
+  PeoplePage | SlotsResult | MeetingDraft
+>;
 export type CalendarToolExecutor = (
   name: string,
   input: unknown,

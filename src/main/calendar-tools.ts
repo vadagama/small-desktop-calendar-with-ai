@@ -1,3 +1,5 @@
+import { meetingDraftInput } from "../shared/meeting-draft.js";
+import { prepareMeetingDraft } from "./meeting-draft.js";
 import {
   peopleToolInput,
   slotsToolInput,
@@ -14,6 +16,7 @@ export function createCalendarToolExecutor(
   signal: AbortSignal,
   calendar: Pick<CalendarService, "searchPeople">,
   availability: Pick<AvailabilityService, "find">,
+  organizerName: string = accountId,
 ): CalendarToolExecutor {
   const selection = prompt.match(/Участники:\s*\[([A-Za-z0-9_,\s-]+)\]/giu);
   const explicitIds =
@@ -41,8 +44,10 @@ export function createCalendarToolExecutor(
             "Проверьте имя и страницу поиска.",
           );
         data = await calendar.searchPeople({ ...parsed.data, accountId });
-      } else if (name === "findSlots") {
-        const parsed = slotsToolInput.safeParse(input);
+      } else if (name === "findSlots" || name === "prepareMeetingDraft") {
+        const parsed = (
+          name === "findSlots" ? slotsToolInput : meetingDraftInput
+        ).safeParse(input);
         if (!parsed.success)
           throw new CalendarError(
             "invalid",
@@ -58,7 +63,15 @@ export function createCalendarToolExecutor(
             "invalid",
             "Укажите полный состав в формате «Участники: [ID1, ID2]». Состав команды по названию не подтверждён.",
           );
-        data = await availability.find({ ...parsed.data, accountId });
+        data =
+          name === "findSlots"
+            ? await availability.find({ ...parsed.data, accountId })
+            : await prepareMeetingDraft(
+                { id: accountId, name: organizerName },
+                parsed.data,
+                availability,
+                signal,
+              );
       } else throw new CalendarError("denied", "Инструмент недоступен.");
       signal.throwIfAborted();
       return { ok: true, data };

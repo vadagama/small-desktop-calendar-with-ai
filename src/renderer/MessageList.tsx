@@ -29,7 +29,8 @@ export function MessageList({ messages }: { messages: UIMessage[] }) {
               if (isToolUIPart(part)) {
                 const calendar =
                   part.type === "tool-searchPeople" ||
-                  part.type === "tool-findSlots";
+                  part.type === "tool-findSlots" ||
+                  part.type === "tool-prepareMeetingDraft";
                 return (
                   <div
                     className="draft-card sdk-tool"
@@ -41,7 +42,9 @@ export function MessageList({ messages }: { messages: UIMessage[] }) {
                         ? "Поиск сотрудников"
                         : part.type === "tool-findSlots"
                           ? "Общее время"
-                          : "Сложение чисел"}
+                          : part.type === "tool-prepareMeetingDraft"
+                            ? "Черновик встречи"
+                            : "Сложение чисел"}
                     </strong>
                     {part.state === "input-streaming" && (
                       <p>Получаю параметры…</p>

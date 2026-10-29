@@ -140,7 +140,43 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     await expect(page.getByRole("log")).toContainText(
       "Нет полной занятости каждого участника",
     );
-    expect(outputs).toHaveLength(4);
+    toolName = "prepareMeetingDraft";
+    toolInput = {
+      title: "Обсуждение синтетического плана",
+      agenda: "Цели и следующие шаги",
+      participantIds: ["synthetic-a", "synthetic-b"],
+      startsAt: "2099-10-29T09:30:00+05:00",
+      location: "",
+      conference: { mode: "automatic" },
+    };
+    await send(
+      "Подготовь черновик. Участники: [synthetic-a, synthetic-b]. 2099-10-29 в 09:30, 30 минут. Обсудим план.",
+    );
+    const draft = page.getByRole("region", {
+      name: "Черновик встречи",
+      exact: true,
+    });
+    await expect(draft).toContainText("Обсуждение синтетического плана");
+    await expect(draft).toContainText("Организатор: employee-a");
+    await expect(draft).toContainText("30 мин");
+    await expect(draft).toContainText("Цели и следующие шаги");
+    await expect(draft).toContainText("https://meet.small.kz/");
+    await expect(draft).toContainText("Встреча не создана");
+    await expect(draft).toContainText("synthetic-a, synthetic-b");
+    await draft.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: "test-results/desktop/meeting-draft.png" });
+    toolInput = {
+      ...(toolInput as object),
+      startsAt: "2099-10-29T09:00:00+05:00",
+    };
+    await send(
+      "Подготовь черновик. Участники: [synthetic-a, synthetic-b]. 2099-10-29 в 09:00, 30 минут.",
+    );
+    await expect(page.getByRole("log")).toContainText(
+      "Выбранный интервал не подтверждён",
+    );
+    await expect(draft).toHaveCount(1);
+    expect(outputs).toHaveLength(6);
     expect(JSON.stringify(outputs)).not.toMatch(
       /access_token|synthetic-calendar-key|signature/,
     );
