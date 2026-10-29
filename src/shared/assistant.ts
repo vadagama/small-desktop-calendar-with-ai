@@ -33,6 +33,7 @@ export interface AssistantBridge {
   subscribe(listener: (event: AgentEvent) => void): () => void;
 }
 export interface DesktopBridge {
+  notifications: import("./reminders.js").NativeNotificationBridge;
   reminders: import("./reminders.js").ReminderBridge;
   platform: string;
   sandboxed: boolean;
