@@ -4,6 +4,7 @@ import { Calendar } from "../../prototype/src/CalendarView";
 import type { Meeting } from "../../prototype/src/types";
 import { DesktopAssistant } from "./Assistant";
 import { DockWorkspace } from "./DockWorkspace";
+import { Availability } from "./Availability";
 import { SmallAccount } from "./SmallAccount";
 import { CalendarFilters } from "./CalendarFilters";
 import { EventDetails } from "./EventDetails";
@@ -21,6 +22,9 @@ export function DesktopWorkspace() {
   const [revision, setRevision] = useState(0);
   const [date, setDate] = useState(calendarToday);
   const [view, setView] = useState<CalendarView>("week");
+  const [availabilityAccount, setAvailabilityAccount] = useState<string | null>(
+    null,
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selected, setSelected] = useState<{
@@ -30,6 +34,7 @@ export function DesktopWorkspace() {
   const accountId = account?.status === "signed-in" ? account.profile.id : null;
   useEffect(() => {
     setSelected(null);
+    setAvailabilityAccount(null);
   }, [accountId]);
   const expired = useCallback(() => {
     setAccount(null);
@@ -116,6 +121,13 @@ export function DesktopWorkspace() {
               {accountId ? "Team API" : "Вход не выполнен"}
             </span>
           </div>
+          <button
+            className="secondary"
+            disabled={!accountId}
+            onClick={() => setAvailabilityAccount(accountId)}
+          >
+            Подобрать время
+          </button>
           <span className="subtle">
             {account?.status === "signed-in" ? account.profile.name : ""}
           </span>
@@ -200,6 +212,15 @@ export function DesktopWorkspace() {
           <span>Чтение Team API · Asia/Almaty</span>
         </footer>
       </main>
+      {availabilityAccount && availabilityAccount === accountId && (
+        <Availability
+          key={accountId}
+          accountId={availabilityAccount}
+          initialDate={date}
+          close={() => setAvailabilityAccount(null)}
+          expired={expired}
+        />
+      )}
       {selected && selected.accountId === accountId && (
         <EventDetails
           key={`${selected.accountId}:${selected.event.key}`}

@@ -22,7 +22,9 @@ export class CalendarError extends Error {
 export interface CalendarSession {
   readCalendar<T>(
     accountId: string,
-    action: (get: (path: string) => Promise<Response>) => Promise<T>,
+    action: (
+      get: (path: string, body?: unknown) => Promise<Response>,
+    ) => Promise<T>,
   ): Promise<T>;
 }
 const id = z
@@ -32,6 +34,9 @@ const id = z
   ])
   .transform(String);
 const account = z.strictObject({ accountId: z.string().min(1).max(200) });
+const searchText = z.string().trim().min(1).max(200);
+const pageNumber = z.number().int().min(1).max(Number.MAX_SAFE_INTEGER);
+const peopleQuery = account.extend({ query: searchText, page: pageNumber });
 const date = z.string().refine(validCalendarDate);
 const querySchema = account.extend({
   date,
@@ -91,7 +96,7 @@ function normalize(value: unknown): CalendarEvent {
     location: e.location ?? "",
   };
 }
-async function json(response: Response): Promise<unknown> {
+export async function calendarJson(response: Response): Promise<unknown> {
   if (!response.ok) {
     const kind =
       response.status === 401
@@ -142,10 +147,65 @@ async function json(response: Response): Promise<unknown> {
 }
 export class CalendarService {
   constructor(private session: CalendarSession) {}
+  /** One search page, never evidence of a complete team or an unambiguous name. */
+  async searchPeople(input: unknown) {
+    const q = parse(peopleQuery, input);
+    return this.session.readCalendar(q.accountId, async (get) => {
+      const params = new URLSearchParams({
+        q: q.query,
+        per_page: "10",
+        page: String(q.page),
+      });
+      const body = parse(
+        z.object({
+          data: z.object({
+            items: z
+              .array(
+                z.object({
+                  person_guid: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+                  person_full_fio: z.string().trim().min(1).max(500),
+                  position_name: z.string().max(500).nullish(),
+                }),
+              )
+              .max(10),
+            pagination: z.object({
+              current_page: pageNumber,
+              last_page: pageNumber,
+            }),
+          }),
+        }),
+        await calendarJson(
+          await get(`/gate/employee/api/search/persons?${params}`),
+        ),
+      ).data;
+      const { current_page: current, last_page: last } = body.pagination;
+      if (
+        current !== q.page ||
+        last < current ||
+        new Set(body.items.map((person) => person.person_guid)).size !==
+          body.items.length
+      )
+        throw new CalendarError(
+          "invalid",
+          "Неизвестный формат страниц каталога Small.",
+        );
+      return {
+        people: body.items.map((person) => ({
+          participantId: person.person_guid,
+          name: person.person_full_fio,
+          position: person.position_name ?? "",
+        })),
+        page: current,
+        nextPage: current < last ? current + 1 : null,
+      };
+    });
+  }
   async calendars(input: unknown) {
     const { accountId } = parse(account, input);
     return this.session.readCalendar(accountId, async (get) => {
-      const value = await json(await get("/gate/team/api/calendars/public"));
+      const value = await calendarJson(
+        await get("/gate/team/api/calendars/public"),
+      );
       return parse(
         z.object({
           data: z
@@ -178,7 +238,7 @@ export class CalendarService {
               pagination: z.unknown().optional(),
               meta: z.unknown().optional(),
             }),
-            await json(
+            await calendarJson(
               await get(`/gate/team/api/calendars/${source}/events?${params}`),
             ),
           );
@@ -240,8 +300,10 @@ export class CalendarService {
           : `/gate/team/api/calendar/events/generated?${new URLSearchParams({ original_event_id: lookup.originalEventId, date: lookup.date })}`;
       const raw = parse(
         eventSchema,
-        parse(z.object({ data: z.unknown() }), await json(await get(path)))
-          .data,
+        parse(
+          z.object({ data: z.unknown() }),
+          await calendarJson(await get(path)),
+        ).data,
       );
       if (
         "id" in lookup
@@ -272,6 +334,17 @@ export function isCalendarReadPath(path: string): boolean {
     return false;
   const entries = [...url.searchParams.keys()];
   if (new Set(entries).size !== entries.length) return false;
+  if (url.pathname === "/gate/employee/api/search/persons") {
+    const page = url.searchParams.get("page") ?? "";
+    return (
+      entries.length === 3 &&
+      entries.every((key) => ["q", "per_page", "page"].includes(key)) &&
+      searchText.safeParse(url.searchParams.get("q")).success &&
+      url.searchParams.get("per_page") === "10" &&
+      /^[1-9][0-9]*$/.test(page) &&
+      pageNumber.safeParse(Number(page)).success
+    );
+  }
   if (url.pathname === "/gate/team/api/calendars/public")
     return entries.length === 0;
   if (

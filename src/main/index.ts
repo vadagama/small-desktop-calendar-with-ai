@@ -7,6 +7,7 @@ import { KeychainSecrets } from "./keychain.js";
 import { registerProfileHandlers } from "./profile-ipc.js";
 
 import { CalendarService } from "./calendar.js";
+import { AvailabilityService } from "./availability.js";
 import { registerCalendarHandlers } from "./calendar-ipc.js";
 import { SmallAuth } from "./small-auth.js";
 import { createSmallSession } from "./small-session.js";
@@ -95,7 +96,11 @@ app.whenReady().then(async () => {
     createSmallSession(),
     new KeychainSecrets(app.getPath("userData")),
   );
-  registerCalendarHandlers(new CalendarService(smallAuth), assistant.trusted);
+  registerCalendarHandlers(
+    new CalendarService(smallAuth),
+    assistant.trusted,
+    new AvailabilityService(smallAuth),
+  );
   registerSmallAuthHandlers(
     smallAuth,
     assistant.trusted,

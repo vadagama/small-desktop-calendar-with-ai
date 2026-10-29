@@ -48,7 +48,103 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       if (path.endsWith("/logout")) return Response.json({});
       if (!request.headers.get("authorization")?.startsWith("Bearer header."))
         return new Response(null, { status: 401 });
+      if (path.endsWith("/find-slots") || path.endsWith("/busy-intervals")) {
+        if (request.method !== "POST")
+          return new Response(null, { status: 405 });
+        const input = await request.json();
+        if (input.participant_ids.includes("denied"))
+          return new Response(null, { status: 403 });
+        const day = input.start_date ?? input.date;
+        if (path.endsWith("/find-slots"))
+          return Response.json({
+            data: {
+              available_slots:
+                input.duration_minutes === 60
+                  ? []
+                  : [
+                      {
+                        start: `${day}T09:00:00+05:00`,
+                        end: `${day}T09:30:00+05:00`,
+                      },
+                      {
+                        start: `${day}T09:30:00+05:00`,
+                        end: `${day}T10:00:00+05:00`,
+                      },
+                    ],
+            },
+          });
+        return Response.json({
+          data: input.participant_ids
+            .filter((id: string) => id !== "unknown")
+            .map((participant_id: string) => ({
+              type: "participant",
+              participant_id,
+              busy_slots:
+                participant_id === "synthetic-b"
+                  ? [
+                      {
+                        start: `${day}T09:00:00+05:00`,
+                        end: `${day}T09:30:00+05:00`,
+                      },
+                    ]
+                  : [],
+            })),
+        });
+      }
       if (request.method !== "GET") return new Response(null, { status: 405 });
+      if (path === "/gate/employee/api/search/persons") {
+        const q = url.searchParams.get("q");
+        const current = Number(url.searchParams.get("page"));
+        const people =
+          q === "пусто"
+            ? []
+            : q === "неизвестно"
+              ? [
+                  {
+                    person_guid: "unknown",
+                    person_full_fio: "Неизвестная занятость",
+                    position_name: "Тест",
+                  },
+                ]
+              : q === "нет прав"
+                ? [
+                    {
+                      person_guid: "denied",
+                      person_full_fio: "Закрытый календарь",
+                      position_name: "Тест",
+                    },
+                  ]
+                : current === 2
+                  ? [
+                      {
+                        person_guid: "synthetic-c",
+                        person_full_fio: "Другой сотрудник",
+                        position_name: "Тест",
+                      },
+                    ]
+                  : [
+                      {
+                        person_guid: "synthetic-a",
+                        person_full_fio: "Тестовый сотрудник",
+                        position_name: "Отдел A",
+                      },
+                      {
+                        person_guid: "synthetic-b",
+                        person_full_fio: "Тестовый сотрудник",
+                        position_name: "Отдел B",
+                      },
+                    ];
+        return Response.json({
+          data: {
+            items: people,
+            pagination: {
+              current_page: current,
+              last_page: q === "Тест" ? 2 : 1,
+            },
+          },
+        });
+      }
+
       if (path.endsWith("/info"))
         return Response.json({ data: { avatar: null } });
       if (path.endsWith("/calendars/public"))
