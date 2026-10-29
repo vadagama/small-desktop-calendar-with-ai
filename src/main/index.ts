@@ -107,6 +107,7 @@ app.whenReady().then(async () => {
             signal,
             calendar,
             availability,
+            state.profile.name,
           )
         : null;
     },

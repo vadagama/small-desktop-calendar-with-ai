@@ -145,3 +145,48 @@ test("drops draft preparation after cancellation, including a late availability 
   );
 });
 
+test("draft tool enforces the explicit complete participant list before any read", async () => {
+  const { createCalendarToolExecutor } =
+    await import("../../src/main/calendar-tools.js");
+  for (const prompt of [
+    "Подготовь встречу",
+    "Участники: [person-a, person-b]",
+  ]) {
+    const execute = createCalendarToolExecutor(
+      organizer.id,
+      prompt,
+      signal,
+      {
+        searchPeople: async () => {
+          throw new Error("unused");
+        },
+      },
+      {
+        find: async () => {
+          assert.fail("unconfirmed participants must not reach API");
+        },
+      },
+      organizer.name,
+    );
+    const result = await execute("prepareMeetingDraft", input);
+    assert.equal(result.ok, false);
+  }
+  const execute = createCalendarToolExecutor(
+    organizer.id,
+    "Участники: [person-a]",
+    signal,
+    {
+      searchPeople: async () => {
+        throw new Error("unused");
+      },
+    },
+    availability,
+    organizer.name,
+  );
+  const result = await execute("prepareMeetingDraft", input);
+  assert.ok(
+    result.ok &&
+      "kind" in result.data &&
+      result.data.organizer.name === organizer.name,
+  );
+});
