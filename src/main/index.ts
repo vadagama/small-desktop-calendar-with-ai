@@ -1,3 +1,4 @@
+import { EventChangeService } from "./event-change.js";
 import { MeetingOperations } from "./meeting-operations.js";
 import { MeetingJournal } from "./meeting-journal.js";
 import { SmallMeetingWriter } from "./meeting-writer.js";
@@ -124,7 +125,12 @@ app.whenReady().then(async () => {
   registerProfileHandlers(profiles, assistant.trusted, assistant.cancelActive);
   registerMeetingHandlers(meetings, smallAuth, assistant.trusted);
 
-  registerCalendarHandlers(calendar, assistant.trusted, availability);
+  registerCalendarHandlers(
+    calendar,
+    assistant.trusted,
+    availability,
+    new EventChangeService(smallAuth),
+  );
   registerSmallAuthHandlers(
     smallAuth,
     assistant.trusted,

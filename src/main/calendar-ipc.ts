@@ -1,3 +1,4 @@
+import type { EventChangeService } from "./event-change.js";
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
 import { calendarChannels, type CalendarReply } from "../shared/calendar.js";
 import { CalendarError, type CalendarService } from "./calendar.js";
@@ -8,6 +9,7 @@ export function registerCalendarHandlers(
   service: CalendarService,
   trusted: (event: IpcMainInvokeEvent) => boolean,
   availability: AvailabilityService,
+  changes: EventChangeService,
 ) {
   const handle = <T>(
     channel: string,
@@ -42,6 +44,7 @@ export function registerCalendarHandlers(
       },
     );
   };
+  handle(calendarChannels.previewChange, (input) => changes.preview(input));
   handle(calendarChannels.calendars, (input) => service.calendars(input));
   handle(calendarChannels.events, (input) => service.events(input));
   handle(calendarChannels.detail, (input) => service.detail(input));

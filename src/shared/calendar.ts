@@ -1,3 +1,4 @@
+import type { EventChangeQuery, EventChangePreview } from "./event-change.js";
 export type CalendarView = "day" | "week" | "month";
 export type EventLookup =
   { id: string } | { originalEventId: string; date: string };
@@ -42,6 +43,7 @@ export const calendarChannels = {
   calendars: "calendar:list",
   events: "calendar:events",
   detail: "calendar:detail",
+  previewChange: "calendar:preview-change",
 } as const;
 export interface CalendarPerson {
   participantId: string;
@@ -67,6 +69,9 @@ export interface SlotsResult {
   timezone: "Asia/Almaty";
 }
 export interface CalendarBridge {
+  previewChange(
+    input: EventChangeQuery,
+  ): Promise<CalendarReply<EventChangePreview>>;
   people(input: {
     accountId: string;
     query: string;
