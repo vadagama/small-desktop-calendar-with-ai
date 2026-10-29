@@ -211,6 +211,7 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
     );
     await page.mouse.up();
     await expect(block).toContainText("09:00 – 10:30");
+    await expect(block).not.toHaveAttribute("data-pending", /.+/);
     await expect(page.getByRole("dialog")).toHaveCount(0);
     const startBox = (await block
       .locator(".event-resize.start")
@@ -229,6 +230,7 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
     );
     await page.mouse.up();
     await expect(block).toContainText("09:15 – 10:30");
+    await expect(block).not.toHaveAttribute("data-pending", /.+/);
     const moveBox = (await block.boundingBox())!;
     await page.mouse.move(moveBox.x + 40, moveBox.y + 22);
     await page.mouse.down();
@@ -237,6 +239,8 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
     await page.mouse.move(moveBox.x + 40, moveBox.y + 38, { steps: 8 });
     await page.mouse.up();
     await expect(block).toContainText("09:30 – 10:45");
+    // Small must have answered before the test changes the server state under it.
+    await expect(block).not.toHaveAttribute("data-pending", /.+/);
     await app.evaluate(() => {
       (
         globalThis as typeof globalThis & {
