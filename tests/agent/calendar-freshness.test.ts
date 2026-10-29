@@ -11,66 +11,36 @@ const at = Date.parse("2026-10-29T04:00:00Z");
 const describe = (overrides: Partial<CalendarFreshnessInput> = {}) =>
   describeFreshness({
     fetchedAt: at,
-    now: at,
     offline: false,
     refreshError: "",
-    refreshing: false,
     ...overrides,
   });
-const minutes = (count: number) => at + count * 60_000;
 
-test("nothing confirmed means no label", () => {
+test("nothing confirmed means nothing to say", () => {
   assert.equal(describe({ fetchedAt: null }), null);
+  assert.equal(describe({ fetchedAt: null, offline: true }), null);
 });
 
-test("age is rounded down and a clock that is behind never goes negative", () => {
-  assert.equal(describe()?.text, "Обновлено только что");
-  assert.equal(describe({ now: at + 59_999 })?.text, "Обновлено только что");
-  assert.equal(describe({ now: at - 5_000 })?.text, "Обновлено только что");
-  assert.equal(describe({ now: minutes(1) })?.text, "Обновлено 1 минуту назад");
+test("while everything works the panel has nothing to say", () => {
+  assert.equal(describe(), null);
 });
 
-test("Russian plural forms of minutes", () => {
-  const forms: Record<number, string> = {
-    1: "минуту",
-    2: "минуты",
-    4: "минуты",
-    5: "минут",
-    11: "минут",
-    12: "минут",
-    14: "минут",
-    21: "минуту",
-    22: "минуты",
-    25: "минут",
-    59: "минут",
-  };
-  for (const [count, word] of Object.entries(forms))
-    assert.equal(
-      describe({ now: minutes(Number(count)) })?.text,
-      `Обновлено ${count} ${word} назад`,
-      count,
-    );
+test("lost contact and a failed refresh say when the data is from, in Almaty time", () => {
+  assert.equal(
+    describe({ offline: true }),
+    "Нет связи с Small. Данные на 09:00",
+  );
+  assert.equal(
+    describe({ refreshError: "down" }),
+    "Не удалось обновить. Данные на 09:00",
+  );
 });
 
-test("an hour or older switches to the clock time in Almaty", () => {
-  assert.equal(describe({ now: minutes(60) })?.text, "Обновлено в 09:00");
-  assert.equal(describe({ now: minutes(600) })?.text, "Обновлено в 09:00");
-});
-
-test("offline, a failed refresh and an ongoing refresh are described separately", () => {
-  assert.deepEqual(describe({ offline: true }), {
-    text: "Нет связи с Small. Данные на 09:00",
-    tone: "warning",
-  });
-  assert.deepEqual(describe({ refreshError: "down" }), {
-    text: "Не удалось обновить. Данные на 09:00",
-    tone: "warning",
-  });
-  assert.deepEqual(describe({ refreshing: true, offline: true }), {
-    text: "Обновляю…",
-    tone: "fresh",
-  });
-  assert.equal(describe({ now: minutes(3) })?.tone, "fresh");
+test("lost contact is the more important of the two", () => {
+  assert.equal(
+    describe({ offline: true, refreshError: "down" }),
+    "Нет связи с Small. Данные на 09:00",
+  );
 });
 
 test("marks cover every card of a changed event, skip a revealed one and ignore removals", () => {

@@ -1,43 +1,26 @@
-import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import {
   describeFreshness,
   type CalendarFreshnessInput,
 } from "../shared/calendar-freshness.js";
 
-function useNow(periodMs: number) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), periodMs);
-    return () => window.clearInterval(timer);
-  }, [periodMs]);
-  return now;
-}
-
+/** Shown only when the data on screen may be out of date; otherwise it renders nothing. */
 export function CalendarFreshnessBar({
   fetchedAt,
   offline,
   refreshError,
   refreshing,
   refresh,
-}: Omit<CalendarFreshnessInput, "now"> & { refresh: () => void }) {
-  const now = useNow(30_000);
-  const label = describeFreshness({
-    fetchedAt,
-    now,
-    offline,
-    refreshError,
-    refreshing,
-  });
-  if (!label) return null;
+}: CalendarFreshnessInput & { refreshing: boolean; refresh: () => void }) {
+  const text = describeFreshness({ fetchedAt, offline, refreshError });
+  if (!text) return null;
   return (
     <div
-      className={`calendar-freshness calendar-freshness-${label.tone}`}
-      // The age text ticks every 30 s; only problems are worth announcing.
-      role={label.tone === "warning" ? "status" : undefined}
+      className="calendar-freshness calendar-freshness-warning"
+      role="status"
     >
       <span className="calendar-freshness-dot" aria-hidden="true" />
-      <span>{label.text}</span>
+      <span>{text}</span>
       <button
         className="secondary"
         aria-label="Обновить календарь"

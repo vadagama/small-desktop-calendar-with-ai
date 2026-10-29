@@ -22,6 +22,7 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
   try {
     await mockSmall(app, calendarToday());
     const page = await app.firstWindow();
+    await page.emulateMedia({ reducedMotion: "reduce" });
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => {
@@ -329,7 +330,18 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
         (globalThis as typeof globalThis & { syntheticEventMutations: number })
           .syntheticEventMutations,
     );
+    await app.evaluate(() => {
+      (
+        globalThis as typeof globalThis & { syntheticListDelayMs: number }
+      ).syntheticListDelayMs = 4000;
+    });
     await details.getByRole("button", { name: "Удалить", exact: true }).click();
+    await expect(block).toHaveCount(0, { timeout: 1500 });
+    await app.evaluate(() => {
+      (
+        globalThis as typeof globalThis & { syntheticListDelayMs: number }
+      ).syntheticListDelayMs = 0;
+    });
     await expect(details).toHaveCount(0);
     await expect(
       page.getByText("Событие успешно удалено", { exact: true }),

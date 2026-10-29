@@ -18,6 +18,8 @@ import { SmallAccount } from "./SmallAccount";
 import { CalendarFilters } from "./CalendarFilters";
 import { EventDetails } from "./EventDetails";
 import { CalendarFreshnessBar } from "./CalendarFreshnessBar";
+import { eventFromCreatedMeeting } from "../shared/calendar-view-state.js";
+import type { MeetingView } from "../shared/meeting-operations.js";
 import { meetingInvalidation } from "../shared/calendar-invalidation.js";
 import {
   beginMove,
@@ -64,7 +66,9 @@ export function DesktopWorkspace() {
   const [view, setView] = useState<CalendarView>("week");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const selectionSequence = useRef(0);
   const [selected, setSelected] = useState<{
+    sequence: number;
     accountId: string;
     event: CalendarEvent;
   } | null>(null);
@@ -86,23 +90,31 @@ export function DesktopWorkspace() {
     setRevision((value) => value + 1);
   }, []);
   const calendar = useSmallCalendar(accountId, date, view, expired);
+  const showCreated = (result: MeetingView) => {
+    setCreatedId(result.eventId ?? null);
+    const visible = calendarRange(date, view);
+    const start = Date.parse(result.draft.startsAt);
+    // A meeting inside the range on screen is added in place: no navigation, no new query.
+    const inRange =
+      calendar.my &&
+      start >= Date.parse(visible.start) &&
+      start < Date.parse(visible.end);
+    if (inRange && result.eventId)
+      calendar.addEvent(eventFromCreatedMeeting(result.draft, result.eventId));
+    if (!inRange) setDate(calendarDateAt(result.draft.startsAt));
+    calendar.setMy(true);
+    calendar.refreshAfterWrite(meetingInvalidation(result.draft));
+  };
   useEffect(() => {
     const created = (event: Event) => {
-      const result = (
-        event as CustomEvent<
-          import("../shared/meeting-operations.js").MeetingView
-        >
-      ).detail;
+      const result = (event as CustomEvent<MeetingView>).detail;
       if (result.draft.organizer.id !== currentAccount.current) return;
-      setCreatedId(result.eventId ?? null);
-      setDate(calendarDateAt(result.draft.startsAt));
-      calendar.setMy(true);
-      calendar.refreshAfterWrite(meetingInvalidation(result.draft));
+      showCreated(result);
     };
     events.addEventListener("assistant-meeting-created", created);
     return () =>
       events.removeEventListener("assistant-meeting-created", created);
-  }, [calendar.setMy, calendar.refreshAfterWrite]);
+  }, [showCreated]);
   const range = calendarRange(date, view);
   const byId = new Map<string, CalendarEvent>();
   const shownEvents = overlayMoves(calendar.events, moves);
@@ -443,7 +455,12 @@ export function DesktopWorkspace() {
                 pending={pendingCards}
                 select={(meeting) => {
                   const event = byId.get(meeting.id);
-                  if (event && accountId) setSelected({ accountId, event });
+                  if (event && accountId)
+                    setSelected({
+                      accountId,
+                      event,
+                      sequence: ++selectionSequence.current,
+                    });
                 }}
                 change={(meeting) => void changeTime(meeting)}
                 canChange={canChange}
@@ -461,7 +478,7 @@ export function DesktopWorkspace() {
                 retry={calendar.refresh}
                 swap={swap}
                 today={calendarToday()}
-                footerLabel="Данные Small"
+                hideFooter
                 statusContent={
                   unavailable ? (
                     <div className="state-screen" role="status">
@@ -492,7 +509,6 @@ export function DesktopWorkspace() {
           )}
         />
         <footer className="workspace-footer">
-          <span>Small Calendar</span>
           <span>Team API · Asia/Almaty</span>
         </footer>
       </main>
@@ -514,20 +530,17 @@ export function DesktopWorkspace() {
           initialSlot={initialSlot ?? undefined}
           close={() => setCreating(false)}
           expired={expired}
-          created={(result) => {
-            setCreatedId(result.eventId ?? null);
-            setDate(calendarDateAt(result.draft.startsAt));
-            calendar.setMy(true);
-            calendar.refreshAfterWrite(meetingInvalidation(result.draft));
-          }}
+          created={showCreated}
         />
       )}
       {selected && selected.accountId === accountId && (
         <EventDetails
-          key={`${selected.accountId}:${selected.event.key}`}
+          key={`${selected.accountId}:${selected.event.key}:${selected.sequence}`}
           accountId={selected.accountId}
           lookup={selected.event.lookup}
-          changed={(write) => calendar.refreshAfterWrite(write)}
+          changed={(write, removed) =>
+            calendar.refreshAfterWrite(write, removed)
+          }
           remote={remote}
           acknowledgeRemote={() => setRemote(null)}
           createWithPeople={(event) => {

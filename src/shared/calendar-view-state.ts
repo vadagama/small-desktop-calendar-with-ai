@@ -1,3 +1,5 @@
+import { isSameOccurrence, occurrenceAliases } from "./occurrence-key.js";
+import { legacyOccurrenceKey } from "./series-scope.js";
 import type {
   CalendarEvent,
   CalendarView,
@@ -12,7 +14,7 @@ import {
   type EventInvalidation,
   type TimeWindow,
 } from "./calendar-invalidation.js";
-import { calendarRange } from "./calendar-time.js";
+import { calendarRange, calendarDateAt } from "./calendar-time.js";
 
 /** What the calendar shows for one query key; replaced, never mixed across keys. */
 export interface CalendarData {
@@ -90,6 +92,78 @@ export function applyCalendarResult(
   return isEmptyDiff(diff)
     ? { ...base, diff: previous.diff, revision: previous.revision }
     : { ...base, diff, revision: previous.revision + 1 };
+}
+
+/** The card of a meeting Small just confirmed, shown before the next read brings the full one. */
+export function eventFromCreatedMeeting(
+  draft: {
+    title: string;
+    agenda: string;
+    location: string;
+    startsAt: string;
+    endsAt: string;
+    organizer: { name: string };
+    recurrence: "none" | "weekly";
+  },
+  eventId: string,
+): CalendarEvent {
+  return {
+    ...(draft.recurrence === "weekly"
+      ? {
+          key: legacyOccurrenceKey(eventId, draft.startsAt),
+          lookup: {
+            originalEventId: eventId,
+            date: calendarDateAt(draft.startsAt),
+          },
+          aliases: occurrenceAliases({
+            seriesId: eventId,
+            startsAt: draft.startsAt,
+          }),
+        }
+      : { key: `event:${eventId}`, lookup: { id: eventId } }),
+    title: draft.title,
+    startsAt: draft.startsAt,
+    endsAt: draft.endsAt,
+    calendarIds: [],
+    participation: "organizer",
+    accepted: true,
+    organizer: draft.organizer.name,
+    description: draft.agenda,
+    location: draft.location,
+    recurring: draft.recurrence === "weekly",
+  };
+}
+
+/** Adds an event to a stored range without touching when that range was confirmed. */
+export function insertCalendarEvent(
+  store: CalendarStore,
+  key: string,
+  event: CalendarEvent,
+): CalendarStore {
+  const data = store[key];
+  if (!data || data.events.some((known) => isSameOccurrence(known, event)))
+    return store;
+  return { ...store, [key]: { ...data, events: [...data.events, event] } };
+}
+
+/**
+ * Before a read replaces the range, Small's version of an event we inserted ourselves
+ * becomes the "previous" one, so confirming our own guess does not look like a change.
+ */
+export function adoptConfirmedEvents(
+  store: CalendarStore,
+  key: string,
+  ours: ReadonlySet<string>,
+  confirmed: CalendarEvent[],
+): CalendarStore {
+  const data = store[key];
+  if (!data || !ours.size) return store;
+  const events = data.events.map((event) =>
+    ours.has(event.key)
+      ? (confirmed.find((other) => isSameOccurrence(event, other)) ?? event)
+      : event,
+  );
+  return { ...store, [key]: { ...data, events } };
 }
 
 /** Recently viewed ranges, oldest first, so going back to one needs no loading screen. */

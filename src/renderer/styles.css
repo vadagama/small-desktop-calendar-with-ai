@@ -21,8 +21,11 @@
   margin-bottom: 20px;
   line-height: 1.6;
 }
+.model-settings .modal-header h2 {
+  font-size: var(--font-dialog-title);
+}
 .model-settings label {
-  font-size: 14px;
+  font-size: var(--font-body);
 }
 .model-actions {
   display: flex;
@@ -52,14 +55,18 @@
 }
 .small-sidebar-footer {
   flex-shrink: 0;
-  padding: 16px 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: 8px 2px;
   border-top: 1px solid var(--line);
 }
 .small-sidebar-footer .settings-link {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
+  margin: 0;
 }
 .desktop-workspace .calendar-filters label {
   overflow-wrap: anywhere;
@@ -1606,4 +1613,24 @@
     animation-duration: 0s !important;
     animation-delay: 0s !important;
   }
+}
+
+.model-key-field {
+  position: relative;
+  display: block;
+}
+.model-key-field input {
+  width: 100%;
+  padding-right: 40px !important;
+}
+.model-key-applied {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+}
+
+.model-key-applied {
+  color: #008b65;
 }
