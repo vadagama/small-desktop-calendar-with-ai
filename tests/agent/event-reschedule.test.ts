@@ -570,3 +570,84 @@ test("only an outcome that could not be established is flagged unknown", async (
       },
     );
 });
+
+/** A service whose card reads as `afterDelete()` once a DELETE was sent. */
+function deleting(
+  afterDelete: () => Response,
+  deleteResponse: () => Response | never,
+) {
+  let writes = 0;
+  const service = new EventRescheduleService(
+    {
+      readCalendar: async (_id, action) =>
+        action(
+          async () => (writes ? afterDelete() : Response.json({ data: event })),
+          "person-a",
+        ),
+      updateCalendarEvent: async () => {
+        throw new Error("unexpected update");
+      },
+      deleteCalendarEvent: async () => {
+        writes++;
+        return deleteResponse();
+      },
+    },
+    journal(),
+  );
+  const cancel = () =>
+    service.applyChange({
+      accountId: input.accountId,
+      eventId: "42",
+      change: { kind: "cancel" },
+    });
+  return { cancel, writes: () => writes };
+}
+const cancelled = (id = 42, status = "cancelled") =>
+  Response.json({ status: "success", data: { ...event, id, status } });
+
+test("a soft delete is confirmed when the event reads back as cancelled", async () => {
+  const { cancel, writes } = deleting(
+    () => cancelled(),
+    () => new Response(null, { status: 204 }),
+  );
+  await cancel();
+  assert.equal(writes(), 1);
+});
+
+test("an event that is still active after an acknowledged delete is an unknown outcome", async () => {
+  const { cancel } = deleting(
+    () => cancelled(42, "accepted"),
+    () => new Response(null, { status: 204 }),
+  );
+  await assert.rejects(cancel(), (error) => {
+    assert.equal(error instanceof CalendarError && error.unknownOutcome, true);
+    return true;
+  });
+});
+
+test("a cancelled event with another id does not prove this delete", async () => {
+  const { cancel } = deleting(
+    () => cancelled(43),
+    () => new Response(null, { status: 204 }),
+  );
+  await assert.rejects(cancel(), /неизвестен/);
+});
+
+test("without an acknowledged DELETE a cancelled event is still not proof", async () => {
+  // The DELETE response is lost: the event may have been cancelled by someone else.
+  const { cancel } = deleting(
+    () => cancelled(),
+    () => {
+      throw new Error("timeout");
+    },
+  );
+  await assert.rejects(cancel(), /неизвестен/);
+});
+
+test("a body that is not an event cannot confirm a delete", async () => {
+  const { cancel } = deleting(
+    () => new Response("not json", { status: 200 }),
+    () => new Response(null, { status: 204 }),
+  );
+  await assert.rejects(cancel(), /неизвестен/);
+});
