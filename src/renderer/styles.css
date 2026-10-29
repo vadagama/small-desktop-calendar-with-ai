@@ -1372,3 +1372,33 @@
   color: var(--muted);
   font-size: var(--font-compact);
 }
+
+.analytics-rules-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+}
+.analytics-rule {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  margin: 0 0 12px;
+}
+.analytics-rule label {
+  display: grid;
+  gap: 4px;
+  grid-column: 1;
+}
+.analytics-rule .icon-button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+.analytics-rules-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}

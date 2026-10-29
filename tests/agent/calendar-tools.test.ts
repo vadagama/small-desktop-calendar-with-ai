@@ -310,3 +310,62 @@ test("analytics reads only the signed-in account with its participant id and rej
   assert.equal(unknown.ok, false);
   assert.equal(calls.length, 1);
 });
+
+test("analytics applies saved topic rules and reports an unreadable rules file", async () => {
+  const calendar = {
+    searchPeople: async () => {
+      throw Error("must not search participants");
+    },
+    events: async () => ({
+      events: [
+        {
+          key: "a",
+          lookup: { id: "a" },
+          title: "Daily standup",
+          startsAt: "2026-10-29T05:00:00Z",
+          endsAt: "2026-10-29T05:30:00Z",
+          calendarIds: [],
+          organizer: "Анна",
+          location: "",
+          description: "",
+          participation: "organizer" as const,
+        },
+      ],
+      issues: [],
+    }),
+  };
+  const make = (
+    rules: () => Promise<never[] | { topic: string; keywords: string[] }[]>,
+  ) =>
+    createCalendarToolExecutor(
+      "account-a",
+      "Темы встреч",
+      new AbortController().signal,
+      calendar,
+      {
+        find: async () => {
+          throw Error("must not search slots");
+        },
+      },
+      "Я",
+      undefined,
+      undefined,
+      undefined,
+      "person-a",
+      rules,
+    );
+  const ok = await make(async () => [
+    { topic: "Процесс", keywords: ["daily"] },
+  ])("meetingAnalytics", { period: "today" });
+  assert.ok(ok.ok && "kind" in ok.data && ok.data.kind === "analytics");
+  assert.deepEqual(
+    ok.data.byTopic.map((bucket) => bucket.name),
+    ["Процесс"],
+  );
+  const broken = await make(async () => {
+    throw new Error("secret path /Users/x/topic-rules.json");
+  })("meetingAnalytics", { period: "today" });
+  assert.equal(broken.ok, false);
+  assert.ok(!broken.ok && /правила тем/.test(broken.error));
+  assert.ok(!broken.ok && !broken.error.includes("/Users/"));
+});

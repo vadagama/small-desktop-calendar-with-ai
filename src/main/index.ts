@@ -4,6 +4,8 @@ import { AgentSettingsStore } from "./agent-settings.js";
 import { registerAgentSettingsHandlers } from "./agent-settings-ipc.js";
 import { EventRescheduleService } from "./event-reschedule.js";
 import { registerReminders } from "./reminder-ipc.js";
+import { TopicRuleStore } from "./topic-rules.js";
+import { registerTopicRuleHandlers } from "./analytics-ipc.js";
 import { EventChangeService } from "./event-change.js";
 import { MeetingOperations } from "./meeting-operations.js";
 import { MeetingJournal } from "./meeting-journal.js";
@@ -107,6 +109,7 @@ app.whenReady().then(async () => {
   app.dock?.setIcon(appIcon);
   const participantMemory = new ParticipantMemory(app.getPath("userData"));
   const agentSettings = new AgentSettingsStore(app.getPath("userData"));
+  const topicRules = new TopicRuleStore(app.getPath("userData"));
   const profiles = new ProfileStore(
     app.getPath("userData"),
     new KeychainSecrets(app.getPath("userData")),
@@ -143,12 +146,14 @@ app.whenReady().then(async () => {
             conversation,
             participantMemory,
             state.profile.participantId,
+            () => topicRules.read(),
           )
         : null;
     },
     () => agentSettings.read(),
   );
   registerAgentSettingsHandlers(agentSettings, assistant.trusted);
+  registerTopicRuleHandlers(topicRules, assistant.trusted);
   registerProfileHandlers(profiles, assistant.trusted, assistant.cancelActive);
   registerMeetingHandlers(meetings, smallAuth, assistant.trusted, availability);
 

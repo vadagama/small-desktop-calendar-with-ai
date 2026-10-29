@@ -1,5 +1,6 @@
 import { Reminders } from "./Reminders";
-import { Bell } from "lucide-react";
+import { Bell, Tags } from "lucide-react";
+import { AnalyticsRules } from "./AnalyticsRules";
 import { events, notifySuccess, notifyError } from "./notification-events.js";
 import { NewMeeting } from "./NewMeeting";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -23,6 +24,7 @@ import type { SmallAuthState } from "../shared/small-auth.js";
 
 export function DesktopWorkspace() {
   const [remindersOpen, setRemindersOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [savingTime, setSavingTime] = useState(false);
   const saving = useRef(false);
   const currentAccount = useRef<string | null>(null);
@@ -205,6 +207,13 @@ export function DesktopWorkspace() {
           <Settings2 size={19} />
         </button>
         <button
+          aria-label="Правила тем аналитики"
+          title="Правила тем аналитики"
+          onClick={() => setRulesOpen(true)}
+        >
+          <Tags size={19} />
+        </button>
+        <button
           aria-label="Напоминания"
           title="Напоминания"
           onClick={() => setRemindersOpen(true)}
@@ -348,6 +357,7 @@ export function DesktopWorkspace() {
         </footer>
       </main>
       {remindersOpen && <Reminders close={() => setRemindersOpen(false)} />}
+      {rulesOpen && <AnalyticsRules close={() => setRulesOpen(false)} />}
       {creating && account?.status === "signed-in" && (
         <NewMeeting
           key={account.profile.id}

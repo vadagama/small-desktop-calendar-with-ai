@@ -1,8 +1,26 @@
+import { z } from "zod";
 import type { CalendarIssue } from "./calendar.js";
 
-export interface TopicRule {
-  topic: string;
-  keywords: string[];
+const word = z.string().trim().min(1).max(60);
+export const topicRulesSchema = z
+  .array(
+    z.strictObject({
+      topic: word,
+      keywords: z.array(word).min(1).max(20),
+    }),
+  )
+  .max(20)
+  .refine(
+    (rules) =>
+      new Set(rules.map((r) => r.topic.toLowerCase())).size === rules.length,
+    "Названия тем не должны повторяться",
+  );
+export type TopicRule = z.infer<typeof topicRulesSchema>[number];
+export type TopicRulesReply =
+  { ok: true; rules: TopicRule[] } | { ok: false; error: string };
+export interface TopicRulesBridge {
+  read(): Promise<TopicRulesReply>;
+  save(rules: TopicRule[]): Promise<TopicRulesReply>;
 }
 export type EventGroup =
   "confirmed" | "unconfirmed" | "declined" | "possible-all-day" | "invalid";

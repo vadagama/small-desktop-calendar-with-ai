@@ -125,6 +125,38 @@ test("analytics report is calculated by main and rendered as a verifiable card",
       ).toBeVisible();
     };
 
+    const open = () =>
+      page.getByRole("button", { name: "Правила тем аналитики", exact: true });
+    const rules = page.getByRole("dialog", { name: "Правила тем аналитики" });
+    await open().click();
+    await expect(rules).toContainText(
+      "Правил нет: все встречи «Без категории».",
+    );
+    await rules.getByRole("button", { name: "Добавить тему" }).click();
+    await rules.getByRole("button", { name: "Добавить тему" }).click();
+    await rules.getByLabel("Тема 1", { exact: true }).fill("Встречи");
+    await rules.getByLabel("Ключевые слова 1 (через запятую)").fill("встреча");
+    await rules.getByLabel("Тема 2", { exact: true }).fill("встречи");
+    await rules
+      .getByLabel("Ключевые слова 2 (через запятую)")
+      .fill("серия, регулярная");
+    await rules.getByRole("button", { name: "Сохранить правила тем" }).click();
+    await expect(rules.getByRole("alert")).toContainText(
+      "названия не повторяются",
+    );
+    await rules.getByLabel("Тема 2", { exact: true }).fill("Серии");
+    await rules.getByRole("button", { name: "Сохранить правила тем" }).click();
+    await expect(rules.getByRole("status")).toContainText("Правила сохранены.");
+    await rules.getByRole("button", { name: "Закрыть правила тем" }).click();
+    await open().click();
+    await expect(rules.getByLabel("Тема 2", { exact: true })).toHaveValue(
+      "Серии",
+    );
+    await expect(
+      rules.getByLabel("Ключевые слова 2 (через запятую)"),
+    ).toHaveValue("серия, регулярная");
+    await rules.getByRole("button", { name: "Закрыть правила тем" }).click();
+
     plan = [
       { name: "loadSkill", input: { name: "analytics" } },
       { name: "meetingAnalytics", input: { period: "today" } },
@@ -151,6 +183,17 @@ test("analytics report is calculated by main and rendered as a verifiable card",
     await card.getByText("Состав отчёта (2)").click();
     await expect(card).toContainText("Синтетическая встреча A");
     await expect(card).toContainText("Синтетическая серия A");
+    await card.getByText("По темам").click();
+    const topics = card
+      .locator("details")
+      .filter({ hasText: "По темам" })
+      .locator(".analytics-rows li");
+    await expect(topics).toHaveText([
+      /Встречи\s*1 · 1 ч/,
+      /Серии\s*1 · 30 мин/,
+    ]);
+    await expect(card).toContainText("1 ч · Встречи: «встреча»");
+    await expect(card).toContainText("30 мин · Серии: «серия»");
     await card.getByText("Правила подсчёта").click();
     await expect(card).toContainText("полуоткрытый интервал");
     await expect(page.getByRole("log")).toContainText(
