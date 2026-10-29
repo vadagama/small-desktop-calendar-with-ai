@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { schedulePeriod, readSchedule } from "../../src/main/schedule.js";
+import {
+  schedulePeriod,
+  readSchedule,
+  collectEvents,
+} from "../../src/main/schedule.js";
+import { occurrenceAliases } from "../../src/shared/occurrence-key.js";
+import { legacyOccurrenceKey } from "../../src/shared/series-scope.js";
+import type { CalendarEvent } from "../../src/shared/calendar.js";
 
 test("schedule uses Almaty whole days and Monday weeks across year boundaries", () => {
   const now = "2026-12-31T20:00:00Z";
@@ -136,4 +143,70 @@ test("schedule deduplicates a meeting crossing weeks and propagates cancellation
   await assert.rejects(readSchedule("a", input, calendar, controller.signal), {
     name: "AbortError",
   });
+});
+
+const seriesView = (id: string | null, startsAt: string): CalendarEvent => ({
+  key: id ? `event:${id}` : legacyOccurrenceKey("43", startsAt),
+  lookup: id ? { id } : { originalEventId: "43", date: startsAt.slice(0, 10) },
+  originalEventId: "43",
+  recurring: true,
+  title: "Серия",
+  startsAt,
+  endsAt: new Date(Date.parse(startsAt) + 7200000).toISOString(),
+  calendarIds: [],
+  organizer: "",
+  location: "",
+  description: "",
+  aliases: occurrenceAliases({ seriesId: "43", id, startsAt }),
+});
+
+test("collectEvents merges the views of one occurrence from different weekly reads and keeps the materialized one", async () => {
+  const startsAt = "2026-11-01T18:00:00Z";
+  for (const materializedFirst of [false, true]) {
+    const views = [seriesView(null, startsAt), seriesView("900", startsAt)];
+    const [earlier, later] = materializedFirst ? views.reverse() : views;
+    const { events, issues } = await collectEvents(
+      "a",
+      { from: "2026-10-31", to: "2026-11-03" },
+      {
+        events: async (input) => ({
+          events: [
+            (input as { date: string }).date === "2026-10-31"
+              ? earlier!
+              : later!,
+          ],
+          issues: [],
+        }),
+      },
+      new AbortController().signal,
+    );
+    assert.deepEqual(issues, []);
+    assert.deepEqual(
+      events.map((e) => e.key),
+      ["event:900"],
+    );
+  }
+});
+
+test("collectEvents keeps separate events and the schedule tool output stays unchanged in shape", async () => {
+  const a = seriesView("900", "2026-11-02T05:00:00Z");
+  const b = seriesView("901", "2026-11-02T05:00:00Z");
+  const result = await readSchedule(
+    "a",
+    { period: "custom", from: "2026-11-02", to: "2026-11-02" },
+    { events: async () => ({ events: [a, b], issues: [] }) },
+    new AbortController().signal,
+  );
+  assert.deepEqual(
+    result.events.map((e) => e.key),
+    ["event:900", "event:901"],
+  );
+  assert.deepEqual(Object.keys(result.events[0]!).sort(), [
+    "endsAt",
+    "key",
+    "location",
+    "organizer",
+    "startsAt",
+    "title",
+  ]);
 });

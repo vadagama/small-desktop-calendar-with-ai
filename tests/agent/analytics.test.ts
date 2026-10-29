@@ -6,6 +6,8 @@ import {
   readAnalytics,
 } from "../../src/main/analytics.js";
 import type { CalendarEvent } from "../../src/shared/calendar.js";
+import { occurrenceAliases } from "../../src/shared/occurrence-key.js";
+import { legacyOccurrenceKey } from "../../src/shared/series-scope.js";
 
 // Almaty is UTC+5: the day 2026-10-29 is [2026-10-28T19:00Z, 2026-10-29T19:00Z).
 const me = "me";
@@ -388,5 +390,109 @@ test("analytics rejects unknown input and propagates cancellation", async () => 
   await assert.rejects(
     readAnalytics("a", me, { period: "today" }, week([]), controller.signal),
     { name: "AbortError" },
+  );
+});
+
+/** The same series occurrence as the calendar reports it, with aliases. */
+const view = (
+  id: string | null,
+  startsAt: string,
+  endsAt: string,
+  extra: Partial<CalendarEvent> = {},
+): CalendarEvent =>
+  event(
+    id ? `event:${id}` : legacyOccurrenceKey("43", startsAt),
+    startsAt,
+    endsAt,
+    {
+      lookup: id
+        ? { id }
+        : { originalEventId: "43", date: startsAt.slice(0, 10) },
+      originalEventId: "43",
+      recurring: true,
+      aliases: occurrenceAliases({ seriesId: "43", id, startsAt }),
+      ...extra,
+    },
+  );
+const slot = ["2026-10-29T05:00:00Z", "2026-10-29T06:00:00Z"] as const;
+
+test("a virtual and a materialized view of one occurrence are counted once, the materialized one wins", () => {
+  for (const order of [0, 1]) {
+    const views = [
+      view(null, ...slot),
+      view("900", "2026-10-29T09:00:00Z", "2026-10-29T10:00:00Z"),
+    ];
+    const r = run(order ? views.reverse() : views);
+    assert.equal(r.totals.count, 1);
+    assert.equal(r.totals.sumMinutes, 60);
+    assert.equal(r.totals.regularCount, 1);
+    assert.equal(r.duplicates, 1);
+    assert.deepEqual(
+      r.events.map((e) => [e.key, e.startsAt]),
+      [["event:900", "2026-10-29T09:00:00Z"]],
+    );
+  }
+});
+
+test("an occurrence moved to another day and separate events of one day are not merged", () => {
+  const moved = run([
+    view(null, ...slot),
+    view("900", "2026-10-30T05:00:00Z", "2026-10-30T06:00:00Z"),
+  ]);
+  // Only the first lies in the period; the moved one is a different occurrence.
+  assert.equal(moved.totals.count, 1);
+  assert.equal(moved.duplicates, 0);
+  const siblings = run([view("900", ...slot), view("901", ...slot)]);
+  assert.equal(siblings.totals.count, 2);
+  assert.equal(siblings.totals.sumMinutes, 120);
+  assert.equal(siblings.totals.busyMinutes, 60);
+  assert.equal(siblings.duplicates, 0);
+});
+
+test("aliases and the old identity check work together", () => {
+  const r = run([
+    view(null, ...slot),
+    view("900", ...slot),
+    view("900", ...slot),
+    event("k", "2026-10-29T07:00:00Z", "2026-10-29T08:00:00Z"),
+    event("other", "2026-10-29T07:00:00Z", "2026-10-29T08:00:00Z", {
+      lookup: { id: "k" },
+    }),
+  ]);
+  assert.equal(r.totals.count, 2);
+  assert.equal(r.duplicates, 3);
+});
+
+test("readAnalytics counts an occurrence once when its views arrive in different weekly reads", async () => {
+  // 23:00–01:00 Almaty across the Sunday/Monday boundary appears in both weekly reads.
+  const virtualView = view(
+    null,
+    "2026-11-01T18:00:00Z",
+    "2026-11-01T20:00:00Z",
+  );
+  const materializedView = view(
+    "900",
+    "2026-11-01T18:00:00Z",
+    "2026-11-01T20:00:00Z",
+  );
+  const r = await readAnalytics(
+    "a",
+    me,
+    { period: "custom", from: "2026-10-31", to: "2026-11-03" },
+    {
+      events: async (input: unknown) => {
+        const first = (input as { date: string }).date === "2026-10-31";
+        return {
+          events: [first ? virtualView : materializedView],
+          issues: [],
+        };
+      },
+    },
+    new AbortController().signal,
+  );
+  assert.equal(r.totals.count, 1);
+  assert.deepEqual(
+    r.events.map((e) => e.key),
+    ["event:900"],
   );
 });

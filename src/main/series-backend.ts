@@ -1,8 +1,9 @@
 import { z } from "zod";
-import { calendarDateAt, calendarRange } from "../shared/calendar-time.js";
-import type { CalendarEvent, CalendarIssue } from "../shared/calendar.js";
+import { calendarDateAt } from "../shared/calendar-time.js";
+import type { CalendarEvent } from "../shared/calendar.js";
 import { occurrenceKey } from "../shared/series-scope.js";
 import { calendarJson, type CalendarService } from "./calendar.js";
+import { collectEvents } from "./schedule.js";
 import { SmallAuthError } from "./small-auth.js";
 import type {
   BackendWrite,
@@ -87,34 +88,6 @@ const originalDateOf = (event: CalendarEvent) =>
     ? event.lookup.date
     : calendarDateAt(event.startsAt);
 
-/** Every week of the window once, keeping the full events that intersect it. */
-async function readEvents(
-  accountId: string,
-  from: string,
-  to: string,
-  calendar: Pick<CalendarService, "events">,
-) {
-  const start = Date.parse(calendarRange(from, "day").start);
-  const end = Date.parse(calendarRange(to, "day").end);
-  const events = new Map<string, CalendarEvent>();
-  const issues: CalendarIssue[] = [];
-  for (let date = from; date <= to;) {
-    const result = await calendar.events({
-      accountId,
-      date,
-      view: "week",
-      myCalendar: true,
-      calendarIds: [],
-    });
-    issues.push(...result.issues);
-    for (const event of result.events)
-      if (Date.parse(event.startsAt) < end && Date.parse(event.endsAt) > start)
-        events.set(event.key, event);
-    date = calendarDateAt(calendarRange(date, "week").end);
-  }
-  return { events: [...events.values()], issues };
-}
-
 export class SmallSeriesBackend implements SeriesBackend {
   constructor(
     private session: SeriesSession,
@@ -122,11 +95,11 @@ export class SmallSeriesBackend implements SeriesBackend {
   ) {}
 
   async window(accountId: string, seriesId: string, from: string, to: string) {
-    const { events, issues } = await readEvents(
+    const { events, issues } = await collectEvents(
       accountId,
-      from,
-      to,
+      { from, to },
       this.calendar,
+      new AbortController().signal,
     );
     const views: SeriesView[] = [];
     for (const event of events) {
