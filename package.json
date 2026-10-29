@@ -8,19 +8,40 @@
   },
   "scripts": {
     "test": "node --import tsx --test tests/agent/*.test.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.renderer.json",
     "build": "tsc -p tsconfig.json",
-    "format:check": "prettier --check package.json tsconfig.json src tests"
+    "format:check": "prettier --check package.json tsconfig*.json *.config.ts src tests",
+    "dev": "electron-vite dev",
+    "start": "electron-vite preview",
+    "build:desktop": "electron-vite build",
+    "package:mac": "npm run build:desktop && electron-packager . \"Small Calendar\" --platform=darwin --arch=arm64 --out=release --asar --overwrite --icon=build/app.icns --ignore='^/(?!out(/|$)|package\\.json$|node_modules(/|$))'",
+    "test:desktop": "playwright test -c playwright.desktop.config.ts",
+    "pretest:desktop": "install-electron"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "3.0.80",
+    "@napi-rs/keyring": "2.1.2",
     "ai": "7.0.155",
+    "react-markdown": "10.1.0",
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@ai-sdk/react": "4.0.159",
+    "@electron/packager": "20.3.0",
+    "@playwright/test": "1.64.1",
     "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "dockview-react": "8.7.1",
+    "electron": "45.1.0",
+    "electron-vite": "6.0.0",
+    "lucide-react": "1.63.0",
     "prettier": "3.9.10",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "tsx": "4.23.15",
-    "typescript": "7.0.2"
-  }
+    "typescript": "7.0.2",
+    "vite": "8.3.5"
+  },
+  "main": "out/main/index.js"
 }

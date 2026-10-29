@@ -1,3 +1,5 @@
+import { CalendarSlots } from "./CalendarSlots";
+import { layoutEvents } from "./event-layout";
 import { useEventTooltip } from "./useEventTooltip";
 import {
   CalendarDays,
@@ -19,7 +21,7 @@ import {
   TODAY,
   weekStart,
 } from "./calendar";
-import type { DataState, Meeting, View } from "./types";
+import type { DataState, Meeting, View, Slot } from "./types";
 import { useEffect, useRef, useState } from "react";
 interface Props {
   date: string;
@@ -32,8 +34,24 @@ interface Props {
   state: DataState;
   retry: () => void;
   swap: () => void;
+  readOnly?: boolean;
+  create?: (slot: Slot) => void;
+  canChange?: (meeting: Meeting) => boolean;
+  revealEventId?: string;
+  today?: string;
+  footerLabel?: string;
+  statusContent?: React.ReactNode;
 }
 export function Calendar(p: Props) {
+  const container = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (p.revealEventId)
+      container.current
+        ?.querySelector('[data-new-event="true"]')
+        ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [p.revealEventId]);
+  const today = p.today ?? TODAY;
+  const hasStatus = Boolean(p.statusContent);
   const tooltip = useEventTooltip();
   const scroll = useRef<HTMLDivElement>(null);
   const [now, setNow] = useState(() => new Date());
@@ -43,7 +61,7 @@ export function Calendar(p: Props) {
   }, []);
   useEffect(() => {
     if (scroll.current) scroll.current.scrollTop = 8 * 64;
-  }, [p.view, p.state]);
+  }, [p.view, p.state, hasStatus]);
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Almaty",
     year: "numeric",
@@ -127,7 +145,7 @@ export function Calendar(p: Props) {
           p.view === "month" ? { month: "long", year: "numeric" } : undefined,
         );
   return (
-    <section className="calendar-panel" aria-label="Календарь">
+    <section className="calendar-panel" ref={container} aria-label="Календарь">
       <div
         className="panel-caption"
         draggable
@@ -163,7 +181,7 @@ export function Calendar(p: Props) {
             >
               <ChevronRight size={18} />
             </button>
-            <button className="today-button" onClick={() => p.setDate(TODAY)}>
+            <button className="today-button" onClick={() => p.setDate(today)}>
               Сегодня
             </button>
           </div>
@@ -212,7 +230,9 @@ export function Calendar(p: Props) {
           />
         </div>
       )}
-      {p.state !== "ready" ? (
+      {p.statusContent ? (
+        p.statusContent
+      ) : p.state !== "ready" ? (
         <CalendarState state={p.state} retry={p.retry} />
       ) : p.view === "month" ? (
         <div className="month-scroll">
@@ -228,7 +248,7 @@ export function Calendar(p: Props) {
                 className={`month-day ${day.slice(0, 7) !== p.date.slice(0, 7) ? "outside" : ""}`}
               >
                 <button
-                  className={day === TODAY ? "today-number" : ""}
+                  className={day === today ? "today-number" : ""}
                   onClick={() => {
                     p.setDate(day);
                     p.setView("day");
@@ -242,7 +262,17 @@ export function Calendar(p: Props) {
                   .map((e) => (
                     <button
                       {...tooltip.bind(e)}
-                      className={`month-event calendar-${e.calendar}`}
+                      aria-description={
+                        e.participation === "organizer"
+                          ? "Моя встреча"
+                          : e.participation === "informed"
+                            ? "Я информируемый"
+                            : e.participation === "invited"
+                              ? "Я приглашён"
+                              : "Роль не указана"
+                      }
+                      data-new-event={e.id === p.revealEventId || undefined}
+                      className={`month-event calendar-${e.calendar} participation-${e.participation ?? "unknown"} ${e.accepted && e.participation !== "informed" ? "accepted" : ""}`}
                       key={e.id}
                       onClick={() => {
                         tooltip.hide();
@@ -267,7 +297,7 @@ export function Calendar(p: Props) {
               {days.map((day) => (
                 <button
                   key={day}
-                  className={`day-heading ${day === TODAY ? "current" : ""}`}
+                  className={`day-heading ${day === today ? "current" : ""}`}
                   onClick={() => {
                     p.setDate(day);
                     p.setView("day");
@@ -275,7 +305,7 @@ export function Calendar(p: Props) {
                 >
                   <span>{dateLabel(day, { weekday: "short" })}</span>
                   <strong>{Number(day.slice(-2))}</strong>
-                  {day === TODAY && (
+                  {day === today && (
                     <span className="today-caption">Сегодня</span>
                   )}
                 </button>
@@ -300,20 +330,40 @@ export function Calendar(p: Props) {
               </div>
               {days.map((day) => (
                 <div
-                  className={`day-column ${day === TODAY ? "current" : ""}`}
+                  className={`day-column ${day === today ? "current" : ""}`}
                   key={day}
                 >
-                  {Array.from({ length: 24 }, (_, i) => (
-                    <div className="hour-cell" key={i} />
-                  ))}
-                  {filtered
-                    .filter((e) => e.date === day)
-                    .map((e) => (
+                  {p.create && !p.readOnly ? (
+                    <CalendarSlots
+                      date={day}
+                      create={p.create}
+                      disabled={day < today}
+                    />
+                  ) : (
+                    Array.from({ length: 24 }, (_, i) => (
+                      <div className="hour-cell" key={i} />
+                    ))
+                  )}
+                  {layoutEvents(filtered.filter((e) => e.date === day)).map(
+                    ({ event: e, column, columns }) => (
                       <button
                         key={e.id}
                         {...tooltip.bind(e)}
-                        className={`calendar-event calendar-${e.calendar} ${e.duration <= 30 ? "compact" : ""}`}
+                        aria-description={
+                          e.participation === "organizer"
+                            ? "Моя встреча"
+                            : e.participation === "informed"
+                              ? "Я информируемый"
+                              : e.participation === "invited"
+                                ? "Я приглашён"
+                                : "Роль не указана"
+                        }
+                        data-new-event={e.id === p.revealEventId || undefined}
+                        className={`calendar-event calendar-${e.calendar} participation-${e.participation ?? "unknown"} ${e.accepted && e.participation !== "informed" ? "accepted" : ""} ${e.duration <= 30 ? "compact" : ""}`}
                         style={{
+                          left: `calc(${(column * 100) / columns}% + 3px)`,
+                          right: "auto",
+                          width: `calc(${100 / columns}% - 6px)`,
                           top:
                             (preview?.id === e.id ? preview.start : e.start) *
                             (64 / 60),
@@ -331,7 +381,13 @@ export function Calendar(p: Props) {
                         }}
                         onPointerDown={(event) => {
                           tooltip.hide();
-                          if (event.button !== 0) return;
+                          suppressClick.current = false;
+                          if (
+                            p.readOnly ||
+                            p.canChange?.(e) === false ||
+                            event.button !== 0
+                          )
+                            return;
                           const mode =
                             (event.target as HTMLElement).dataset.resize ||
                             "move";
@@ -377,7 +433,12 @@ export function Calendar(p: Props) {
                               event.clientX,
                               event.clientY,
                             );
-                            p.change(updated);
+                            if (
+                              updated.start !== e.start ||
+                              updated.duration !== e.duration ||
+                              updated.date !== e.date
+                            )
+                              p.change(updated);
                             suppressClick.current = true;
                           }
                           gesture.current = null;
@@ -385,6 +446,10 @@ export function Calendar(p: Props) {
                           event.currentTarget.releasePointerCapture(
                             event.pointerId,
                           );
+                        }}
+                        onLostPointerCapture={() => {
+                          gesture.current = null;
+                          setPreview(null);
                         }}
                         onPointerCancel={() => {
                           gesture.current = null;
@@ -399,31 +464,44 @@ export function Calendar(p: Props) {
                           p.select(e);
                         }}
                       >
-                        <span
-                          className="event-resize start"
-                          aria-hidden="true"
-                          data-resize="start"
-                          title="Изменить начало"
-                        />
-                        <span
-                          className="event-resize end"
-                          aria-hidden="true"
-                          data-resize="end"
-                          title="Изменить окончание"
-                        />
-                        <strong>{e.title}</strong>
-                        <span>
+                        {!p.readOnly && p.canChange?.(e) !== false && (
+                          <>
+                            <span
+                              className="event-resize start"
+                              aria-hidden="true"
+                              data-resize="start"
+                              title="Изменить начало"
+                            />
+                            <span
+                              className="event-resize end"
+                              aria-hidden="true"
+                              data-resize="end"
+                              title="Изменить окончание"
+                            />
+                          </>
+                        )}
+                        <strong>
+                          {e.title}
+                          {e.duration <= 30 && (
+                            <>
+                              {" "}
+                              {time(e.start)} - {time(e.start + e.duration)}
+                            </>
+                          )}
+                        </strong>
+                        <span className="event-time">
                           {time(e.start)} – {time(e.start + e.duration)}
                         </span>
-                        {e.duration >= 60 && (
+                        {!p.readOnly && e.duration >= 60 && (
                           <small>
-                            {e.location === "Онлайн"
+                            {!p.readOnly && e.location === "Онлайн"
                               ? `${e.people.length} участника · Онлайн`
                               : e.location}
                           </small>
                         )}
                       </button>
-                    ))}
+                    ),
+                  )}
                 </div>
               ))}
             </div>
@@ -444,9 +522,15 @@ export function Calendar(p: Props) {
       <div className="calendar-footer">
         <span>
           <span className="status-dot" />
-          Демонстрационные данные
+          {p.footerLabel ?? "Демонстрационные данные"}
         </span>
-        <span>Неделя · Пн–Вс</span>
+        <span>
+          {p.view === "week"
+            ? "Неделя · Пн–Вс"
+            : p.view === "day"
+              ? "День"
+              : "Месяц"}
+        </span>
       </div>
     </section>
   );

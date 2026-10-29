@@ -1,1 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="9" fill="#ff5b2b"/><path d="M22 10H13a4 4 0 0 0 0 8h6a2 2 0 0 1 0 4H10M10 10v4m12 4v4" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs><clipPath id="substrate-clip"><rect x="0" y="0" width="512" height="512" rx="112.64" /></clipPath></defs>
+  <g clip-path="url(#substrate-clip)">
+    <rect x="0" y="0" width="512" height="512" rx="112.64" fill="rgba(59,130,246,1)" />
+    <circle cx="144" cy="144" r="28" fill="rgba(252,252,252,1)" />
+    <circle cx="200" cy="144" r="28" fill="rgba(252,252,252,1)" />
+    <circle cx="256" cy="144" r="28" fill="rgba(252,252,252,1)" />
+    <circle cx="312" cy="144" r="28" fill="rgba(252,252,252,1)" />
+    <circle cx="368" cy="144" r="28" fill="rgba(252,252,252,1)" />
+    <circle cx="144" cy="200" r="28" fill="rgba(252,252,252,1)" />
+    <rect x="284" y="172" width="56" height="56" fill="rgba(252,252,252,0.6)" />
+    <circle cx="368" cy="200" r="28" fill="rgba(252,252,252,1)" />
+    <circle cx="144" cy="256" r="28" fill="rgba(252,252,252,1)" />
+    <rect x="228" y="228" width="56" height="56" fill="rgba(252,252,252,0.6)" />
+    <rect x="284" y="228" width="56" height="56" fill="rgba(252,252,252,1)" />
+    <circle cx="368" cy="256" r="28" fill="rgba(252,252,252,1)" />
+    <circle cx="144" cy="312" r="28" fill="rgba(252,252,252,1)" />
+    <rect x="172" y="284" width="56" height="56" fill="rgba(252,252,252,0.3)" />
+    <circle cx="368" cy="312" r="28" fill="rgba(252,252,252,1)" />
+    <circle cx="144" cy="368" r="28" fill="rgba(252,252,252,1)" />
+    <circle cx="200" cy="368" r="28" fill="rgba(252,252,252,1)" />
+    <circle cx="256" cy="368" r="28" fill="rgba(252,252,252,1)" />
+    <circle cx="312" cy="368" r="28" fill="rgba(252,252,252,1)" />
+    <circle cx="368" cy="368" r="28" fill="rgba(252,252,252,1)" />
+  </g>
+</svg>

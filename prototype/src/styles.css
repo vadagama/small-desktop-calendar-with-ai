@@ -1,4 +1,9 @@
 :root {
+  --font-caption: 11px;
+  --font-menu: 12px;
+  --font-compact: 13px;
+  --font-body: 14px;
+  --font-dialog-title: 18px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   font-weight: 400;
@@ -91,8 +96,8 @@ strong {
   color: var(--muted);
 }
 .icon-button {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   border-radius: 6px;
   display: inline-flex;
   align-items: center;
@@ -122,7 +127,7 @@ strong {
   justify-content: center;
   color: var(--muted);
   padding: 8px 4px;
-  font-size: 12px;
+  font-size: 14px;
 }
 .app-shell {
   display: flex;
@@ -147,8 +152,8 @@ strong {
   text-transform: uppercase;
 }
 .mini-heading .icon-button {
-  width: 21px;
-  height: 24px;
+  width: 28px;
+  height: 32px;
 }
 .mini-grid {
   display: grid;
@@ -159,8 +164,8 @@ strong {
   padding: 4px 0 8px;
 }
 .mini-grid button {
-  width: 25px;
-  height: 25px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   margin: auto;
   padding: 0;
@@ -199,8 +204,8 @@ strong {
   outline-offset: 3px;
 }
 .custom-check {
-  width: 14px;
-  height: 14px;
+  width: 18px;
+  height: 18px;
   display: grid;
   place-items: center;
   border: 1px solid #b5b5b5;
@@ -265,17 +270,17 @@ strong {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 12px;
+  font-size: 14px;
 }
 .profile div {
   display: grid;
   gap: 3px;
 }
 .profile strong {
-  font-size: 11px;
+  font-size: 13px;
 }
 .profile div span {
-  font-size: 10px;
+  font-size: 12px;
 }
 .profile > svg {
   margin-left: auto;
@@ -294,6 +299,7 @@ strong {
   gap: 10px;
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
+  height: 56px;
 }
 .workspace-title {
   display: flex;
@@ -398,6 +404,8 @@ strong {
   border-bottom: 1px solid var(--line);
   flex-shrink: 0;
   cursor: grab;
+  height: 36px;
+  font-size: 12px;
 }
 .panel-caption > span:first-child {
   display: flex;
@@ -409,12 +417,14 @@ strong {
   margin-left: auto;
 }
 .panel-caption > .icon-button {
-  width: 22px;
-  height: 22px;
+  width: 36px;
+  height: 36px;
   margin-left: auto;
 }
 .panel-caption > .subtle + .icon-button {
   margin-left: 0;
+  width: 36px;
+  height: 36px;
 }
 .calendar-panel {
   height: 100%;
@@ -427,6 +437,7 @@ strong {
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
+  min-height: 76px;
 }
 .calendar-toolbar h2 {
   margin-top: 10px;
@@ -435,6 +446,8 @@ strong {
 .today-button {
   border: 1px solid #e3e3e3;
   margin-left: 8px;
+  min-height: 36px;
+  font-size: 14px;
 }
 .toolbar-actions {
   display: flex;
@@ -451,6 +464,8 @@ strong {
 }
 .view-switch button {
   border-radius: 4px;
+  min-height: 34px;
+  font-size: 14px;
 }
 .view-switch .selected {
   box-shadow: 0 1px 3px #2e2e2e12;
@@ -486,6 +501,7 @@ strong {
   top: 0;
   z-index: 3;
   border-bottom: 1px solid var(--line);
+  height: 64px;
 }
 .timezone {
   align-self: end;
@@ -506,11 +522,14 @@ strong {
   border-radius: 50%;
   display: grid;
   place-items: center;
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
 }
 .today-caption {
   position: absolute;
   bottom: 4px;
-  font-size: 7px;
+  font-size: 11px;
   color: #757575;
 }
 .time-body {
@@ -659,7 +678,7 @@ strong {
   gap: 9px;
 }
 .assistant-tip p {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.8;
 }
 .tiny-stars {
@@ -682,6 +701,7 @@ strong {
   min-height: 44px;
   background: transparent;
   color: var(--ink);
+  font-size: 14px;
 }
 .composer > div {
   display: flex;
@@ -689,7 +709,7 @@ strong {
   justify-content: space-between;
 }
 .composer > div > span {
-  font-size: 9px;
+  font-size: 11px;
   display: flex;
   gap: 5px;
   align-items: center;
@@ -697,8 +717,8 @@ strong {
 .composer button {
   display: grid;
   place-items: center;
-  width: 27px;
-  height: 27px;
+  width: 36px;
+  height: 36px;
   border-radius: 6px;
 }
 .composer-area > p {
@@ -710,7 +730,7 @@ strong {
   gap: 21px;
 }
 .message {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.8;
   display: flex;
   gap: 10px;
@@ -731,7 +751,7 @@ strong {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: 12px;
   flex-wrap: wrap;
 }
 .thinking span {
@@ -760,7 +780,7 @@ strong {
   margin: 21px 0 0 0;
 }
 .slot-label {
-  font-size: 10px;
+  font-size: 12px;
   margin-bottom: 4px;
 }
 .slot-list button {
@@ -776,10 +796,10 @@ strong {
   gap: 5px;
 }
 .slot-list button strong {
-  font-size: 11px;
+  font-size: 13px;
 }
 .slot-list button span {
-  font-size: 11px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 .draft-card {
@@ -792,7 +812,7 @@ strong {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: 12px;
 }
 .draft-heading > span {
   display: flex;
@@ -800,12 +820,12 @@ strong {
   align-items: center;
 }
 .draft-card h3 {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.5;
   margin: 13px 0;
 }
 .draft-card > p {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.8;
   position: relative;
   padding-left: 23px;
@@ -817,7 +837,7 @@ strong {
   top: 3px;
 }
 .draft-card dl {
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.6;
   margin: 12px 0;
   padding: 12px 0;
@@ -833,18 +853,18 @@ strong {
 .conflict-status {
   display: flex;
   gap: 6px;
-  font-size: 9px;
+  font-size: 11px;
   align-items: center;
   margin: 15px 0;
 }
 .draft-card > .primary {
   width: 100%;
-  font-size: 10px;
+  font-size: 12px;
   padding: 10px 4px;
 }
 .draft-card > .text-button {
   width: 100%;
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 3px;
 }
 .month-scroll {
@@ -859,7 +879,7 @@ strong {
 .month-weekday {
   text-align: center;
   padding: 12px 0;
-  font-size: 10px;
+  font-size: 12px;
   border-bottom: 1px solid var(--line);
 }
 .month-day {
@@ -871,7 +891,7 @@ strong {
 .month-day > button:first-child {
   width: 24px;
   height: 24px;
-  font-size: 10px;
+  font-size: 12px;
   border-radius: 50%;
   margin-bottom: 6px;
 }
@@ -880,7 +900,7 @@ strong {
 }
 .month-event {
   width: 100%;
-  font-size: 8px;
+  font-size: 11px;
   padding: 5px 4px;
   text-align: left;
   display: block;
@@ -903,11 +923,11 @@ strong {
   gap: 16px;
 }
 .state-screen h3 {
-  font-size: 17px;
+  font-size: 20px;
 }
 .state-screen p {
   line-height: 1.8;
-  font-size: 12px;
+  font-size: 14px;
   max-width: 38ch;
 }
 .loading-icon {
@@ -928,7 +948,7 @@ strong {
   align-items: center;
   border-radius: 8px;
   padding: 14px;
-  font-size: 11px;
+  font-size: 13px;
   white-space: nowrap;
 }
 .modal {
@@ -954,18 +974,18 @@ strong {
   gap: 15px;
 }
 .modal-header h2 {
-  font-size: 18px;
+  font-size: 20px;
   letter-spacing: -0.3px;
 }
 .modal-description {
   color: var(--muted);
   line-height: 1.8;
-  font-size: 12px;
+  font-size: 14px;
   margin-bottom: 24px;
 }
 .event-label {
   display: inline-block;
-  font-size: 10px;
+  font-size: 12px;
   padding: 5px 8px;
   border-radius: 4px;
 }
@@ -985,24 +1005,24 @@ strong {
   display: flex;
   gap: 13px;
   align-items: flex-start;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.7;
 }
 .event-details svg {
   margin-top: 2px;
 }
 .event-details small {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
 }
 .event-agenda {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
   line-height: 1.9;
   overflow-wrap: anywhere;
 }
 .modal h4 {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   margin: 0 0 7px;
 }
@@ -1018,7 +1038,7 @@ strong {
 }
 .dialog-actions p {
   width: 100%;
-  font-size: 12px;
+  font-size: 14px;
 }
 .danger-text {
   color: #606060;
@@ -1032,7 +1052,7 @@ strong {
 .state-select {
   display: grid;
   gap: 8px;
-  font-size: 11px;
+  font-size: 13px;
 }
 .meeting-form input:not([type="checkbox"]),
 .meeting-form select,
@@ -1062,23 +1082,23 @@ strong {
   flex-wrap: wrap;
 }
 .meeting-form legend {
-  font-size: 11px;
+  font-size: 13px;
   padding: 0 5px;
 }
 .person-option {
   display: flex;
   gap: 5px;
   align-items: center;
-  font-size: 11px;
+  font-size: 13px;
 }
 .form-error {
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.7;
   padding: 10px;
   border-radius: 6px;
 }
 .form-note {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.9;
 }
 .form-note > svg {
@@ -1086,7 +1106,7 @@ strong {
   margin-right: 5px;
 }
 .settings-heading {
-  font-size: 12px;
+  font-size: 14px;
   margin: 0 0 14px;
 }
 .layout-options {
@@ -1104,7 +1124,7 @@ strong {
   padding: 17px 3px;
   border: 1px solid #e4e4e4;
   border-radius: 7px;
-  font-size: 11px;
+  font-size: 13px;
 }
 .layout-check {
   position: absolute;
@@ -1128,7 +1148,7 @@ strong {
   align-items: center;
   gap: 10px;
   z-index: 15;
-  font-size: 12px;
+  font-size: 14px;
   max-width: calc(100vw - 30px);
   line-height: 1.7;
 }
@@ -1139,6 +1159,8 @@ strong {
 }
 .analytics-panel .panel-caption {
   justify-content: space-between;
+  height: 36px;
+  font-size: 12px;
 }
 .analytics-content {
   padding: 30px;
@@ -1151,7 +1173,7 @@ strong {
   line-height: 1.4;
 }
 .analytics-content > p {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--muted);
   line-height: 1.8;
   margin-top: 10px;
@@ -1169,12 +1191,12 @@ strong {
   font-size: 23px;
 }
 .analytics-total > span {
-  font-size: 11px;
+  font-size: 13px;
   width: 100%;
   margin-left: 34px;
 }
 .analytics-content h3 {
-  font-size: 12px;
+  font-size: 14px;
   margin-top: 26px;
   margin-bottom: 16px;
 }
@@ -1182,7 +1204,7 @@ strong {
   display: flex;
   justify-content: space-between;
   flex-wrap: wrap;
-  font-size: 11px;
+  font-size: 13px;
   gap: 10px;
   margin: 17px 0;
 }
@@ -1205,7 +1227,7 @@ strong {
   background: #aaaaaa;
 }
 .analytics-content .analytics-disclaimer {
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 22px;
 }
 .analytics-event {
@@ -1214,7 +1236,7 @@ strong {
   gap: 10px;
   padding: 12px 0;
   border-bottom: 1px solid var(--line);
-  font-size: 10px;
+  font-size: 12px;
 }
 .analytics-event strong {
   color: var(--ink);
@@ -1226,10 +1248,10 @@ strong {
 }
 @media (min-width: 1600px) {
   .calendar-event > span {
-    font-size: 10px;
+    font-size: 12px;
   }
   .calendar-event small {
-    font-size: 9px;
+    font-size: 11px;
   }
 }
 @media (max-width: 1150px) {
@@ -1239,18 +1261,20 @@ strong {
   }
   .workspace-header {
     padding: 0 18px;
+    height: 56px;
   }
   .calendar-toolbar {
     flex-wrap: wrap;
+    min-height: 76px;
   }
   .toolbar-actions {
     gap: 4px;
   }
   .assistant-intro p {
-    font-size: 10px;
+    font-size: 12px;
   }
   .suggestions button {
-    font-size: 10px;
+    font-size: 12px;
     gap: 7px;
   }
   .calendar-event {
@@ -1262,7 +1286,7 @@ strong {
     padding: 12px 10px;
   }
   .composer textarea {
-    font-size: 10px;
+    font-size: 14px;
   }
   .calendar-footer > span:last-child {
     display: none;
@@ -1313,6 +1337,7 @@ strong {
   }
   .workspace-header {
     gap: 5px;
+    height: 56px;
   }
   .workspace-title {
     gap: 7px;
@@ -1369,20 +1394,24 @@ strong {
     flex-direction: column;
     justify-content: center;
     padding: 10px 16px;
-    font-size: 8px;
+    font-size: 11px;
   }
   .panel-caption {
     padding: 0 12px;
+    height: 36px;
+    font-size: 12px;
   }
   .view-switch button {
     padding: 6px;
-    font-size: 9px;
+    font-size: 14px;
+    min-height: 34px;
   }
   .toolbar-actions {
     gap: 3px;
   }
   .toolbar-actions > .icon-button {
-    width: 20px;
+    width: 36px;
+    height: 36px;
   }
   .assistant-intro {
     padding-top: 4px;
@@ -1394,7 +1423,7 @@ strong {
   }
   .assistant-intro p {
     max-width: none;
-    font-size: 11px;
+    font-size: 13px;
   }
   .suggestions {
     margin-top: 15px;
@@ -1409,7 +1438,7 @@ strong {
     display: none;
   }
   .composer textarea {
-    font-size: 11px;
+    font-size: 14px;
   }
   .modal {
     padding: 20px;
@@ -1430,17 +1459,17 @@ strong {
     grid-column: 1/-1;
   }
   .toast {
-    font-size: 10px;
+    font-size: 12px;
     bottom: 16px;
   }
   .state-screen {
     padding: 20px;
   }
   .state-screen p {
-    font-size: 11px;
+    font-size: 13px;
   }
   .calendar-footer {
-    font-size: 8px;
+    font-size: 11px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1482,7 +1511,7 @@ strong {
   --accent: #ff5b2b;
   color: var(--ink);
   background: #fff;
-  font-size: 13px;
+  font-size: 14px;
 }
 body {
   background: #fff;
@@ -1519,6 +1548,8 @@ select:focus-visible,
 }
 .icon-button {
   color: #6b7280;
+  width: 36px;
+  height: 36px;
 }
 .icon-button:hover {
   background: #f1f1f1;
@@ -1527,7 +1558,7 @@ select:focus-visible,
   background: #7b8490;
 }
 .icon-rail {
-  width: 56px;
+  width: 64px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -1538,8 +1569,8 @@ select:focus-visible,
   gap: 9px;
 }
 .small-emblem {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--accent);
   color: white;
@@ -1550,8 +1581,8 @@ select:focus-visible,
 .icon-rail > button {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 10px;
   color: #464646;
 }
@@ -1572,17 +1603,17 @@ select:focus-visible,
   height: 29px;
   border: 1px solid #e4e4e4;
   border-radius: 50%;
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 3px;
 }
 .sidebar {
-  width: 200px;
+  width: 224px;
   background: white;
   padding: 0 14px;
   border-right: 1px solid #e9e9e9;
 }
 .sidebar-tabs {
-  height: 45px;
+  height: 56px;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -1590,7 +1621,7 @@ select:focus-visible,
   margin: 0 -14px 17px;
   padding: 0 8px;
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 14px;
 }
 .sidebar-tabs button {
   padding: 6px 7px;
@@ -1604,12 +1635,12 @@ select:focus-visible,
   box-shadow: 0 1px 2px #0000000d;
 }
 .mini-heading {
-  font-size: 11px;
+  font-size: 13px;
   margin-bottom: 11px;
   color: #374151;
 }
 .mini-grid {
-  font-size: 10px;
+  font-size: 12px;
   gap: 2px 0;
 }
 .mini-grid .weekday {
@@ -1637,10 +1668,10 @@ select:focus-visible,
 }
 .calendar-filters h2 {
   color: #6b7280;
-  font-size: 10px;
+  font-size: 12px;
 }
 .calendar-filters label {
-  font-size: 10px;
+  font-size: 12px;
   margin-bottom: 15px;
 }
 .custom-check.checked.green,
@@ -1658,14 +1689,14 @@ select:focus-visible,
 }
 .demo-note strong {
   color: #555;
-  font-size: 9px;
+  font-size: 11px;
 }
 .demo-note span {
-  font-size: 9px;
+  font-size: 11px;
 }
 .settings-link {
   color: #666;
-  font-size: 10px;
+  font-size: 12px;
 }
 .profile {
   border-color: #eee;
@@ -1682,7 +1713,7 @@ select:focus-visible,
   background: white;
 }
 .workspace-header {
-  height: 45px;
+  height: 56px;
   padding: 0 14px;
   background: #fff;
   border-color: #eee;
@@ -1691,7 +1722,7 @@ select:focus-visible,
   gap: 9px;
 }
 .workspace-title h1 {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 550;
 }
 .prototype-tag {
@@ -1699,20 +1730,20 @@ select:focus-visible,
   background: #f6f6f6;
   border: 1px solid #ececec;
   border-radius: 4px;
-  font-size: 9px;
+  font-size: 11px;
   padding: 3px 5px;
 }
 .layout-button {
   color: #444;
   background: #fff;
   border-color: #e7e7e7;
-  font-size: 10px;
+  font-size: 12px;
   padding: 6px 9px;
 }
 .header-create {
-  min-height: 29px;
-  font-size: 10px;
-  padding: 6px 11px;
+  min-height: 36px;
+  font-size: 14px;
+  padding: 8px 14px;
   margin-left: 5px;
 }
 .workspace {
@@ -1724,32 +1755,34 @@ select:focus-visible,
   height: 25px;
   padding: 0 12px;
   border-top: 1px solid #eee;
-  font-size: 8px;
+  font-size: 11px;
   color: #777;
 }
 .panel-caption {
-  height: 29px;
-  font-size: 9px;
+  height: 36px;
+  font-size: 12px;
   padding: 0 11px;
   background: #fafafa;
   border-color: #ededed;
   color: #727272;
 }
 .panel-caption > .subtle {
-  font-size: 9px;
+  font-size: 11px;
   color: #6b7280;
 }
 .assistant-panel .panel-caption {
   background: #fafafa;
+  height: 36px;
+  font-size: 12px;
 }
 .demo-pill {
   background: #efefef;
   color: #666;
-  font-size: 8px;
+  font-size: 11px;
 }
 .calendar-toolbar {
   padding: 12px 12px;
-  min-height: 66px;
+  min-height: 76px;
   gap: 10px;
 }
 .calendar-toolbar > div:first-child {
@@ -1759,7 +1792,7 @@ select:focus-visible,
   flex-wrap: wrap;
 }
 .calendar-toolbar h2 {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 550;
   margin: 0;
   letter-spacing: -0.2px;
@@ -1770,53 +1803,55 @@ select:focus-visible,
 .today-button {
   border-color: #e6e6e6;
   padding: 6px 8px;
-  font-size: 10px;
+  font-size: 14px;
   order: -1;
   margin: 0 4px 0 0;
   border-radius: 7px;
+  min-height: 36px;
 }
 .period-controls .icon-button {
-  width: 21px;
-  height: 25px;
+  width: 32px;
+  height: 36px;
 }
 .view-switch {
   background: #f4f4f4;
 }
 .view-switch button {
   color: #525252;
-  font-size: 10px;
+  font-size: 14px;
   padding: 6px 8px;
+  min-height: 34px;
 }
 .view-switch .selected {
   color: #111;
   background: white;
 }
 .day-headings {
-  height: 53px;
+  height: 64px;
   grid-template-columns: 43px repeat(var(--days), minmax(0, 1fr));
 }
 .day-heading {
-  font-size: 9px;
+  font-size: 11px;
   gap: 4px;
   color: #6b7280;
 }
 .day-heading strong {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 24px;
   color: #444;
 }
 .day-heading > span:first-child {
-  font-size: 8px;
+  font-size: 11px;
   text-transform: lowercase;
 }
 .day-heading.current {
   background: white;
 }
 .day-heading.current strong {
-  width: 26px;
-  height: 26px;
-  font-size: 12px;
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
   background: #171717;
 }
 .day-heading.current > span:first-child {
@@ -1826,7 +1861,7 @@ select:focus-visible,
   display: none;
 }
 .timezone {
-  font-size: 7px;
+  font-size: 11px;
   color: #7b8190;
   padding: 0 0 10px 4px;
 }
@@ -1842,7 +1877,7 @@ select:focus-visible,
   background: #fff;
 }
 .hours > span {
-  font-size: 9px;
+  font-size: 11px;
   color: #6b7280;
   right: 6px;
 }
@@ -1864,15 +1899,15 @@ select:focus-visible,
   background: #fff;
 }
 .calendar-event strong {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 450;
   line-height: 1.25;
 }
 .calendar-event > span {
-  font-size: 9px;
+  font-size: 11px;
 }
 .calendar-event small {
-  font-size: 8px;
+  font-size: 11px;
   line-height: 1.2;
   color: #5d6870;
 }
@@ -1890,26 +1925,28 @@ select:focus-visible,
   background: #3dbdff;
 }
 .calendar-event.compact {
-  padding: 3px 4px;
-  gap: 1px;
+  padding: 1px 4px;
+  gap: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
 }
 .calendar-event.compact strong {
-  flex: initial;
-  font-size: 9px;
+  flex: 0 0 auto;
+  line-height: 1;
+  font-size: 11px;
   max-width: 100%;
 }
 .calendar-event.compact > span {
+  line-height: 1;
   display: block;
-  font-size: 8px;
+  font-size: 11px;
 }
 .calendar-footer {
   height: 25px;
   padding: 0 10px;
   color: #6b7280;
-  font-size: 8px;
+  font-size: 11px;
 }
 .splitter {
   background: #f9f9f9;
@@ -1949,7 +1986,7 @@ select:focus-visible,
   height: 21px;
 }
 .assistant-intro h2 {
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 550;
   letter-spacing: -0.25px;
   color: #242424;
@@ -1957,7 +1994,7 @@ select:focus-visible,
 }
 .assistant-intro p {
   color: #6b7280;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.75;
   max-width: 29ch;
 }
@@ -1967,7 +2004,7 @@ select:focus-visible,
 }
 .suggestions button {
   border-color: #ededed;
-  font-size: 11px;
+  font-size: 13px;
   padding: 15px 0;
   gap: 9px;
 }
@@ -1997,7 +2034,7 @@ select:focus-visible,
   border-color: #999;
 }
 .composer textarea {
-  font-size: 11px;
+  font-size: 14px;
 }
 .composer textarea::placeholder {
   color: #6b7280;
@@ -2008,10 +2045,12 @@ select:focus-visible,
 .composer button {
   background: #111;
   color: #fff;
+  width: 36px;
+  height: 36px;
 }
 .composer-area > p {
   color: #777;
-  font-size: 8px;
+  font-size: 11px;
 }
 .message.user {
   background: #f3f3f3;
@@ -2056,7 +2095,7 @@ select:focus-visible,
   color: #3e6e58;
 }
 .draft-card .primary {
-  font-size: 10px;
+  font-size: 12px;
 }
 .green,
 .blue,
@@ -2149,7 +2188,7 @@ select:focus-visible,
 }
 @media (min-width: 1600px) {
   .sidebar {
-    width: 210px;
+    width: 240px;
   }
   .workspace {
     margin: 0;
@@ -2158,49 +2197,50 @@ select:focus-visible,
     padding: 28px 24px;
   }
   .assistant-intro h2 {
-    font-size: 18px;
+    font-size: 20px;
   }
   .calendar-toolbar h2 {
-    font-size: 15px;
+    font-size: 16px;
   }
   .calendar-event strong {
-    font-size: 11px;
+    font-size: 13px;
   }
 }
 @media (max-width: 1150px) {
   .sidebar {
-    width: 180px;
+    width: 200px;
     padding: 0 10px;
   }
   .sidebar-tabs {
     margin: 0 -10px 16px;
     padding: 0 4px;
-    font-size: 10px;
+    font-size: 14px;
+    height: 56px;
   }
   .sidebar-tabs button {
     padding: 6px;
   }
   .calendar-toolbar {
     padding: 10px 9px;
-    min-height: 85px;
+    min-height: 76px;
   }
   .calendar-toolbar h2 {
-    font-size: 12px;
+    font-size: 14px;
   }
   .assistant-scroll {
     padding: 20px 14px;
   }
   .assistant-intro h2 {
-    font-size: 16px;
+    font-size: 18px;
   }
   .workspace {
     margin: 0;
   }
   .calendar-event strong {
-    font-size: 9px;
+    font-size: 11px;
   }
   .calendar-event > span {
-    font-size: 8px;
+    font-size: 11px;
   }
 }
 @media (max-width: 960px) and (min-width: 760px) {
@@ -2208,39 +2248,42 @@ select:focus-visible,
     display: none;
   }
   .workspace-header {
-    height: 45px;
+    height: 56px;
   }
   .sidebar-open .sidebar {
-    left: 56px;
-    width: 200px;
+    left: 64px;
+    width: 224px;
   }
   .sidebar-open .sidebar-scrim {
-    left: 56px;
+    left: 64px;
   }
   .icon-rail {
     z-index: 11;
+    width: 64px;
   }
   .calendar-toolbar {
-    min-height: 86px;
+    min-height: 76px;
   }
 }
 @media (max-width: 759px) {
   .icon-rail {
     display: none;
+    width: 64px;
   }
   .sidebar {
-    width: 210px;
+    width: 240px;
   }
   .workspace-header {
-    height: 48px;
+    height: 56px;
     padding: 0 10px;
   }
   .workspace-title h1 {
-    font-size: 11px;
+    font-size: 13px;
   }
   .header-create {
-    font-size: 10px;
-    padding: 6px 9px;
+    font-size: 14px;
+    padding: 8px 14px;
+    min-height: 36px;
   }
   .workspace {
     margin: 0;
@@ -2255,7 +2298,7 @@ select:focus-visible,
     height: 490px;
   }
   .calendar-toolbar {
-    min-height: 90px;
+    min-height: 76px;
     flex-wrap: wrap;
     padding: 10px;
   }
@@ -2263,14 +2306,14 @@ select:focus-visible,
     gap: 7px;
   }
   .calendar-toolbar h2 {
-    font-size: 12px;
+    font-size: 14px;
     max-width: none;
   }
   .toolbar-actions {
     margin-left: auto;
   }
   .day-headings {
-    height: 52px;
+    height: 64px;
   }
   .assistant-scroll {
     padding: 20px;
@@ -2279,10 +2322,10 @@ select:focus-visible,
     margin-bottom: 12px;
   }
   .assistant-intro h2 {
-    font-size: 18px;
+    font-size: 20px;
   }
   .suggestions button {
-    font-size: 11px;
+    font-size: 13px;
   }
   .composer-area {
     padding: 12px 15px;
@@ -2292,8 +2335,9 @@ select:focus-visible,
     height: auto;
   }
   .sidebar-tabs {
-    height: 48px;
+    height: 56px;
     margin-bottom: 16px;
+    font-size: 14px;
   }
   .mobile-menu {
     color: #555;
@@ -2424,6 +2468,7 @@ select:focus-visible,
     display: flex;
     position: fixed;
     inset: 0 auto 0 0;
+    width: 64px;
   }
 }
 
@@ -2446,30 +2491,32 @@ select:focus-visible,
   border-radius: 4px;
   background: #fff;
   color: #000;
-  font-size: 8px;
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 
 .event-tooltip {
   position: fixed;
   z-index: 50;
-  width: min(300px, calc(100vw - 16px));
+  margin: 0;
+  inset: auto;
+  width: min(260px, calc(100vw - 16px));
   max-height: min(320px, calc(100dvh - 16px));
   overflow: auto;
-  padding: 14px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--surface);
   color: var(--ink);
   box-shadow: 0 4px 20px #00000018;
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: var(--font-menu);
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
 .event-tooltip > strong {
   display: block;
-  margin: 8px 0;
-  font-size: 14px;
+  margin: 6px 0;
+  font-size: var(--font-body);
 }
 .event-tooltip p {
   margin: 4px 0;
@@ -2477,4 +2524,120 @@ select:focus-visible,
 .event-tooltip .tooltip-agenda {
   margin-top: 10px;
   color: var(--muted);
+}
+
+.event-tooltip .event-label {
+  padding: 4px 8px;
+  font-size: var(--font-caption);
+}
+
+/* Comfortable controls requested from the Team Small reference. */
+.icon-button > svg,
+.composer button > svg {
+  width: 18px;
+  height: 18px;
+}
+.icon-rail > button > svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Team: event appearance represents the current user's participation. */
+.calendar-event[class*="participation-"],
+.month-event[class*="participation-"] {
+  background: #fff;
+  color: #252525;
+  border-color: #42baff;
+  border-radius: 1px;
+  box-shadow: inset 2px 0 #3dbdff;
+}
+.calendar-event.participation-organizer,
+.month-event.participation-organizer {
+  background: #dff2fc;
+  border-color: #dff2fc;
+}
+.calendar-event.participation-informed,
+.month-event.participation-informed {
+  background: rgb(223 242 252 / 40%);
+  color: #87939a;
+  border-color: transparent;
+  box-shadow: inset 2px 0 rgb(61 189 255 / 40%);
+}
+.calendar-event.participation-informed small {
+  color: inherit;
+}
+.calendar-event.participation-unknown,
+.month-event.participation-unknown {
+  border-color: #d7dde1;
+  box-shadow: none;
+}
+
+.calendar-event.accepted,
+.month-event.accepted {
+  background: #dff2fc;
+  border-color: #dff2fc;
+}
+.calendar-event.compact strong {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+.calendar-event.compact > .event-time {
+  display: none;
+}
+
+.calendar-slots {
+  position: relative;
+  height: 1536px;
+  touch-action: none;
+  user-select: none;
+}
+.calendar-slot {
+  display: block;
+  width: 100%;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 1px solid #f1f1f1;
+  cursor: crosshair;
+}
+.calendar-slot:nth-of-type(even) {
+  border-bottom-color: #e8e8e8;
+}
+.calendar-slot:not(:disabled):hover {
+  background: #f0f9ff;
+}
+.calendar-slot:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: -2px;
+  background: #f0f9ff;
+}
+.calendar-selection {
+  position: absolute;
+  inset-inline: 2px;
+  z-index: 2;
+  border: 1px solid #38bdf8;
+  border-left: 3px solid #38bdf8;
+  background: #e0f2fecc;
+  color: #164e63;
+  padding: 4px 6px;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.calendar-selection strong {
+  font-weight: 600;
+}
+.empty-period {
+  pointer-events: none;
+}
+
+.calendar-slot:disabled {
+  cursor: default;
+  opacity: 1;
 }
