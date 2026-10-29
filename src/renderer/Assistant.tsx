@@ -20,6 +20,7 @@ export function DesktopAssistant({
   swap: () => void;
   headerTarget: HTMLElement | null;
 }) {
+  const [promptTemplates, setPromptTemplates] = useState<string[]>([]);
   const [chatId, setChatId] = useState(() => crypto.randomUUID());
   const [templates, setTemplates] = useState<AssistantTemplates | null>(null);
   const [transport] = useState(
@@ -44,7 +45,10 @@ export function DesktopAssistant({
     void window.smallDesktop.agentSettings
       .read()
       .then((reply) => {
-        if (mounted && reply.ok) setTemplates(reply.state.templates);
+        if (mounted && reply.ok) {
+          setTemplates(reply.state.templates);
+          setPromptTemplates(reply.state.settings.promptTemplates ?? []);
+        }
       })
       .catch(() => {});
     void window.smallDesktop.profiles
@@ -127,20 +131,25 @@ export function DesktopAssistant({
               </span>
               <TemplateMarkdown name="welcome" />
               <div className="assistant-suggestions">
-                {(templates?.suggestions.split("\n").filter(Boolean) ?? []).map(
-                  (text) => (
-                    <button
-                      type="button"
-                      key={text}
-                      disabled={busy || !profiles}
-                      onClick={() => choose(text)}
-                    >
-                      {text}
-                      <span aria-hidden="true">↗</span>
-                    </button>
-                  ),
-                )}
+                {promptTemplates.map((text, index) => (
+                  <button
+                    type="button"
+                    key={index}
+                    disabled={busy || !profiles}
+                    onClick={() => choose(text)}
+                  >
+                    {text}
+                    <span aria-hidden="true">↗</span>
+                  </button>
+                ))}
               </div>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => setAgentSettings(true)}
+              >
+                Настроить шаблоны
+              </button>
               {local && (
                 <p className="form-note">
                   Выберите модель и войдите в Small для работы с календарём.
@@ -232,7 +241,13 @@ export function DesktopAssistant({
           </p>
         </div>
         {agentSettings && (
-          <AgentSettings close={() => setAgentSettings(false)} />
+          <AgentSettings
+            close={() => setAgentSettings(false)}
+            update={(state) => {
+              setTemplates(state.templates);
+              setPromptTemplates(state.settings.promptTemplates ?? []);
+            }}
+          />
         )}
         {settings && profiles && (
           <ModelSettings

@@ -52,6 +52,12 @@ export async function loadAgentDefaults(
       version: 4,
       mood: "neutral",
       instructions: "",
+      promptTemplates: templates.suggestions
+        .split("\n")
+        .map((text) => text.trim())
+        .filter(Boolean)
+        .slice(0, 5)
+        .map((text) => text.slice(0, 2000)),
       skills: await Promise.all(
         skillIds.map(async (id) => ({
           id,

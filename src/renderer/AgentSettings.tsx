@@ -1,3 +1,4 @@
+import { PromptTemplatesEditor } from "./PromptTemplatesEditor";
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import {
@@ -9,7 +10,13 @@ import {
   type AgentSettingsState,
 } from "../shared/agent-settings.js";
 
-export function AgentSettings({ close }: { close: () => void }) {
+export function AgentSettings({
+  close,
+  update,
+}: {
+  close: () => void;
+  update: (state: AgentSettingsState) => void;
+}) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [state, setState] = useState<AgentSettingsState | null>(null);
   const [busy, setBusy] = useState(true);
@@ -40,6 +47,7 @@ export function AgentSettings({ close }: { close: () => void }) {
   async function perform(
     action: () => Promise<AgentSettingsReply>,
     message: string,
+    closeOnSuccess = false,
   ) {
     if (busy) return;
     setBusy(true);
@@ -49,7 +57,9 @@ export function AgentSettings({ close }: { close: () => void }) {
       const reply = await action();
       if (reply.ok) {
         setState(reply.state);
+        update(reply.state);
         setNotice(message);
+        if (closeOnSuccess) close();
       } else setError(reply.error);
     } catch {
       setError("Не удалось сохранить настройки");
@@ -97,11 +107,22 @@ export function AgentSettings({ close }: { close: () => void }) {
             void perform(
               () => window.smallDesktop.agentSettings.save(state.settings),
               "Настройки сохранены",
+              true,
             );
         }}
       >
         {state && (
           <fieldset disabled={busy} className="agent-settings-fields">
+            <PromptTemplatesEditor
+              value={state.settings.promptTemplates ?? []}
+              onChange={(promptTemplates) => {
+                setNotice("");
+                setState({
+                  ...state,
+                  settings: { ...state.settings, promptTemplates },
+                });
+              }}
+            />
             <label>
               Mood · стиль общения
               <select
@@ -225,9 +246,6 @@ export function AgentSettings({ close }: { close: () => void }) {
             }
           >
             Восстановить стандартные
-          </button>
-          <button className="text-button" type="button" onClick={close}>
-            Готово
           </button>
         </div>
       </form>
