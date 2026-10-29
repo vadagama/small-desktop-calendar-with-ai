@@ -2529,3 +2529,49 @@ select:focus-visible,
   width: 20px;
   height: 20px;
 }
+
+/* Team: event appearance represents the current user's participation. */
+.calendar-event[class*="participation-"],
+.month-event[class*="participation-"] {
+  background: #fff;
+  color: #252525;
+  border-color: #42baff;
+  border-radius: 1px;
+  box-shadow: inset 2px 0 #3dbdff;
+}
+.calendar-event.participation-organizer,
+.month-event.participation-organizer {
+  background: #dff2fc;
+  border-color: #dff2fc;
+}
+.calendar-event.participation-informed,
+.month-event.participation-informed {
+  background: rgb(223 242 252 / 40%);
+  color: #87939a;
+  border-color: transparent;
+  box-shadow: inset 2px 0 rgb(61 189 255 / 40%);
+}
+.calendar-event.participation-informed small {
+  color: inherit;
+}
+.calendar-event.participation-unknown,
+.month-event.participation-unknown {
+  border-color: #d7dde1;
+  box-shadow: none;
+}
+
+.calendar-event.accepted,
+.month-event.accepted {
+  background: #dff2fc;
+  border-color: #dff2fc;
+}
+.calendar-event.compact strong {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+.calendar-event.compact > .event-time {
+  display: none;
+}

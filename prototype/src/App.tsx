@@ -119,6 +119,7 @@ export default function App({
       calendar: "personal",
       location: "Онлайн",
       created: true,
+      participation: "organizer",
     };
     setEvents((old) => (state === "empty" ? [event] : [...old, event]));
     setState("ready");
