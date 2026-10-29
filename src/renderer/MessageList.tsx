@@ -4,6 +4,7 @@ import {
   useAssistantPresentation,
 } from "./AssistantPresentation";
 import { CalendarToolResult } from "./CalendarToolResult";
+import { AnalyticsCard } from "./AnalyticsCard";
 import { isToolUIPart, type UIMessage } from "ai";
 import { Sparkles } from "lucide-react";
 
@@ -98,6 +99,22 @@ export function MessageList({
                         </p>
                       )}
                     </details>
+                  );
+                }
+                if (part.type === "tool-meetingAnalytics") {
+                  if (part.state === "output-available")
+                    return (
+                      <AnalyticsCard
+                        key={part.toolCallId}
+                        output={part.output}
+                      />
+                    );
+                  return (
+                    <p key={part.toolCallId} className="analytics-pending">
+                      {part.state === "output-error"
+                        ? "Не удалось построить отчёт. Уточните период и повторите."
+                        : "Считаю аналитику…"}
+                    </p>
                   );
                 }
                 const calendar =
