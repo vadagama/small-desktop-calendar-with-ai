@@ -9,8 +9,17 @@ const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const record = z.strictObject({
   requestHash: hash,
   resultHash: hash,
-  kind: z.enum(["update", "delete"]),
+  kind: z.enum(["update", "delete", "series-update", "series-cancel"]),
   acknowledged: z.boolean(),
+  /** Series entries only: the read window needed to verify after a restart (dates, no content). */
+  windowFrom: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  windowTo: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });
 export type EventMutationRecord = z.infer<typeof record>;
 
