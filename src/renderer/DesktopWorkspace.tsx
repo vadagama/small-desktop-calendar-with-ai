@@ -1,3 +1,5 @@
+import { Reminders } from "./Reminders";
+import { Bell } from "lucide-react";
 import { events, notifySuccess, notifyError } from "./notification-events.js";
 import { NewMeeting } from "./NewMeeting";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -20,6 +22,7 @@ import type { CalendarEvent, CalendarView } from "../shared/calendar.js";
 import type { SmallAuthState } from "../shared/small-auth.js";
 
 export function DesktopWorkspace() {
+  const [remindersOpen, setRemindersOpen] = useState(false);
   const [savingTime, setSavingTime] = useState(false);
   const saving = useRef(false);
   const currentAccount = useRef<string | null>(null);
@@ -42,6 +45,7 @@ export function DesktopWorkspace() {
   const accountId = account?.status === "signed-in" ? account.profile.id : null;
   currentAccount.current = accountId;
   useEffect(() => {
+    setRemindersOpen(false);
     setCreating(false);
     setCreatedId(null);
     setSelected(null);
@@ -200,6 +204,13 @@ export function DesktopWorkspace() {
         >
           <Settings2 size={19} />
         </button>
+        <button
+          aria-label="Напоминания"
+          title="Напоминания"
+          onClick={() => setRemindersOpen(true)}
+        >
+          <Bell size={19} />
+        </button>
         <SmallAccount onChange={setAccount} revision={revision} />
       </nav>
       <CalendarFilters
@@ -336,6 +347,7 @@ export function DesktopWorkspace() {
           <span>Team API · Asia/Almaty</span>
         </footer>
       </main>
+      {remindersOpen && <Reminders close={() => setRemindersOpen(false)} />}
       {creating && account?.status === "signed-in" && (
         <NewMeeting
           key={account.profile.id}
