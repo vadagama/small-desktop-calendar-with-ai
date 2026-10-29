@@ -15,6 +15,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       syntheticUpdateOutcome?: "reject" | "lose" | "lose-applied";
       syntheticUpdateDelayMs?: number;
       syntheticListDelayMs?: number;
+      syntheticListAfterCreateDelayMs?: number;
       /** Requests for event lists, to see which ranges were served from the cache. */
       syntheticListRequests?: number;
       /** Answers every event list with this status, as an unreachable or unauthorised Small would. */
@@ -367,10 +368,13 @@ export async function mockSmall(app: ElectronApplication, date: string) {
           (inspection.syntheticListRequests ?? 0) + 1;
         if (inspection.syntheticListStatus)
           return new Response(null, { status: inspection.syntheticListStatus });
-        if (inspection.syntheticListDelayMs)
-          await new Promise((resolve) =>
-            setTimeout(resolve, inspection.syntheticListDelayMs),
-          );
+        const listDelay =
+          inspection.syntheticListDelayMs ??
+          (inspection.syntheticMeetingWrites > 0
+            ? inspection.syntheticListAfterCreateDelayMs
+            : 0);
+        if (listDelay)
+          await new Promise((resolve) => setTimeout(resolve, listDelay));
         if (path.includes("/8/")) return new Response(null, { status: 403 });
         if (path.includes("/9/")) return new Response(null, { status: 503 });
         if (path.includes("/10/"))

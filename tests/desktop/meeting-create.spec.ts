@@ -24,6 +24,8 @@ test("header creates a meeting without a model, preserves fields and blocks unkn
       });
     }, syntheticFile);
     const page = await app.firstWindow();
+    await page.clock.setFixedTime(new Date("2099-10-29T00:00:00Z"));
+    await page.reload();
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
     await page
@@ -155,10 +157,26 @@ test("header creates a meeting without a model, preserves fields and blocks unkn
     await page.screenshot({
       path: "test-results/desktop/manual-meeting-form.png",
     });
+    await app.evaluate(() => {
+      (
+        globalThis as typeof globalThis & {
+          syntheticListAfterCreateDelayMs: number;
+        }
+      ).syntheticListAfterCreateDelayMs = 4000;
+    });
     await dialog.getByRole("button", { name: "Создать", exact: true }).click();
     await expect(dialog).toHaveCount(0);
     const newEvent = page.locator('[data-new-event="true"]');
-    await expect(newEvent).toContainText("Синтетическая ручная встреча");
+    await expect(newEvent).toContainText("Синтетическая ручная встреча", {
+      timeout: 1500,
+    });
+    await app.evaluate(() => {
+      (
+        globalThis as typeof globalThis & {
+          syntheticListAfterCreateDelayMs: number;
+        }
+      ).syntheticListAfterCreateDelayMs = 0;
+    });
     await expect(newEvent).toHaveCSS("animation-name", "meeting-created");
     await expect(newEvent).toBeInViewport();
     await page.screenshot({ path: "test-results/desktop/meeting-created.png" });

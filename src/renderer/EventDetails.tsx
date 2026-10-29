@@ -45,7 +45,7 @@ export function EventDetails({
   lookup: EventLookup;
   close: () => void;
   expired: () => void;
-  changed?: (write: EventInvalidation) => void;
+  changed?: (write: EventInvalidation, removed?: boolean) => void;
   /** What happened to this event on the server while the card was open. */
   remote?: "changed" | "missing" | null;
   acknowledgeRemote?: () => void;
@@ -167,7 +167,7 @@ export function EventDetails({
       if (reply.ok) {
         setResponse(status);
         notifySuccess("Ответ на приглашение сохранён");
-        changed?.({ eventIds: [event.lookup.id], windows: [] });
+        changed?.({ eventIds: [event.lookup.id], windows: [] }, true);
       } else {
         notifyError("сохранить ответ", reply.kind);
         if (reply.kind === "auth") expired();
@@ -193,7 +193,7 @@ export function EventDetails({
       });
       if (reply.ok) {
         notifySuccess("Событие успешно удалено");
-        changed?.({ eventIds: [event.lookup.id], windows: [] });
+        changed?.({ eventIds: [event.lookup.id], windows: [] }, true);
         close();
       } else {
         notifyError("удалить событие", reply.kind);
@@ -490,7 +490,7 @@ export function EventDetails({
                 setEditing(null);
                 setRetry((value) => value + 1);
                 if ("id" in event.lookup)
-                  changed?.({ eventIds: [event.lookup.id], windows: [] });
+                  changed?.({ eventIds: [event.lookup.id], windows: [] }, true);
               }}
             />
           )}

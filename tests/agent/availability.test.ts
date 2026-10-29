@@ -19,6 +19,7 @@ const coverage = ["a", "b"].map((participant_id) => ({
 function setup(
   slots: unknown = { data: { available_slots: [slot] } },
   busy: unknown = { data: coverage },
+  now = Date.parse("2026-10-28T00:00:00Z"),
 ) {
   const calls: { path: string; body: unknown }[] = [];
   const service = new AvailabilityService(
@@ -31,7 +32,7 @@ function setup(
         });
       },
     },
-    () => Date.parse("2026-10-28T00:00:00Z"),
+    () => now,
   );
   return { service, calls };
 }
@@ -300,4 +301,72 @@ test("explicit weekend request reaches the API and preserves day boundaries", as
     (calls[0]?.body as { include_weekends: boolean }).include_weekends,
     true,
   );
+});
+
+const weekendSlot = {
+  start: "2026-10-31T09:00:00+05:00",
+  end: "2026-10-31T09:30:00+05:00",
+};
+const weekendQuery = {
+  ...query,
+  date: "2026-10-31",
+  includeWeekends: true,
+  exactInterval: weekendSlot,
+};
+test("an explicit weekend interval uses complete busy coverage even when Small offers no slots", async () => {
+  const f = setup({ data: { available_slots: [] } });
+  assert.deepEqual((await f.service.find(weekendQuery)).slots, [weekendSlot]);
+  assert.deepEqual(
+    f.calls.map((c) => c.path),
+    ["/gate/team/api/calendar/events/busy-intervals"],
+  );
+});
+test("an explicit weekend interval still rejects conflicts and unknown coverage", async () => {
+  const f = setup(undefined, {
+    data: [{ ...coverage[0], busy_slots: [weekendSlot] }, coverage[1]],
+  });
+  assert.deepEqual((await f.service.find(weekendQuery)).slots, []);
+  await assert.rejects(
+    setup(undefined, { data: coverage.slice(0, 1) }).service.find(weekendQuery),
+    /занятост/,
+  );
+});
+test("exact weekend intervals cannot bypass date, duration, future or working-day rules", async () => {
+  for (const exactInterval of [
+    { ...weekendSlot, start: "invalid" },
+    { ...weekendSlot, end: weekendSlot.start },
+    { ...weekendSlot, end: "2026-10-31T10:00:00+05:00" },
+    { start: slot.start, end: slot.end },
+  ]) {
+    const f = setup();
+    try {
+      assert.deepEqual(
+        (await f.service.find({ ...weekendQuery, exactInterval })).slots,
+        [],
+      );
+    } catch (error) {
+      assert.match(String(error), /Проверьте/);
+    }
+  }
+  await assert.rejects(
+    setup().service.find({ ...weekendQuery, includeWeekends: false }),
+    /рабочий день/,
+  );
+  const f = setup({ data: { available_slots: [] } });
+  assert.deepEqual(
+    (
+      await f.service.find({
+        ...query,
+        includeWeekends: true,
+        exactInterval: slot,
+      })
+    ).slots,
+    [],
+  );
+  assert.ok(f.calls.some((c) => c.path.endsWith("find-slots")));
+});
+
+test("an exact weekend interval in the past is never considered free", async () => {
+  const f = setup(undefined, undefined, Date.parse("2026-11-01T00:00:00Z"));
+  assert.deepEqual((await f.service.find(weekendQuery)).slots, []);
 });

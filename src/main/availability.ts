@@ -11,15 +11,20 @@ import {
 } from "./availability-request.js";
 import { calendarRange } from "../shared/calendar-time.js";
 
+const interval = z
+  .strictObject({
+    start: z.iso.datetime({ offset: true }),
+    end: z.iso.datetime({ offset: true }),
+  })
+  .refine((value) => Date.parse(value.start) < Date.parse(value.end));
+
 const query = z.strictObject({
   accountId: z.string().min(1).max(200),
   participantIds,
   date: availabilityDate,
   durationMinutes,
   includeWeekends: z.boolean().optional(),
-  exactInterval: z
-    .strictObject({ start: z.string().max(40), end: z.string().max(40) })
-    .optional(),
+  exactInterval: interval.optional(),
   timeFrom: z
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
@@ -29,12 +34,6 @@ const query = z.strictObject({
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
     .optional(),
 });
-const interval = z
-  .strictObject({
-    start: z.iso.datetime({ offset: true }),
-    end: z.iso.datetime({ offset: true }),
-  })
-  .refine((value) => Date.parse(value.start) < Date.parse(value.end));
 const responseStatus = z.literal("success").optional();
 const slotsResponse = z.strictObject({
   status: responseStatus,

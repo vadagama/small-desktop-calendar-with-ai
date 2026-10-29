@@ -27,21 +27,6 @@
 .model-settings label {
   font-size: var(--font-body);
 }
-.model-key-field {
-  position: relative;
-  display: block;
-}
-.model-key-field input {
-  width: 100%;
-  padding-right: 40px !important;
-}
-.model-key-applied {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-}
 .model-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1162,7 +1147,6 @@
   animation: notification-enter 180ms ease-out;
   font-size: var(--font-compact);
 }
-.model-key-applied,
 .notification-success > svg,
 .notification-success strong {
   color: #008b65;
@@ -1629,4 +1613,24 @@
     animation-duration: 0s !important;
     animation-delay: 0s !important;
   }
+}
+
+.model-key-field {
+  position: relative;
+  display: block;
+}
+.model-key-field input {
+  width: 100%;
+  padding-right: 40px !important;
+}
+.model-key-applied {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+}
+
+.model-key-applied {
+  color: #008b65;
 }
