@@ -5,6 +5,17 @@ export async function mockSmall(app: ElectronApplication, date: string) {
   await app.evaluate(({ session }, date) => {
     const isolated = session.fromPartition("small-auth", { cache: false });
     let employee = "employee-a";
+    const inspection = globalThis as typeof globalThis & {
+      syntheticMeetingWrites: number;
+    };
+    inspection.syntheticMeetingWrites = 0;
+    const created: Array<{
+      id: string;
+      title: string;
+      starts_at: string;
+      ends_at: string;
+      [key: string]: unknown;
+    }> = [];
     isolated.protocol.handle("https", async (request) => {
       const url = new URL(request.url);
       if (url.origin !== "https://team.small.kz")
@@ -48,6 +59,31 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       if (path.endsWith("/logout")) return Response.json({});
       if (!request.headers.get("authorization")?.startsWith("Bearer header."))
         return new Response(null, { status: 401 });
+      if (
+        path === "/gate/team/api/calendar/events" &&
+        request.method === "POST"
+      ) {
+        if (url.searchParams.get("force") !== "false")
+          return new Response(null, { status: 400 });
+        const body = await request.json();
+        inspection.syntheticMeetingWrites++;
+        const event = {
+          ...body,
+          id: `synthetic-created-${inspection.syntheticMeetingWrites}`,
+          participants: body.participant_ids.map((id: string) => ({ id })),
+          creator_name: employee,
+        };
+        created.push(event);
+        // Server applied the write but its response cannot establish the outcome.
+        if (body.title === "Неизвестный результат")
+          return new Response(null, { status: 503 });
+        return Response.json({ data: { id: event.id } });
+      }
+      const savedEvent = created.find(
+        (event) => path === `/gate/team/api/calendar/events/${event.id}`,
+      );
+      if (savedEvent && request.method === "GET")
+        return Response.json({ data: savedEvent });
       if (path.endsWith("/find-slots") || path.endsWith("/busy-intervals")) {
         if (request.method !== "POST")
           return new Response(null, { status: 405 });
@@ -192,7 +228,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
           end = url.searchParams.get("end_date");
         if (!start || !end) return new Response(null, { status: 400 });
         return Response.json({
-          data: [event, recurring].filter(
+          data: [event, recurring, ...created].filter(
             (entry) =>
               Date.parse(entry.starts_at) < Date.parse(end) &&
               Date.parse(entry.ends_at) > Date.parse(start),

@@ -1,3 +1,4 @@
+import { isMeetingCreateRequest } from "./meeting-request.js";
 import { session } from "electron";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -47,7 +48,8 @@ export function createSmallSession(): AuthTransport {
         !(
           init.method === "POST" &&
           typeof init.body === "string" &&
-          isAvailabilityRequest(path, JSON.parse(init.body))
+          (isAvailabilityRequest(path, JSON.parse(init.body)) ||
+            isMeetingCreateRequest(path, JSON.parse(init.body)))
         )
       )
         throw new SmallAuthError("Операция Small недоступна.");

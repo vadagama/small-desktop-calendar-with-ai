@@ -45,6 +45,7 @@ export async function prepareMeetingDraft(
     kind: "meeting-draft",
     status: "preview",
     id: randomUUID(),
+    revision: 1,
     title: q.title,
     agenda: q.agenda,
     participantIds: q.participantIds,

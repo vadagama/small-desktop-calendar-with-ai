@@ -1,3 +1,4 @@
+import type { MeetingBridge } from "./meeting-operations.js";
 import type { CalendarToolReply } from "./calendar-tools.js";
 import type { CalendarBridge } from "./calendar.js";
 import type { SmallAuthBridge } from "./small-auth.js";
@@ -39,6 +40,7 @@ export interface DesktopBridge {
   profiles: ProfileBridge;
   smallAuth: SmallAuthBridge;
   calendar: CalendarBridge;
+  meetings: MeetingBridge;
 }
 declare global {
   interface Window {

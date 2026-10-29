@@ -271,3 +271,47 @@ test("calendar domain failures retain safe kinds and messages across session bou
       error.message === "Занятость неизвестна.",
   );
 });
+
+test("calendar creation checks the account and never refreshes/replays a rejected POST", async () => {
+  const { meetingCreatePath } =
+    await import("../../src/main/meeting-request.js");
+  const f = setup();
+  await f.auth.login({
+    username: "employee-a",
+    password: "synthetic-password",
+  });
+  let writes = 0;
+  const original = f.transport.request;
+  f.transport.request = async (path, init) => {
+    if (path === meetingCreatePath) {
+      writes++;
+      return new Response(null, { status: 401 });
+    }
+    return original(path, init);
+  };
+  const body = {
+    title: "Test",
+    description: "",
+    location: "",
+    starts_at: "2099-10-29T09:30:00+05:00",
+    ends_at: "2099-10-29T10:00:00+05:00",
+    timezone: "Asia/Almaty",
+    is_recurring: false,
+    is_public: false,
+    participant_ids: ["synthetic-a"],
+    notification_recipient_ids: [],
+    attachments: [],
+  };
+  await assert.rejects(f.auth.createCalendarEvent("other", body));
+  assert.equal(writes, 0);
+  assert.equal(
+    (await f.auth.createCalendarEvent("employee-a", body)).status,
+    401,
+  );
+  assert.equal(writes, 1);
+  assert.ok(!f.calls.includes("/gate/auth/refresh"));
+  await assert.rejects(
+    f.auth.createCalendarEvent("employee-a", { ...body, force: true }),
+  );
+  assert.equal(writes, 1);
+});

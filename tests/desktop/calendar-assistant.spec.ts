@@ -165,6 +165,49 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     await expect(draft).toContainText("synthetic-a, synthetic-b");
     await draft.scrollIntoViewIfNeeded();
     await page.screenshot({ path: "test-results/desktop/meeting-draft.png" });
+    const originalLink = await draft.locator(".meeting-draft-url").innerText();
+    await draft
+      .getByRole("button", { name: "Изменить черновик", exact: true })
+      .click();
+    await draft.getByLabel("Название встречи").fill("Уточнённый план");
+    await draft
+      .getByRole("button", { name: "Сохранить изменения", exact: true })
+      .click();
+    await expect(draft).toContainText("Изменения сохранены");
+    await expect(draft.locator(".meeting-draft-url")).toHaveText(originalLink);
+    const originalDraft = (
+      outputs[4] as { data: { id: string; revision: number } }
+    ).data;
+    const stale = await page.evaluate(
+      (ref) => window.smallDesktop.meetings.confirm(ref),
+      { id: originalDraft.id, revision: originalDraft.revision },
+    );
+    expect(stale.ok).toBe(false);
+    const writes = () =>
+      app.evaluate(
+        () =>
+          (globalThis as typeof globalThis & { syntheticMeetingWrites: number })
+            .syntheticMeetingWrites,
+      );
+    expect(await writes()).toBe(0);
+    await draft
+      .getByRole("button", {
+        name: "Создать встречу и отправить приглашения",
+        exact: true,
+      })
+      .click();
+    await expect(draft.getByRole("status")).toContainText(
+      "Встреча создана и проверена",
+    );
+    expect(await writes()).toBe(1);
+    await draft
+      .getByRole("button", { name: "Обновить состояние", exact: true })
+      .click();
+    expect(await writes()).toBe(1);
+    await expect(draft.getByRole("status")).toContainText(
+      "Встреча создана и проверена",
+    );
+    await page.screenshot({ path: "test-results/desktop/meeting-created.png" });
     toolInput = {
       ...(toolInput as object),
       startsAt: "2099-10-29T09:00:00+05:00",
@@ -176,7 +219,44 @@ test("calendar tools cross utility/main boundary and render trusted results", as
       "Выбранный интервал не подтверждён",
     );
     await expect(draft).toHaveCount(1);
-    expect(outputs).toHaveLength(6);
+    toolInput = {
+      title: "Неизвестный результат",
+      agenda: "Тест",
+      participantIds: ["synthetic-a", "synthetic-b"],
+      startsAt: "2099-10-30T09:30:00+05:00",
+      location: "",
+      conference: { mode: "automatic" },
+    };
+    await send(
+      "Подготовь черновик. Участники: [synthetic-a, synthetic-b]. 2099-10-30 в 09:30.",
+    );
+    const uncertain = page
+      .getByRole("region", { name: "Черновик встречи", exact: true })
+      .last();
+    await uncertain
+      .getByRole("button", {
+        name: "Создать встречу и отправить приглашения",
+        exact: true,
+      })
+      .click();
+    await expect(uncertain.getByRole("status")).toContainText(
+      "Результат отправки неизвестен",
+    );
+    expect(await writes()).toBe(2);
+    await uncertain
+      .getByRole("button", { name: "Проверить результат", exact: true })
+      .click();
+    await expect(uncertain.getByRole("status")).toContainText(
+      "Результат отправки неизвестен",
+    );
+    expect(await writes()).toBe(2);
+    await expect(
+      uncertain.getByRole("button", {
+        name: "Создать встречу и отправить приглашения",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    expect(outputs).toHaveLength(7);
     expect(JSON.stringify(outputs)).not.toMatch(
       /access_token|synthetic-calendar-key|signature/,
     );
