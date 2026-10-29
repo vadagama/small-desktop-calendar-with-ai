@@ -1,3 +1,4 @@
+import type { CalendarReply } from "./calendar.js";
 import { calendarDateAt, validCalendarDate } from "./calendar-time.js";
 
 /** "occurrence" changes one occurrence; "following" starts at it and never reaches the past. */
@@ -154,4 +155,36 @@ export function decideSeriesOperation(input: {
     affects: { from: occurrence.originalDate, includesPast: false },
     requires,
   };
+}
+
+/** What the renderer sends; main rebuilds everything else and never trusts a token from it. */
+export interface SeriesRequest {
+  accountId: string;
+  operation: SeriesOperation;
+  scope: SeriesScope;
+  seriesId: string;
+  originalDate: string;
+  eventId?: string;
+  /** The interval the user was looking at; a changed server state is detected against it. */
+  beforeStart: string;
+  beforeEnd: string;
+  title?: string;
+  newStartsAt?: string;
+  newEndsAt?: string;
+}
+export interface SeriesGateState {
+  open: boolean;
+  reason?: SeriesRefusal | "contract-unverified";
+  /** Why the action is closed, or a short confirmation when it is open. */
+  message: string;
+  /** Scope, date and what stays untouched, for the confirmation dialog. */
+  summary: string;
+}
+export interface SeriesApplyResult {
+  status: "applied" | "already-applied";
+  materialized: boolean;
+}
+export interface SeriesBridge {
+  gate(request: SeriesRequest): Promise<CalendarReply<SeriesGateState>>;
+  apply(request: SeriesRequest): Promise<CalendarReply<SeriesApplyResult>>;
 }

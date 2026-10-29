@@ -6,6 +6,10 @@ import { EventRescheduleService } from "./event-reschedule.js";
 import { registerReminders } from "./reminder-ipc.js";
 import { TopicRuleStore } from "./topic-rules.js";
 import { registerTopicRuleHandlers } from "./analytics-ipc.js";
+import { SmallSeriesBackend } from "./series-backend.js";
+import { SeriesMutationService } from "./series-adapter.js";
+import { SeriesController } from "./series-controller.js";
+import { registerSeriesHandlers } from "./series-ipc.js";
 import { EventChangeService } from "./event-change.js";
 import { MeetingOperations } from "./meeting-operations.js";
 import { MeetingJournal } from "./meeting-journal.js";
@@ -168,6 +172,18 @@ app.whenReady().then(async () => {
         resolve(app.getPath("userData"), "event-mutations"),
       ),
     ),
+  );
+  registerSeriesHandlers(
+    new SeriesController(
+      smallAuth,
+      new SeriesMutationService(
+        new SmallSeriesBackend(smallAuth, calendar),
+        new EventMutationJournal(
+          resolve(app.getPath("userData"), "series-mutations"),
+        ),
+      ),
+    ),
+    assistant.trusted,
   );
   const reminders = registerReminders(
     app.getPath("userData"),

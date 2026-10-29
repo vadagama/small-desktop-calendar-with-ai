@@ -10,6 +10,8 @@ export interface CalendarEvent {
     organizer: boolean;
   }[];
   recurring?: boolean;
+  /** Series the occurrence belongs to, when the calendar reports it. */
+  originalEventId?: string;
   key: string;
   lookup: EventLookup;
   title: string;

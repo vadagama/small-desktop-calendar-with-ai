@@ -45,6 +45,8 @@ export interface SeriesCard {
 export interface BackendWrite {
   status: number;
   eventId?: string;
+  /** The request was refused locally and never left the app: a definite, retryable failure. */
+  notSent?: boolean;
 }
 export interface SeriesBackend {
   window(
@@ -197,6 +199,11 @@ const unknownOutcome = () =>
     "network",
     "Результат изменения серии неизвестен: не удалось подтвердить сохранение. Повторная запись заблокирована. Повторное действие только проверит состояние серии.",
   );
+const notSent = () =>
+  new CalendarError(
+    "denied",
+    "Операция Small недоступна: запрос не отправлен. Данные не изменены.",
+  );
 const rejection = (status: number) =>
   new CalendarError(
     status === 401 ? "auth" : status === 403 ? "denied" : "invalid",
@@ -285,6 +292,10 @@ export class SeriesMutationService {
         return;
       }
       throw unknownOutcome();
+    }
+    if (response.notSent) {
+      await this.journal.clear(accountId, seriesKey);
+      throw notSent();
     }
     if (response.status < 200 || response.status >= 300) {
       if (explicitRejections.includes(response.status)) {
@@ -409,6 +420,10 @@ export class SeriesMutationService {
           );
         } catch {
           throw unknownOutcome();
+        }
+        if (made.notSent) {
+          await this.journal.clear(accountId, seriesKey);
+          throw notSent();
         }
         if (explicitRejections.includes(made.status)) {
           await this.journal.clear(accountId, seriesKey);

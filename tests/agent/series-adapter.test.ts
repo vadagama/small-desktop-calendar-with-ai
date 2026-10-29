@@ -38,7 +38,8 @@ const now = "2026-10-29T05:00:00Z";
 const dates = ["2026-10-22", "2026-11-05", "2026-11-12", "2026-11-19"];
 const at = (date: string, hour: number) => `${date}T0${hour}:00:00Z`;
 
-type Plan = "reject:422" | "status:503" | "throw-before" | "throw-after";
+type Plan =
+  "reject:422" | "status:503" | "throw-before" | "throw-after" | "not-sent";
 interface Item {
   date: string;
   eventId?: string;
@@ -111,6 +112,7 @@ class FakeSeries implements SeriesBackend {
   }
   private reply(plan: Plan | undefined): BackendWrite | "apply" {
     if (plan === "throw-before") throw new Error("network");
+    if (plan === "not-sent") return { status: 0, notSent: true };
     if (plan === "reject:422") return { status: 422 };
     if (plan === "status:503") return { status: 503 };
     return "apply";
@@ -688,6 +690,36 @@ test("a change of only the start or only the end since selection is also stale",
       await assert.rejects(t.run(approval, rename("Н")), /изменилась/);
       assert.deepEqual(t.backend.calls, []);
       assert.deepEqual(await t.files(), []);
+    } finally {
+      await t.cleanup();
+    }
+  }
+});
+
+test("a request that was never sent frees the series at once and allows a retry", async () => {
+  for (const [method, date] of [
+    ["update", "2026-11-19"],
+    ["materialize", "2026-11-12"],
+  ] as const) {
+    const t = await setup();
+    try {
+      t.backend.plans.set(method, "not-sent");
+      await assert.rejects(
+        t.run(t.approve("rename", "occurrence", date), rename("Н")),
+        /запрос не отправлен/,
+      );
+      assert.deepEqual(await t.files(), []);
+      assert.equal(
+        t.backend.items.find((i) => i.date === date)!.title,
+        "Планёрка",
+      );
+      const before = t.backend.calls.length;
+      const result = await t.run(
+        t.approve("rename", "occurrence", date),
+        rename("Н"),
+      );
+      assert.equal(result.status, "applied");
+      assert.ok(t.backend.calls.length > before);
     } finally {
       await t.cleanup();
     }
