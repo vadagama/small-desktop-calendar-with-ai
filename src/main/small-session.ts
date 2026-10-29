@@ -1,3 +1,4 @@
+import { isEventMutation } from "./event-mutation-request.js";
 import { isAttachmentUpload } from "./attachment-request.js";
 import { isMeetingCreateRequest } from "./meeting-request.js";
 import { session } from "electron";
@@ -45,6 +46,11 @@ export function createSmallSession(): AuthTransport {
     async request(path, init) {
       if (
         !paths.has(path) &&
+        !isEventMutation(
+          path,
+          init.method ?? "GET",
+          typeof init.body === "string" ? JSON.parse(init.body) : init.body,
+        ) &&
         !(init.method === "POST" && isAttachmentUpload(path, init.body)) &&
         !(init.method === "GET" && isCalendarReadPath(path)) &&
         !(

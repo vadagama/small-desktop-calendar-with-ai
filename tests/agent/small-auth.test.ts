@@ -315,3 +315,50 @@ test("calendar creation checks the account and never refreshes/replays a rejecte
   );
   assert.equal(writes, 1);
 });
+
+test("event mutation authenticates the account and sends DELETE once without refresh replay", async () => {
+  const f = setup();
+  await f.auth.login({
+    username: "employee-a",
+    password: "synthetic-password",
+  });
+  let writes = 0;
+  const original = f.transport.request;
+  f.transport.request = async (path, init) => {
+    if (path === "/gate/team/api/calendar/events/42") {
+      assert.equal(init.method, "DELETE");
+      assert.equal(init.body, undefined);
+      writes++;
+      return new Response(null, { status: 401 });
+    }
+    return original(path, init);
+  };
+  await assert.rejects(
+    f.auth.mutateCalendarEvent(
+      "other",
+      "/gate/team/api/calendar/events/42",
+      "DELETE",
+    ),
+  );
+  assert.equal(writes, 0);
+  assert.equal(
+    (
+      await f.auth.mutateCalendarEvent(
+        "employee-a",
+        "/gate/team/api/calendar/events/42",
+        "DELETE",
+      )
+    ).status,
+    401,
+  );
+  assert.equal(writes, 1);
+  assert.ok(!f.calls.includes("/gate/auth/refresh"));
+  await assert.rejects(
+    f.auth.mutateCalendarEvent(
+      "employee-a",
+      "/gate/team/api/calendar/events/42/cancel",
+      "DELETE",
+    ),
+  );
+  assert.equal(writes, 1);
+});

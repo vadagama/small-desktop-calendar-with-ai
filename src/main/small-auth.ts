@@ -1,3 +1,4 @@
+import { isEventMutation } from "./event-mutation-request.js";
 import { attachmentPath, isAttachmentUpload } from "./attachment-request.js";
 import { meetingCreateBody, meetingCreatePath } from "./meeting-request.js";
 import { z } from "zod";
@@ -94,7 +95,9 @@ export class SmallAuth {
         "Content-Type": "application/json",
         ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
       },
-      ...(method === "POST" ? { body: JSON.stringify(body ?? {}) } : {}),
+      ...(method === "POST" || method === "PUT"
+        ? { body: JSON.stringify(body ?? {}) }
+        : {}),
       redirect: "error",
       signal: AbortSignal.timeout(15000),
     });
@@ -243,6 +246,28 @@ export class SmallAuth {
       )
         throw new SmallAuthError("Изменился аккаунт Small.", "auth");
       return this.request(meetingCreatePath, "POST", body.data);
+    });
+  }
+  mutateCalendarEvent(
+    accountId: string,
+    path: string,
+    method: "PUT" | "DELETE",
+    body?: unknown,
+  ): Promise<Response> {
+    const version = this.version;
+    if (!isEventMutation(path, method, body))
+      return Promise.reject(
+        new SmallAuthError("Некорректное изменение встречи."),
+      );
+    return this.run(async () => {
+      const state = await this.current();
+      if (
+        version !== this.version ||
+        state.status !== "signed-in" ||
+        state.profile.id !== accountId
+      )
+        throw new SmallAuthError("Изменился аккаунт Small.", "auth");
+      return this.request(path, method, body);
     });
   }
   uploadAttachment(accountId: string, body: FormData): Promise<Response> {

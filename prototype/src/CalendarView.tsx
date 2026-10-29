@@ -33,11 +33,19 @@ interface Props {
   retry: () => void;
   swap: () => void;
   readOnly?: boolean;
+  revealEventId?: string;
   today?: string;
   footerLabel?: string;
   statusContent?: React.ReactNode;
 }
 export function Calendar(p: Props) {
+  const container = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (p.revealEventId)
+      container.current
+        ?.querySelector('[data-new-event="true"]')
+        ?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [p.revealEventId]);
   const today = p.today ?? TODAY;
   const hasStatus = Boolean(p.statusContent);
   const tooltip = useEventTooltip();
@@ -133,7 +141,7 @@ export function Calendar(p: Props) {
           p.view === "month" ? { month: "long", year: "numeric" } : undefined,
         );
   return (
-    <section className="calendar-panel" aria-label="Календарь">
+    <section className="calendar-panel" ref={container} aria-label="Календарь">
       <div
         className="panel-caption"
         draggable
@@ -250,6 +258,7 @@ export function Calendar(p: Props) {
                   .map((e) => (
                     <button
                       {...(p.readOnly ? {} : tooltip.bind(e))}
+                      data-new-event={e.id === p.revealEventId || undefined}
                       className={`month-event calendar-${e.calendar}`}
                       key={e.id}
                       onClick={() => {
@@ -320,6 +329,7 @@ export function Calendar(p: Props) {
                       <button
                         key={e.id}
                         {...(p.readOnly ? {} : tooltip.bind(e))}
+                        data-new-event={e.id === p.revealEventId || undefined}
                         className={`calendar-event calendar-${e.calendar} ${e.duration <= 30 ? "compact" : ""}`}
                         style={{
                           top:

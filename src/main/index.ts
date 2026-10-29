@@ -1,3 +1,4 @@
+import { EventMutations } from "./event-mutations.js";
 import { EventChangeService } from "./event-change.js";
 import { MeetingOperations } from "./meeting-operations.js";
 import { MeetingJournal } from "./meeting-journal.js";
@@ -125,11 +126,30 @@ app.whenReady().then(async () => {
   registerProfileHandlers(profiles, assistant.trusted, assistant.cancelActive);
   registerMeetingHandlers(meetings, smallAuth, assistant.trusted, availability);
 
+  const eventOwner = async (accountId: string) => {
+    const state = await smallAuth.read();
+    if (
+      state.status !== "signed-in" ||
+      state.profile.id !== accountId ||
+      !state.profile.participantId
+    )
+      throw new Error("Нет подтверждённого GUID организатора.");
+    return state.profile.participantId;
+  };
+  const mutations = new EventMutations(
+    smallAuth,
+    new MeetingJournal(resolve(app.getPath("userData"), "event-mutations")),
+    eventOwner,
+  );
   registerCalendarHandlers(
     calendar,
     assistant.trusted,
     availability,
-    new EventChangeService(smallAuth),
+    new EventChangeService(smallAuth, eventOwner, (account, raw, change) =>
+      mutations.register(account, raw, change),
+    ),
+    mutations,
+    smallAuth,
   );
   registerSmallAuthHandlers(
     smallAuth,
