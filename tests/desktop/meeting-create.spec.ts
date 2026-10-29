@@ -47,6 +47,26 @@ test("header creates a meeting without a model, preserves fields and blocks unkn
     });
     await expect(dialog).toContainText("Организатор: employee-a");
     await page.setViewportSize({ width: 900, height: 800 });
+    const nameField = dialog.getByLabel("Наименование", { exact: false });
+    await nameField.focus();
+    const focusBounds = await nameField.evaluate((el) => {
+      const style = getComputedStyle(el);
+      const outer = Math.max(
+        0,
+        parseFloat(style.outlineOffset) + parseFloat(style.outlineWidth),
+      );
+      const box = el.getBoundingClientRect();
+      const scroll = el.closest(".new-meeting-body")!.getBoundingClientRect();
+      return {
+        left: box.left - outer,
+        clipLeft: scroll.left,
+        right: box.right + outer,
+        clipRight: scroll.right,
+      };
+    });
+    expect(focusBounds.left).toBeGreaterThanOrEqual(focusBounds.clipLeft);
+    expect(focusBounds.right).toBeLessThanOrEqual(focusBounds.clipRight);
+
     await dialog.screenshot({
       path: "test-results/desktop/manual-meeting-empty.png",
     });

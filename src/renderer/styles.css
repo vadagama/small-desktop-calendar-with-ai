@@ -645,3 +645,7 @@
     justify-self: end;
   }
 }
+/* Draw focus inside controls so scrolling cannot clip the indicator. */
+.new-meeting :is(input, textarea, select, button):focus-visible {
+  outline-offset: -2px;
+}
