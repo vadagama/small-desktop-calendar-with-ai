@@ -369,3 +369,40 @@ test("analytics applies saved topic rules and reports an unreadable rules file",
   assert.ok(!broken.ok && /правила тем/.test(broken.error));
   assert.ok(!broken.ok && !broken.error.includes("/Users/"));
 });
+
+test("organizer-only selection clears previous invitees and checks only the organizer", async () => {
+  const { execute, calls } = setup("Запланируй слот для меня на 2", "self");
+  await execute("searchPeople", { query: "Тестовый", page: 1 });
+  await execute("selectParticipants", { participantIds: ["person-a"] });
+  assert.equal(
+    (await execute("selectParticipants", { participantIds: [] })).ok,
+    true,
+  );
+  assert.equal(
+    (await execute("findSlots", { ...query, participantIds: [] })).ok,
+    true,
+  );
+  assert.deepEqual(calls.at(-1), {
+    ...query,
+    participantIds: ["self"],
+    accountId: "account-a",
+  });
+  assert.equal((await execute("findSlots", query)).ok, false);
+});
+
+test("organizer-only requests require a known organizer and explicit composition selection", async () => {
+  for (const organizer of [undefined, "self"]) {
+    const { execute, calls } = setup("Личная встреча", organizer);
+    assert.equal(
+      (await execute("findSlots", { ...query, participantIds: [] })).ok,
+      false,
+    );
+    await execute("selectParticipants", { participantIds: [] });
+    if (!organizer)
+      assert.equal(
+        (await execute("findSlots", { ...query, participantIds: [] })).ok,
+        false,
+      );
+    assert.equal(calls.length, 0);
+  }
+});

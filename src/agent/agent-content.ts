@@ -49,7 +49,7 @@ export async function loadAgentDefaults(
     ) as AgentSettingsState["moods"],
     system: await readFile(new URL("system.md", root), "utf8"),
     settings: {
-      version: 4,
+      version: 5,
       mood: "neutral",
       instructions: "",
       promptTemplates: templates.suggestions
@@ -74,13 +74,14 @@ export async function loadAgentDefaults(
 export async function migrateBundledSkills(
   state: AgentSettingsState,
 ): Promise<AgentSettingsState> {
-  if (state.settings.version === 4) return state;
+  if (state.settings.version === 5) return state;
   const defaults = await loadAgentDefaults();
   for (const skill of state.settings.skills) {
     if (
       state.settings.version !== 1 ||
       skill.id === "schedule" ||
-      skill.id === "analytics"
+      skill.id === "analytics" ||
+      skill.id === "meeting-delete"
     )
       continue;
     const old = await readFile(
@@ -92,11 +93,22 @@ export async function migrateBundledSkills(
         (s) => s.id === skill.id,
       )!.content;
   }
-  for (const id of ["schedule", "analytics"] as const)
+  for (const id of ["availability", "meeting-draft"] as const) {
+    const skill = state.settings.skills.find((s) => s.id === id);
+    const old = await readFile(
+      new URL(`./content/legacy/${id}-v4.md`, import.meta.url),
+      "utf8",
+    );
+    if (skill?.content.trim() === old.trim())
+      skill.content = defaults.settings.skills.find(
+        (s) => s.id === id,
+      )!.content;
+  }
+  for (const id of ["schedule", "analytics", "meeting-delete"] as const)
     if (!state.settings.skills.some((s) => s.id === id))
       state.settings.skills.push(
         defaults.settings.skills.find((s) => s.id === id)!,
       );
-  state.settings.version = 4;
+  state.settings.version = 5;
   return state;
 }

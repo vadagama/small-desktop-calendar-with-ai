@@ -1,3 +1,5 @@
+import type { EventChangeService } from "./event-change.js";
+import { collectEvents } from "./schedule.js";
 import { readSchedule } from "./schedule.js";
 import { readAnalytics } from "./analytics.js";
 import type { TopicRule } from "../shared/analytics.js";
@@ -9,6 +11,7 @@ import type { MeetingDraft } from "../shared/meeting-draft.js";
 import { meetingDraftInput } from "../shared/meeting-draft.js";
 import { prepareMeetingDraft } from "./meeting-draft.js";
 import {
+  meetingDeletionInput,
   peopleToolInput,
   selectParticipantsInput,
   participantMemoryInput,
@@ -32,6 +35,7 @@ export function createCalendarToolExecutor(
   memory?: ParticipantMemory,
   organizerParticipantId?: string,
   topicRules?: () => Promise<TopicRule[]>,
+  changes?: Pick<EventChangeService, "preview">,
 ): CalendarToolExecutor {
   conversation.bindAccount(accountId);
   const turn = ++conversation.turn;
@@ -49,6 +53,39 @@ export function createCalendarToolExecutor(
       let checkedPeople: CalendarPerson[] = [];
       if (name === "listMeetings") {
         data = await readSchedule(accountId, input, calendar, signal);
+      } else if (name === "prepareMeetingDeletion") {
+        const q = meetingDeletionInput.parse(input);
+        if (!changes) throw new CalendarError("denied", "Удаление недоступно.");
+        const result = await collectEvents(
+          accountId,
+          { from: q.date, to: q.date },
+          calendar,
+          signal,
+        );
+        const event = result.events.find((e) => e.key === q.key);
+        if (result.issues.length || !event)
+          throw new CalendarError(
+            "invalid",
+            "Не удалось однозначно найти встречу. Обновите расписание и уточните выбор.",
+          );
+        if (event.recurring || event.originalEventId || !("id" in event.lookup))
+          throw new CalendarError(
+            "denied",
+            "Для удаления повторяющейся встречи выберите вхождение или серию в календаре.",
+          );
+        const preview = await changes.preview({
+          accountId,
+          eventId: event.lookup.id,
+          change: { kind: "cancel" },
+        });
+        data = {
+          kind: "meeting-delete" as const,
+          accountId,
+          eventId: preview.eventId,
+          title: preview.before.title,
+          startsAt: preview.before.startsAt,
+          endsAt: preview.before.endsAt,
+        };
       } else if (name === "meetingAnalytics") {
         if (!organizerParticipantId)
           throw new CalendarError(
@@ -129,6 +166,7 @@ export function createCalendarToolExecutor(
             "Найдено несколько кандидатов. Уточните выбор у пользователя и продолжите следующим сообщением.",
           );
         conversation.selected = participantIds;
+        conversation.selectionConfirmed = true;
         const people = participantIds.map((id) => conversation.people.get(id)!);
         const fresh = people.filter((p) => !counted.has(p.participantId));
         for (const p of fresh) counted.add(p.participantId);
@@ -174,7 +212,8 @@ export function createCalendarToolExecutor(
             id !== organizerParticipantId || conversation.selected.includes(id),
         );
         if (
-          !conversation.selected.length ||
+          (!conversation.selected.length && !conversation.selectionConfirmed) ||
+          (!requestedParticipants.length && !organizerParticipantId) ||
           conversation.selected.length !== requestedParticipants.length ||
           new Set(conversation.selected).size !==
             conversation.selected.length ||

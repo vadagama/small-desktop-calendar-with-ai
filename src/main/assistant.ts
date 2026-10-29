@@ -209,6 +209,7 @@ export function registerAssistantHandlers(
               participantMemory: "people-search",
               findSlots: "availability",
               prepareMeetingDraft: "meeting-draft",
+              prepareMeetingDeletion: "meeting-delete",
             } as const;
             const skillId = skillForTool[message.name];
             if (

@@ -5,7 +5,7 @@ description: Подобрать общее свободное время по о
 
 # Подбор времени
 
-1. Прочитай loadReference scheduling. Разреши участников через people-search и selectParticipants.
+1. Прочитай loadReference scheduling. Для личного слота «для меня» без гостей выбери selectParticipants с participantIds: [] и передай [] в findSlots: инструмент проверит организатора. Очисти прежний состав приглашённых. Иначе разреши участников через people-search и selectParticipants.
 2. Определи дату из текущего времени и истории. Уточняй только неоднозначность, не требуй YYYY-MM-DD от пользователя.
 3. Узнай длительность. Определи диапазон «утром» или «после обеда» и назови его, если это предложенное значение.
 4. Вызови findSlots с полным составом, внутренней ISO-датой, durationMinutes, timeFrom/timeTo и includeWeekends при запросе выходного.

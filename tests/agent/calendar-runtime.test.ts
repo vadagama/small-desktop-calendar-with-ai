@@ -66,12 +66,16 @@ test("custom instructions reach the model, skills load on demand, disabled tools
     false;
   configuration.settings.skills.find((s) => s.id === "analytics")!.enabled =
     false;
+  configuration.settings.skills.find(
+    (s) => s.id === "meeting-delete",
+  )!.enabled = false;
   configuration.settings.skills[1]!.content = "CUSTOM_SKILL_BODY";
   for (const [name, input] of [
     ["loadSkill", '{"name":"availability"}'],
     ["searchPeople", '{"query":"Тест","page":1}'],
     ["listMeetings", '{"period":"today"}'],
     ["meetingAnalytics", '{"period":"today"}'],
+    ["prepareMeetingDeletion", '{"key":"event:a","date":"2026-11-02"}'],
   ] as const) {
     let calls = 0;
     const model = new MockLanguageModelV4({

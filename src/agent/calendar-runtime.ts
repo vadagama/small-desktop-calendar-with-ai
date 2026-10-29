@@ -17,6 +17,7 @@ import {
   type LanguageModel,
 } from "ai";
 import {
+  meetingDeletionInput,
   peopleToolInput,
   selectParticipantsInput,
   participantMemoryInput,
@@ -47,6 +48,7 @@ export async function streamCalendarTurn(
       participantMemory: "people-search",
       findSlots: "availability",
       prepareMeetingDraft: "meeting-draft",
+      prepareMeetingDeletion: "meeting-delete",
     };
     if (!enabled.some((skill) => skill.id === skills[name]))
       return { ok: false, kind: "denied", error: "Навык отключён" };
@@ -85,11 +87,20 @@ export async function streamCalendarTurn(
       ...(enabled.some((s) => s.id === "meeting-draft")
         ? ["prepareMeetingDraft" as const]
         : []),
+      ...(enabled.some((s) => s.id === "meeting-delete")
+        ? ["prepareMeetingDeletion" as const]
+        : []),
     ],
     stopWhen: isStepCount(20),
     maxRetries: 0,
     onError: () => {},
     tools: {
+      prepareMeetingDeletion: tool({
+        description:
+          "Подготовить карточку удаления разовой встречи организатором. Передай key из listMeetings и местную дату события. Сам инструмент ничего не удаляет: пользователь подтверждает удаление кнопкой карточки.",
+        inputSchema: meetingDeletionInput,
+        execute: (input) => runTool("prepareMeetingDeletion", input),
+      }),
       listMeetings: tool({
         description:
           "Прочитать мои встречи за весь сегодняшний/завтрашний день, текущую/следующую неделю или период до 31 дня (custom, from/to включительно). Включает прошедшие часы дня и выходные. Результат изложи кратко по дням в Markdown; при complete=false явно сообщи о неполноте.",
@@ -110,7 +121,7 @@ export async function streamCalendarTurn(
       }),
       selectParticipants: tool({
         description:
-          "Зафиксировать полный выбранный пользователем состав из результатов каталога. При неоднозначности сначала уточни человека. Подтверждённое прозвище из памяти можно передать в rememberedAliases после перепроверки каталога.",
+          "Зафиксировать полный выбранный пользователем состав из результатов каталога. Для личной встречи только с организатором передай participantIds: []. При неоднозначности сначала уточни человека. Подтверждённое прозвище из памяти можно передать в rememberedAliases после перепроверки каталога.",
         inputSchema: selectParticipantsInput,
         execute: (input) => runTool("selectParticipants", input),
       }),

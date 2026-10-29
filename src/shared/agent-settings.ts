@@ -32,10 +32,11 @@ export const skillIds = [
   "meeting-draft",
   "schedule",
   "analytics",
+  "meeting-delete",
 ] as const;
 export type SkillId = (typeof skillIds)[number];
 export interface AgentSettings {
-  version: 1 | 2 | 3 | 4;
+  version: 1 | 2 | 3 | 4 | 5;
   mood: Mood;
   instructions: string;
   promptTemplates?: string[] | undefined;
@@ -66,4 +67,5 @@ export const skillLabels: Record<SkillId, string> = {
   "meeting-draft": "Черновик встречи",
   schedule: "Просмотр расписания",
   analytics: "Аналитика встреч",
+  "meeting-delete": "Удаление встречи",
 };

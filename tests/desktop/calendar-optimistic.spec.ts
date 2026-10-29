@@ -101,7 +101,15 @@ test("a confirmed move shows at once, is marked while saving and stays", async (
     // The card is already at the new time while Small has not answered.
     await expect(card).toContainText("09:15 – 09:45");
     await expect(card).toHaveAttribute("data-pending", "saving");
-    await expect(page.getByText("Сохраняю время встречи…")).toBeVisible();
+    await expect(page.getByText("Сохраняю время встречи…")).toHaveCount(0);
+    expect(
+      await page
+        .locator(".calendar-toolbar")
+        .evaluate((el) => getComputedStyle(el).fontSize),
+    ).toBe("14px");
+    await page.screenshot({
+      path: "test-results/desktop/calendar-move-without-banner.png",
+    });
     await expect(page.getByText("Время события изменено")).toBeVisible();
     await expect(card).not.toHaveAttribute("data-pending", /.+/);
     await expect(card).toContainText("09:15 – 09:45");

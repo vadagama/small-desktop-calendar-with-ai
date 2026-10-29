@@ -7,10 +7,17 @@ const requiredFrom: Record<(typeof skillIds)[number], number> = {
   "meeting-draft": 1,
   schedule: 3,
   analytics: 4,
+  "meeting-delete": 5,
 };
 export const agentSettingsSchema = z
   .strictObject({
-    version: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+    version: z.union([
+      z.literal(1),
+      z.literal(2),
+      z.literal(3),
+      z.literal(4),
+      z.literal(5),
+    ]),
     mood: z.enum(moodIds).default("neutral"),
     instructions: z.string().max(8000),
     promptTemplates: z
@@ -25,7 +32,7 @@ export const agentSettingsSchema = z
           content: z.string().trim().min(1).max(16000),
         }),
       )
-      .min(skillIds.length - 2)
+      .min(3)
       .max(skillIds.length)
       .refine(
         (skills) => new Set(skills.map((s) => s.id)).size === skills.length,
