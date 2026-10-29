@@ -49,7 +49,7 @@ export async function loadAgentDefaults(
     ) as AgentSettingsState["moods"],
     system: await readFile(new URL("system.md", root), "utf8"),
     settings: {
-      version: 2,
+      version: 3,
       mood: "neutral",
       instructions: "",
       skills: await Promise.all(
@@ -68,9 +68,10 @@ export async function loadAgentDefaults(
 export async function migrateBundledSkills(
   state: AgentSettingsState,
 ): Promise<AgentSettingsState> {
-  if (state.settings.version !== 1) return state;
+  if (state.settings.version === 3) return state;
   const defaults = await loadAgentDefaults();
   for (const skill of state.settings.skills) {
+    if (state.settings.version !== 1 || skill.id === "schedule") continue;
     const old = await readFile(
       new URL(`./content/legacy/${skill.id}.md`, import.meta.url),
       "utf8",
@@ -80,6 +81,10 @@ export async function migrateBundledSkills(
         (s) => s.id === skill.id,
       )!.content;
   }
-  state.settings.version = 2;
+  if (!state.settings.skills.some((s) => s.id === "schedule"))
+    state.settings.skills.push(
+      defaults.settings.skills.find((s) => s.id === "schedule")!,
+    );
+  state.settings.version = 3;
   return state;
 }

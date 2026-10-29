@@ -11,7 +11,7 @@ test("agent customization survives restart and reset restores bundled skills", a
     const store = new AgentSettingsStore(dir);
     const original = await store.read();
     assert.ok(original.system.includes("Small"));
-    assert.equal(original.settings.skills.length, 3);
+    assert.equal(original.settings.skills.length, 4);
     const settings = structuredClone(original.settings);
     settings.instructions = "Отвечай кратко.";
     settings.skills[0]!.enabled = false;
@@ -77,7 +77,7 @@ test("legacy bundled skill migrates without overwriting custom instructions or d
     settings.skills[1]!.content = "# Мой навык";
     await writeFile(join(dir, "agent-settings.json"), JSON.stringify(settings));
     const migrated = await store.read();
-    assert.equal(migrated.settings.version, 2);
+    assert.equal(migrated.settings.version, 3);
     assert.equal(
       migrated.settings.skills[0]!.content,
       original.settings.skills[0]!.content,
@@ -91,6 +91,28 @@ test("legacy bundled skill migrates without overwriting custom instructions or d
       (await new AgentSettingsStore(dir).read()).settings.mood,
       "technical",
     );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("version 2 gains schedule while preserving customized and disabled skills", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "schedule-migration-"));
+  try {
+    const store = new AgentSettingsStore(dir);
+    const { settings } = await store.read();
+    settings.version = 2;
+    settings.skills = settings.skills.filter((s) => s.id !== "schedule");
+    settings.skills[0]!.enabled = false;
+    settings.skills[0]!.content = "My custom instructions";
+    await writeFile(join(dir, "agent-settings.json"), JSON.stringify(settings));
+    const migrated = await store.read();
+    assert.deepEqual(migrated.settings.skills.slice(0, 3), settings.skills);
+    assert.equal(migrated.settings.skills[3]!.id, "schedule");
+    assert.equal(migrated.settings.skills[3]!.enabled, true);
+    assert.equal(migrated.settings.version, 3);
+    await store.save(migrated.settings);
+    assert.deepEqual((await store.read()).settings, migrated.settings);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

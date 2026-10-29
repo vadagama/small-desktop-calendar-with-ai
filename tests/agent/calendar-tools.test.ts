@@ -18,6 +18,7 @@ function setup(
     prompt,
     controller.signal,
     {
+      events: async () => ({ events: [], issues: [] }),
       searchPeople: async (input: unknown) => {
         calls.push(input);
         return {
@@ -134,6 +135,7 @@ test("unexpected failures do not leak service details", async () => {
     "",
     new AbortController().signal,
     {
+      events: async () => ({ events: [], issues: [] }),
       searchPeople: async () => {
         throw new Error("private server payload");
       },
@@ -160,6 +162,7 @@ test("discards a successful calendar response arriving after cancellation", asyn
     "",
     controller.signal,
     {
+      events: async () => ({ events: [], issues: [] }),
       searchPeople: async () => {
         await waiting;
         return { people: [], page: 1, nextPage: null };
@@ -198,4 +201,40 @@ test("slot lookup always includes the organizer while retaining every selected g
     ).ok,
     false,
   );
+});
+
+test("schedule reads own account without participant selection and rejects account injection", async () => {
+  const calls: unknown[] = [];
+  const execute = createCalendarToolExecutor(
+    "account-a",
+    "Какие встречи сегодня?",
+    new AbortController().signal,
+    {
+      searchPeople: async () => {
+        throw Error("must not search participants");
+      },
+      events: async (input) => {
+        calls.push(input);
+        return { events: [], issues: [] };
+      },
+    },
+    {
+      find: async () => {
+        throw Error("must not search slots");
+      },
+    },
+  );
+  assert.equal(
+    (await execute("listMeetings", { period: "today", accountId: "other" })).ok,
+    false,
+  );
+  assert.equal(calls.length, 0);
+  const result = await execute("listMeetings", { period: "today" });
+  assert.ok(
+    result.ok &&
+      "kind" in result.data &&
+      result.data.kind === "schedule" &&
+      result.data.complete,
+  );
+  assert.equal((calls[0] as { accountId: string }).accountId, "account-a");
 });

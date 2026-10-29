@@ -62,10 +62,13 @@ test("custom instructions reach the model, skills load on demand, disabled tools
   const configuration = await loadAgentDefaults();
   configuration.settings.instructions = "Предпочитай краткие ответы.";
   configuration.settings.skills[0]!.enabled = false;
+  configuration.settings.skills.find((s) => s.id === "schedule")!.enabled =
+    false;
   configuration.settings.skills[1]!.content = "CUSTOM_SKILL_BODY";
   for (const [name, input] of [
     ["loadSkill", '{"name":"availability"}'],
     ["searchPeople", '{"query":"Тест","page":1}'],
+    ["listMeetings", '{"period":"today"}'],
   ] as const) {
     let calls = 0;
     const model = new MockLanguageModelV4({
@@ -114,6 +117,7 @@ test("custom instructions reach the model, skills load on demand, disabled tools
     );
     assert.ok(!JSON.stringify(first.prompt).includes("CUSTOM_SKILL_BODY"));
     assert.ok(!first.tools?.some((tool) => tool.name === "searchPeople"));
+    assert.ok(!first.tools?.some((tool) => tool.name === "listMeetings"));
     if (name === "loadSkill")
       assert.ok(
         JSON.stringify(model.doStreamCalls[1]!.prompt).includes(
