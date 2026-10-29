@@ -22,8 +22,14 @@ const detail = z.object({
   data: z.object({
     id,
     title: z.string(),
-    description: z.string(),
-    location: z.string(),
+    description: z
+      .string()
+      .nullable()
+      .transform((value) => value ?? ""),
+    location: z
+      .string()
+      .nullable()
+      .transform((value) => value ?? ""),
     starts_at: z.iso.datetime({ offset: true }),
     ends_at: z.iso.datetime({ offset: true }),
     is_public: z.boolean(),
@@ -147,8 +153,9 @@ export class SmallMeetingWriter implements MeetingWriter {
         JSON.stringify(e.recurrence_rule) ===
           JSON.stringify(expected.recurrence_rule)) &&
       (!d.options ||
-        (JSON.stringify((e.calendar_ids ?? []).sort()) ===
-          JSON.stringify(d.options.calendarIds.map(String).sort()) &&
+        (d.options.calendarIds.every((id) =>
+          (e.calendar_ids ?? []).includes(String(id)),
+        ) &&
           JSON.stringify(
             (e.notification_recipients ?? []).map((p) => p.id).sort(),
           ) ===

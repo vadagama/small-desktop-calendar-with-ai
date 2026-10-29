@@ -93,6 +93,9 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         inspection.syntheticCreatedPayload = body;
         const event = {
           ...body,
+          description: body.description || null,
+          location: body.location || null,
+          calendar_ids: [...(body.calendar_ids ?? []), 99],
           id: `synthetic-created-${inspection.syntheticMeetingWrites}`,
           attachments: body.attachments.map((id: string) => ({ id })),
           notification_recipients: body.notification_recipient_ids.map(

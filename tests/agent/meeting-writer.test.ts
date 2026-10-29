@@ -169,3 +169,49 @@ test("a later recurrence conflict blocks the whole series before create", async 
   await assert.rejects(service.preflight(d), /Время больше не свободно/);
   assert.deepEqual(checked, ["2099-10-29", "2099-11-05"]);
 });
+
+test("verification accepts empty nullable fields and server-added calendars", async () => {
+  const d = draft();
+  d.agenda = "";
+  d.conferenceUrl = "";
+  d.options = {
+    calendarIds: [7],
+    attachmentIds: [],
+    notificationRecipientIds: [],
+    recurrence: null,
+  };
+  let calendars = [7, 99];
+  const writer = new SmallMeetingWriter(
+    {
+      createCalendarEvent: async () => {
+        throw Error("no writes");
+      },
+      readCalendar: async (_account, run) =>
+        run(async () =>
+          Response.json({
+            data: {
+              ...meetingPayload(d),
+              id: 42,
+              description: null,
+              location: null,
+              calendar_ids: calendars,
+              participants: [{ id: "p" }],
+            },
+          }),
+        ),
+    },
+    { events: async () => ({ events: [], issues: [] }) },
+    {
+      find: async () => {
+        throw Error("unused");
+      },
+    },
+  );
+  assert.equal(await writer.verify(d, "42"), true);
+  calendars = [99];
+  assert.equal(await writer.verify(d, "42"), false);
+  d.options.calendarIds = [];
+  assert.equal(await writer.verify(d, "42"), true);
+  d.agenda = "Required description";
+  assert.equal(await writer.verify(d, "42"), false);
+});
