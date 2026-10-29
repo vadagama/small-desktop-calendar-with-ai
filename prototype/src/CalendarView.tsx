@@ -258,17 +258,8 @@ export function Calendar(p: Props) {
                   .map((e) => (
                     <button
                       {...(p.readOnly ? {} : tooltip.bind(e))}
-                      aria-description={
-                        e.participation === "organizer"
-                          ? "Моя встреча"
-                          : e.participation === "informed"
-                            ? "Я информируемый"
-                            : e.participation === "invited"
-                              ? "Я приглашён"
-                              : "Роль не указана"
-                      }
                       data-new-event={e.id === p.revealEventId || undefined}
-                      className={`month-event calendar-${e.calendar} participation-${e.participation ?? "unknown"}`}
+                      className={`month-event calendar-${e.calendar}`}
                       key={e.id}
                       onClick={() => {
                         tooltip.hide();
@@ -338,17 +329,8 @@ export function Calendar(p: Props) {
                       <button
                         key={e.id}
                         {...(p.readOnly ? {} : tooltip.bind(e))}
-                        aria-description={
-                          e.participation === "organizer"
-                            ? "Моя встреча"
-                            : e.participation === "informed"
-                              ? "Я информируемый"
-                              : e.participation === "invited"
-                                ? "Я приглашён"
-                                : "Роль не указана"
-                        }
                         data-new-event={e.id === p.revealEventId || undefined}
-                        className={`calendar-event calendar-${e.calendar} participation-${e.participation ?? "unknown"} ${e.duration <= 30 ? "compact" : ""}`}
+                        className={`calendar-event calendar-${e.calendar} ${e.duration <= 30 ? "compact" : ""}`}
                         style={{
                           top:
                             (preview?.id === e.id ? preview.start : e.start) *

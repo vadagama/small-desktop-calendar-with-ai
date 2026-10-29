@@ -58,7 +58,6 @@ export function DesktopWorkspace() {
         id,
         title: event.title,
         organizer: event.organizer,
-        participation: event.participation,
         agenda: event.description,
         calendar: calendar.my ? "personal" : "team",
         color: "green",
