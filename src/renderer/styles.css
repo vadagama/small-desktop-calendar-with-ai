@@ -326,3 +326,16 @@
 .meeting-draft-url {
   overflow-wrap: anywhere;
 }
+
+.meeting-draft-actions,
+.meeting-draft-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.meeting-draft-edit input,
+.meeting-draft-edit textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+}
