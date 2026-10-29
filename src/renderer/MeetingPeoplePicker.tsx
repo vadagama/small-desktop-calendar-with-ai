@@ -11,41 +11,45 @@ export function MeetingPeoplePicker({
   const [query, setQuery] = useState("");
   return (
     <div className="meeting-people-picker">
-      <div className="meeting-chips">
-        {data.selected.map((p) => (
-          <span key={p.participantId}>
-            {p.name}
-            <button
-              type="button"
-              aria-label={`Убрать ${p.name}`}
-              onClick={() => data.toggle(p)}
-            >
-              <X size={14} />
-            </button>
-          </span>
-        ))}
-      </div>
-      <div className="meeting-people-search">
-        <input
-          aria-label={`Поиск ${label}`}
-          placeholder="Имя сотрудника"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            data.resetSearch();
-          }}
-        />
-        <button
-          type="button"
-          className="secondary"
-          aria-label={
-            label === "участников" ? "Найти сотрудников" : "Найти информируемых"
-          }
-          disabled={!query.trim() || data.searching}
-          onClick={() => void data.search(query)}
-        >
-          <Search size={16} />
-        </button>
+      <div className="meeting-people-input">
+        <div className="meeting-chips">
+          {data.selected.map((p) => (
+            <span key={p.participantId}>
+              {p.name}
+              <button
+                type="button"
+                aria-label={`Убрать ${p.name}`}
+                onClick={() => data.toggle(p)}
+              >
+                <X size={14} />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="meeting-people-search">
+          <input
+            aria-label={`Поиск ${label}`}
+            placeholder="Имя сотрудника"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              data.resetSearch();
+            }}
+          />
+          <button
+            type="button"
+            className="secondary"
+            aria-label={
+              label === "участников"
+                ? "Найти сотрудников"
+                : "Найти информируемых"
+            }
+            disabled={!query.trim() || data.searching}
+            onClick={() => void data.search(query)}
+          >
+            <Search size={16} />
+          </button>
+        </div>
       </div>
       {data.searching && <p role="status">Ищу сотрудников…</p>}
       {data.searchError && (

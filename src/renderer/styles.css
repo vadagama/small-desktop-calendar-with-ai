@@ -369,21 +369,24 @@
   gap: 8px;
 }
 .new-meeting {
-  width: min(680px, calc(100vw - 32px));
-  padding: 26px;
+  width: min(600px, calc(100vw - 32px));
+  padding: 24px;
+  overflow: hidden;
+  font-size: 1rem;
   border-radius: 18px;
 }
 .new-meeting .modal-header {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  flex-shrink: 0;
 }
 .new-meeting .modal-header h2 {
-  font-size: 24px;
+  font-size: 1.25rem;
   font-weight: 500;
 }
 .new-meeting .meeting-form .new-meeting-fields {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   border: 0;
   padding: 0;
   margin: 0;
@@ -391,7 +394,7 @@
 }
 .new-meeting-fields > label {
   display: block;
-  font-size: 16px;
+  font-size: 1rem;
 }
 .new-meeting-fields input:not([type="checkbox"]),
 .new-meeting-fields select,
@@ -399,19 +402,19 @@
   display: block;
   margin-top: 6px;
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 9px 12px;
   font: inherit;
   background: var(--surface);
 }
 .new-meeting-fields textarea {
-  min-height: 48px;
+  min-height: 38px;
 }
 .required-mark {
   color: #d92d20;
 }
 .meeting-field-title {
   display: block;
-  font-size: 16px;
+  font-size: 1rem;
   margin-bottom: 6px;
 }
 .meeting-link-action {
@@ -421,11 +424,11 @@
   color: #5261d8;
   align-self: flex-start;
   padding: 2px 0;
-  font-size: 16px;
+  font-size: 1rem;
 }
 .meeting-organizer {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.857rem;
   margin-bottom: 8px;
 }
 .meeting-people-search {
@@ -541,13 +544,13 @@
 .new-meeting-footer {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 12px;
   margin-top: 12px;
 }
 .new-meeting-footer button {
-  min-height: 44px;
+  min-height: 38px;
   border-radius: 12px;
-  font-size: 16px;
+  font-size: 1rem;
 }
 .new-meeting small {
   color: var(--muted);
@@ -565,4 +568,84 @@
   .new-meeting-time input[type="date"] {
     grid-column: 1 / -1;
   }
+}
+
+/* Keep the scrollbar inside the dialog, away from its rounded shell. */
+.new-meeting[open] {
+  display: flex;
+  flex-direction: column;
+}
+.new-meeting .meeting-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 12px;
+  overflow: hidden;
+}
+.new-meeting-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 4px 10px 4px 4px;
+  margin-left: -4px;
+}
+.new-meeting-footer,
+.new-meeting .meeting-form > p {
+  flex-shrink: 0;
+}
+.new-meeting .meeting-form > p {
+  max-height: 6em;
+  overflow-y: auto;
+}
+.new-meeting .modal-header .icon-button {
+  width: 32px;
+  height: 32px;
+  background: var(--soft);
+  border-radius: 8px;
+}
+.new-meeting .modal-header svg {
+  width: 20px;
+  height: 20px;
+}
+
+.new-meeting .meeting-people-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 4px 8px;
+  border: 1px solid #e2e2e2;
+  border-radius: 12px;
+}
+.new-meeting .meeting-people-search {
+  flex: 1;
+  min-width: 160px;
+}
+.new-meeting .meeting-people-search input {
+  border: 0;
+  margin: 0;
+  padding: 6px;
+}
+.new-meeting .meeting-people-search button {
+  display: flex;
+  padding: 6px;
+}
+.new-meeting .meeting-chips > span {
+  padding: 4px 8px;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+@media (max-width: 380px) {
+  .new-meeting-time {
+    grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1fr);
+  }
+  .new-meeting-time .secondary {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+}
+/* Draw focus inside controls so scrolling cannot clip the indicator. */
+.new-meeting :is(input, textarea, select, button):focus-visible {
+  outline-offset: -2px;
 }

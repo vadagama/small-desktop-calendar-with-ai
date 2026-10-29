@@ -47,9 +47,66 @@ test("header creates a meeting without a model, preserves fields and blocks unkn
     });
     await expect(dialog).toContainText("Организатор: employee-a");
     await page.setViewportSize({ width: 900, height: 800 });
+    const nameField = dialog.getByLabel("Наименование", { exact: false });
+    await nameField.focus();
+    const focusBounds = await nameField.evaluate((el) => {
+      const style = getComputedStyle(el);
+      const outer = Math.max(
+        0,
+        parseFloat(style.outlineOffset) + parseFloat(style.outlineWidth),
+      );
+      const box = el.getBoundingClientRect();
+      const scroll = el.closest(".new-meeting-body")!.getBoundingClientRect();
+      return {
+        left: box.left - outer,
+        clipLeft: scroll.left,
+        right: box.right + outer,
+        clipRight: scroll.right,
+      };
+    });
+    expect(focusBounds.left).toBeGreaterThanOrEqual(focusBounds.clipLeft);
+    expect(focusBounds.right).toBeLessThanOrEqual(focusBounds.clipRight);
+
     await dialog.screenshot({
       path: "test-results/desktop/manual-meeting-empty.png",
     });
+    const rootFont = await page
+      .locator("html")
+      .evaluate((el) => getComputedStyle(el).fontSize);
+    await expect(dialog.getByLabel("Наименование", { exact: false })).toHaveCSS(
+      "font-size",
+      rootFont,
+    );
+    await expect(
+      dialog.getByRole("button", { name: "Создать", exact: true }),
+    ).toHaveCSS("font-size", rootFont);
+    for (const size of [
+      { width: 900, height: 640 },
+      { width: 320, height: 568 },
+    ]) {
+      await page.setViewportSize(size);
+      const footer = dialog.locator(".new-meeting-footer");
+      const before = (await footer.boundingBox())!;
+      expect(before.y + before.height).toBeLessThan(size.height);
+      expect(before.x).toBeGreaterThanOrEqual(0);
+      expect(before.x + before.width).toBeLessThanOrEqual(size.width);
+      const body = dialog.locator(".new-meeting-body");
+      await body.hover();
+      await page.mouse.wheel(0, 1500);
+      await expect
+        .poll(() => body.evaluate((el) => el.scrollTop))
+        .toBeGreaterThan(0);
+      expect((await footer.boundingBox())!.y).toBe(before.y);
+      expect(await dialog.evaluate((el) => el.scrollTop)).toBe(0);
+      expect(
+        await body.evaluate((el) => el.scrollWidth <= el.clientWidth),
+      ).toBe(true);
+      await dialog.screenshot({
+        path: `test-results/desktop/manual-meeting-${size.width}.png`,
+      });
+      await dialog.getByLabel("Наименование", { exact: false }).focus();
+    }
+
     await page.setViewportSize({ width: 1440, height: 932 });
     await dialog
       .getByLabel("Наименование", { exact: false })
