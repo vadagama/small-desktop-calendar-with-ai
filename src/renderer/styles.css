@@ -1219,6 +1219,7 @@
 }
 .assistant-meeting-confirmation {
   margin-top: 12px;
+}
 .reminders-dialog {
   width: min(560px, calc(100vw - 32px));
   max-height: calc(100dvh - 48px);
