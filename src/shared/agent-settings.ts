@@ -31,10 +31,11 @@ export const skillIds = [
   "availability",
   "meeting-draft",
   "schedule",
+  "analytics",
 ] as const;
 export type SkillId = (typeof skillIds)[number];
 export interface AgentSettings {
-  version: 1 | 2 | 3;
+  version: 1 | 2 | 3 | 4;
   mood: Mood;
   instructions: string;
   skills: { id: SkillId; enabled: boolean; content: string }[];
@@ -63,4 +64,5 @@ export const skillLabels: Record<SkillId, string> = {
   availability: "Подбор времени",
   "meeting-draft": "Черновик встречи",
   schedule: "Просмотр расписания",
+  analytics: "Аналитика встреч",
 };

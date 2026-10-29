@@ -64,11 +64,14 @@ test("custom instructions reach the model, skills load on demand, disabled tools
   configuration.settings.skills[0]!.enabled = false;
   configuration.settings.skills.find((s) => s.id === "schedule")!.enabled =
     false;
+  configuration.settings.skills.find((s) => s.id === "analytics")!.enabled =
+    false;
   configuration.settings.skills[1]!.content = "CUSTOM_SKILL_BODY";
   for (const [name, input] of [
     ["loadSkill", '{"name":"availability"}'],
     ["searchPeople", '{"query":"Тест","page":1}'],
     ["listMeetings", '{"period":"today"}'],
+    ["meetingAnalytics", '{"period":"today"}'],
   ] as const) {
     let calls = 0;
     const model = new MockLanguageModelV4({
@@ -118,6 +121,7 @@ test("custom instructions reach the model, skills load on demand, disabled tools
     assert.ok(!JSON.stringify(first.prompt).includes("CUSTOM_SKILL_BODY"));
     assert.ok(!first.tools?.some((tool) => tool.name === "searchPeople"));
     assert.ok(!first.tools?.some((tool) => tool.name === "listMeetings"));
+    assert.ok(!first.tools?.some((tool) => tool.name === "meetingAnalytics"));
     if (name === "loadSkill")
       assert.ok(
         JSON.stringify(model.doStreamCalls[1]!.prompt).includes(
@@ -125,4 +129,57 @@ test("custom instructions reach the model, skills load on demand, disabled tools
         ),
       );
   }
+});
+
+test("enabled analytics skill exposes meetingAnalytics and routes it to the executor", async () => {
+  const { loadAgentDefaults } =
+    await import("../../src/agent/agent-content.js");
+  const configuration = await loadAgentDefaults();
+  const called: [string, unknown][] = [];
+  const model = new MockLanguageModelV4({
+    doStream: async () => ({
+      stream: simulateReadableStream({
+        initialDelayInMs: null,
+        chunkDelayInMs: null,
+        chunks: [
+          {
+            type: "tool-call" as const,
+            toolCallId: "analytics-call",
+            toolName: "meetingAnalytics",
+            input: '{"period":"this-week"}',
+          },
+          {
+            type: "finish" as const,
+            finishReason: { unified: "tool-calls" as const, raw: undefined },
+            usage: {
+              inputTokens: {
+                total: 1,
+                noCache: 1,
+                cacheRead: undefined,
+                cacheWrite: undefined,
+              },
+              outputTokens: { total: 1, text: 1, reasoning: undefined },
+            },
+          },
+        ],
+      }),
+    }),
+  });
+  const result = await streamCalendarTurn(
+    model,
+    {
+      prompt: "Сколько часов встреч на неделе?",
+      abortSignal: new AbortController().signal,
+    },
+    async (name, input) => {
+      called.push([name, input]);
+      return { ok: false, kind: "denied", error: "test" };
+    },
+    configuration,
+  );
+  await result.consumeStream();
+  assert.deepEqual(called[0], ["meetingAnalytics", { period: "this-week" }]);
+  assert.ok(
+    model.doStreamCalls[0]!.tools?.some((t) => t.name === "meetingAnalytics"),
+  );
 });

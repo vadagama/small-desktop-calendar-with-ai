@@ -1290,3 +1290,115 @@
 .notification-check p {
   line-height: 1.45;
 }
+
+.analytics-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  font-size: var(--font-body);
+}
+.analytics-card header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: var(--font-compact);
+  margin-bottom: 12px;
+}
+.analytics-card p {
+  margin: 8px 0;
+}
+.analytics-partial {
+  color: #9a5b00;
+}
+.analytics-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin: 0 0 12px;
+}
+.analytics-metrics dt {
+  color: var(--muted);
+  font-size: var(--font-compact);
+}
+.analytics-metrics dd {
+  margin: 2px 0 0;
+  font-weight: 600;
+}
+.analytics-groups {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  font-size: var(--font-compact);
+}
+.analytics-details {
+  border-top: 1px solid var(--line);
+  padding: 8px 0;
+  font-size: var(--font-compact);
+}
+.analytics-details summary {
+  cursor: pointer;
+}
+.analytics-rows,
+.analytics-events {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+}
+.analytics-rows li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+}
+.analytics-rows li > span:first-child {
+  overflow-wrap: anywhere;
+}
+.analytics-rows li > span:last-child {
+  flex-shrink: 0;
+}
+.analytics-events li {
+  display: grid;
+  gap: 2px;
+  padding: 4px 0;
+}
+.analytics-events strong {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.analytics-events span {
+  color: var(--muted);
+}
+.analytics-unavailable {
+  color: var(--muted);
+  font-size: var(--font-compact);
+}
+
+.analytics-rules-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+}
+.analytics-rule {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  margin: 0 0 12px;
+}
+.analytics-rule label {
+  display: grid;
+  gap: 4px;
+  grid-column: 1;
+}
+.analytics-rule .icon-button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+.analytics-rules-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}

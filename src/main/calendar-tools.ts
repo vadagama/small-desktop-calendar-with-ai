@@ -1,4 +1,6 @@
 import { readSchedule } from "./schedule.js";
+import { readAnalytics } from "./analytics.js";
+import type { TopicRule } from "../shared/analytics.js";
 import { z } from "zod";
 import { CalendarConversation } from "./calendar-conversation.js";
 import type { CalendarPerson } from "../shared/calendar.js";
@@ -29,6 +31,7 @@ export function createCalendarToolExecutor(
   conversation = new CalendarConversation(),
   memory?: ParticipantMemory,
   organizerParticipantId?: string,
+  topicRules?: () => Promise<TopicRule[]>,
 ): CalendarToolExecutor {
   conversation.bindAccount(accountId);
   const turn = ++conversation.turn;
@@ -46,6 +49,29 @@ export function createCalendarToolExecutor(
       let checkedPeople: CalendarPerson[] = [];
       if (name === "listMeetings") {
         data = await readSchedule(accountId, input, calendar, signal);
+      } else if (name === "meetingAnalytics") {
+        if (!organizerParticipantId)
+          throw new CalendarError(
+            "denied",
+            "Не удалось определить ваш профиль участника Small.",
+          );
+        let rules: TopicRule[] = [];
+        try {
+          rules = topicRules ? await topicRules() : [];
+        } catch {
+          throw new CalendarError(
+            "invalid",
+            "Не удалось прочитать правила тем. Исправьте их в настройках аналитики.",
+          );
+        }
+        data = await readAnalytics(
+          accountId,
+          organizerParticipantId,
+          input,
+          calendar,
+          signal,
+          rules,
+        );
       } else if (name === "searchPeople") {
         const parsed = peopleToolInput.safeParse(input);
         if (!parsed.success)

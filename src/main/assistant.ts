@@ -199,6 +199,7 @@ export function registerAssistantHandlers(
               return;
             const skillForTool: Record<string, string> = {
               listMeetings: "schedule",
+              meetingAnalytics: "analytics",
               searchPeople: "people-search",
               selectParticipants: "people-search",
               participantMemory: "people-search",
