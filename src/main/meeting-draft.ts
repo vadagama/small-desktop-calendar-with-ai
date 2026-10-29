@@ -34,7 +34,15 @@ export async function prepareMeetingDraft(
     participantIds: q.participantIds,
     date: calendarDateAt(q.startsAt),
     durationMinutes: q.durationMinutes,
-    ...(includeWeekends ? { includeWeekends: true } : {}),
+    ...(includeWeekends
+      ? {
+          includeWeekends: true,
+          exactInterval: {
+            start: new Date(start).toISOString(),
+            end: new Date(end).toISOString(),
+          },
+        }
+      : {}),
   });
   signal.throwIfAborted();
   if (
