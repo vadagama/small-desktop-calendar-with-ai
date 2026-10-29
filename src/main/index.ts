@@ -181,6 +181,7 @@ app.whenReady().then(async () => {
     new MeetingJournal(resolve(app.getPath("userData"), "meeting-operations")),
     writer,
   );
+  const eventChanges = new EventChangeService(smallAuth);
   const assistant = registerAssistantHandlers(
     devUrl || localUrl,
     resolve(here, "agent-worker.js"),
@@ -204,6 +205,7 @@ app.whenReady().then(async () => {
             participantMemory,
             state.profile.participantId,
             () => topicRules.read(),
+            eventChanges,
           )
         : null;
     },
@@ -218,7 +220,7 @@ app.whenReady().then(async () => {
     calendar,
     assistant.trusted,
     availability,
-    new EventChangeService(smallAuth),
+    eventChanges,
     new EventRescheduleService(
       smallAuth,
       new EventMutationJournal(

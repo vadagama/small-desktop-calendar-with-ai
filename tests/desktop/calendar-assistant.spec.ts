@@ -463,6 +463,77 @@ test("calendar tools cross utility/main boundary and render trusted results", as
       0,
     );
     expect(await writes()).toBe(2);
+    // A personal request must discard the previously selected guests.
+    turn++;
+    await setSlots("2099-10-31");
+    plan = [
+      { name: "selectParticipants", input: { participantIds: [] } },
+      {
+        name: "prepareMeetingDraft",
+        input: {
+          ...draftInput,
+          title: "Личный слот",
+          startsAt: "2099-10-31T14:00:00+05:00",
+          participantIds: [],
+        },
+      },
+    ];
+    await send(
+      "Запланируй личную встречу для меня 31 октября в 14:00 на полчаса",
+    );
+    const personal = page
+      .getByRole("region", { name: "Черновик встречи", exact: true })
+      .last();
+    await expect(personal).toContainText("Личный слот");
+    const personalOutput = outputs.findLast(
+      (output) =>
+        typeof output === "object" &&
+        output !== null &&
+        "data" in output &&
+        (output.data as { title?: string })?.title === "Личный слот",
+    ) as { data: { participantIds: string[] } };
+    expect(personalOutput.data.participantIds).toEqual(["synthetic-organizer"]);
+
+    turn++;
+    plan = [
+      { name: "loadSkill", input: { name: "meeting-delete" } },
+      { name: "listMeetings", input: { period: "today" } },
+      {
+        name: "prepareMeetingDeletion",
+        input: { key: "event:42", date: calendarToday() },
+      },
+    ];
+    answer = "Встреча уже удалена";
+    await send("Удали Синтетическую встречу A сегодня");
+    const deletion = page.getByRole("region", {
+      name: "Удаление встречи",
+      exact: true,
+    });
+    await expect(deletion).toContainText("Синтетическая встреча A");
+    await expect(deletion.locator("p").first()).toHaveCSS("font-size", "14px");
+    await expect(
+      page.getByText("Встреча уже удалена", { exact: true }),
+    ).toHaveCount(0);
+    // Preparing the card has no write capability.
+    const readEvent = () =>
+      page.evaluate(() =>
+        window.smallDesktop.calendar.detail({
+          accountId: "employee-a",
+          lookup: { id: "42" },
+        }),
+      );
+    expect((await readEvent()).ok).toBe(true);
+    await deletion.screenshot({
+      path: "test-results/desktop/assistant-delete-preview.png",
+    });
+    await deletion
+      .getByRole("button", { name: "Удалить встречу", exact: true })
+      .click();
+    await expect(deletion.getByRole("status")).toHaveText(
+      "Событие успешно удалено",
+    );
+    expect((await readEvent()).ok).toBe(false);
+    await expect(deletion.getByRole("button")).toHaveCount(0);
     expect(errors).toEqual([]);
   } finally {
     const cleanupPage = await app.firstWindow();

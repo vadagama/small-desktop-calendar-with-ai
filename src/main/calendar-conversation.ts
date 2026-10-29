@@ -8,6 +8,7 @@ export class CalendarConversation {
   people = new Map<string, CalendarPerson>();
   ambiguous = new Map<string, number>();
   selected: string[] = [];
+  selectionConfirmed = false;
   turn = 0;
   get messages(): ModelMessage[] {
     return this.turns.flat();
@@ -19,6 +20,7 @@ export class CalendarConversation {
     this.people.clear();
     this.ambiguous.clear();
     this.selected = [];
+    this.selectionConfirmed = false;
     this.turn = 0;
   }
   commit(prompt: string, response: ModelMessage[]) {

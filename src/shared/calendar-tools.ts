@@ -8,6 +8,20 @@ import type {
   CalendarPerson,
 } from "./calendar.js";
 
+export const meetingDeletionInput = z.strictObject({
+  key: z.string().min(1).max(300),
+  date: z.string().refine(validCalendarDate),
+});
+export const meetingDeletionSchema = z.strictObject({
+  kind: z.literal("meeting-delete"),
+  accountId: z.string().min(1),
+  eventId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+  title: z.string(),
+  startsAt: z.iso.datetime({ offset: true }),
+  endsAt: z.iso.datetime({ offset: true }),
+});
+export type MeetingDeletion = z.infer<typeof meetingDeletionSchema>;
+
 export const peopleToolInput = z.strictObject({
   query: z.string().trim().min(1).max(100),
   page: z.number().int().min(1).max(10000),
@@ -15,7 +29,7 @@ export const peopleToolInput = z.strictObject({
 export const slotsToolInput = z.strictObject({
   participantIds: z
     .array(z.string().regex(/^[A-Za-z0-9_-]{1,128}$/))
-    .min(1)
+    .min(0)
     .max(20)
     .refine((ids) => new Set(ids).size === ids.length),
   includeWeekends: z.boolean().optional(),
@@ -36,6 +50,7 @@ export type CalendarToolResult = CalendarReply<
   | PeoplePage
   | SlotsResult
   | MeetingDraft
+  | MeetingDeletion
   | { kind: "participants"; people: CalendarPerson[] }
   | {
       kind: "memory";

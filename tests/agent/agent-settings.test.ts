@@ -11,7 +11,7 @@ test("agent customization survives restart and reset restores bundled skills", a
     const store = new AgentSettingsStore(dir);
     const original = await store.read();
     assert.ok(original.system.includes("Small"));
-    assert.equal(original.settings.skills.length, 5);
+    assert.equal(original.settings.skills.length, 6);
     const settings = structuredClone(original.settings);
     settings.instructions = "Отвечай кратко.";
     settings.skills[0]!.enabled = false;
@@ -77,7 +77,7 @@ test("legacy bundled skill migrates without overwriting custom instructions or d
     settings.skills[1]!.content = "# Мой навык";
     await writeFile(join(dir, "agent-settings.json"), JSON.stringify(settings));
     const migrated = await store.read();
-    assert.equal(migrated.settings.version, 4);
+    assert.equal(migrated.settings.version, 5);
     assert.equal(
       migrated.settings.skills[0]!.content,
       original.settings.skills[0]!.content,
@@ -103,7 +103,10 @@ test("version 2 gains schedule while preserving customized and disabled skills",
     const { settings } = await store.read();
     settings.version = 2;
     settings.skills = settings.skills.filter(
-      (s) => s.id !== "schedule" && s.id !== "analytics",
+      (s) =>
+        s.id !== "schedule" &&
+        s.id !== "analytics" &&
+        s.id !== "meeting-delete",
     );
     settings.skills[0]!.enabled = false;
     settings.skills[0]!.content = "My custom instructions";
@@ -113,7 +116,7 @@ test("version 2 gains schedule while preserving customized and disabled skills",
     assert.equal(migrated.settings.skills[3]!.id, "schedule");
     assert.equal(migrated.settings.skills[3]!.enabled, true);
     assert.equal(migrated.settings.skills[4]!.id, "analytics");
-    assert.equal(migrated.settings.version, 4);
+    assert.equal(migrated.settings.version, 5);
     await store.save(migrated.settings);
     assert.deepEqual((await store.read()).settings, migrated.settings);
   } finally {
@@ -128,7 +131,9 @@ test("version 3 settings gain the analytics skill without touching existing skil
     const { settings } = await store.read();
     settings.version = 3;
     settings.instructions = "Пиши коротко";
-    settings.skills = settings.skills.filter((s) => s.id !== "analytics");
+    settings.skills = settings.skills.filter(
+      (s) => s.id !== "analytics" && s.id !== "meeting-delete",
+    );
     settings.skills[3]!.enabled = false;
     settings.skills[0]!.content = "# Мой навык";
     await writeFile(join(dir, "agent-settings.json"), JSON.stringify(settings));
@@ -138,7 +143,7 @@ test("version 3 settings gain the analytics skill without touching existing skil
     assert.equal(migrated.settings.skills[4]!.enabled, true);
     assert.match(migrated.settings.skills[4]!.content, /meetingAnalytics/);
     assert.equal(migrated.settings.instructions, "Пиши коротко");
-    assert.equal(migrated.settings.version, 4);
+    assert.equal(migrated.settings.version, 5);
     await store.save(migrated.settings);
     assert.deepEqual((await store.read()).settings, migrated.settings);
     const incomplete = {
@@ -214,6 +219,48 @@ test("saved original suggestions upgrade without replacing edited or empty templ
         promptTemplates,
       );
     }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("version 4 gains deletion and personal defaults while preserving custom and disabled skills", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "personal-delete-migration-"));
+  try {
+    const store = new AgentSettingsStore(dir);
+    const { settings } = await store.read();
+    settings.version = 4;
+    settings.skills = settings.skills.filter((s) => s.id !== "meeting-delete");
+    const availability = settings.skills.find((s) => s.id === "availability")!;
+    availability.enabled = false;
+    availability.content = await readFile(
+      new URL(
+        "../../src/agent/content/legacy/availability-v4.md",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const draft = settings.skills.find((s) => s.id === "meeting-draft")!;
+    draft.content = "Мой сценарий встречи";
+    await writeFile(join(dir, "agent-settings.json"), JSON.stringify(settings));
+    const migrated = (await store.read()).settings;
+    assert.equal(migrated.version, 5);
+    assert.equal(
+      migrated.skills.find((s) => s.id === "availability")!.enabled,
+      false,
+    );
+    assert.match(
+      migrated.skills.find((s) => s.id === "availability")!.content,
+      /participantIds: \[\]/,
+    );
+    assert.equal(
+      migrated.skills.find((s) => s.id === "meeting-draft")!.content,
+      draft.content,
+    );
+    assert.equal(
+      migrated.skills.find((s) => s.id === "meeting-delete")!.enabled,
+      true,
+    );
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

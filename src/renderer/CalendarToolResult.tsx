@@ -2,6 +2,8 @@ import {
   TemplateMarkdown,
   useAssistantPresentation,
 } from "./AssistantPresentation";
+import { MeetingDeletionCard } from "./MeetingDeletionCard";
+import { meetingDeletionSchema } from "../shared/calendar-tools.js";
 import { meetingDraftSchema } from "../shared/meeting-draft.js";
 import { MeetingDraftCard } from "./MeetingDraftCard";
 import { z } from "zod";
@@ -11,6 +13,7 @@ const resultSchema = z.discriminatedUnion("ok", [
     ok: z.literal(true),
     data: z.union([
       meetingDraftSchema,
+      meetingDeletionSchema,
       z.object({
         people: z.array(
           z.object({
@@ -58,7 +61,12 @@ export function CalendarToolResult({ output }: { output: unknown }) {
   if (!parsed.success) return <p>Результат недоступен.</p>;
   if (!parsed.data.ok) return <p>{parsed.data.error}</p>;
   const data = parsed.data.data;
-  if ("kind" in data) return <MeetingDraftCard draft={data} />;
+  if ("kind" in data)
+    return data.kind === "meeting-delete" ? (
+      <MeetingDeletionCard deletion={data} />
+    ) : (
+      <MeetingDraftCard draft={data} />
+    );
   if ("page" in data)
     return (
       <>

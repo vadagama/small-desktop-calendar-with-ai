@@ -42,7 +42,10 @@ export function MessageList({
                 message.parts.some(
                   (item) =>
                     isToolUIPart(item) &&
-                    item.type === "tool-prepareMeetingDraft" &&
+                    [
+                      "tool-prepareMeetingDraft",
+                      "tool-prepareMeetingDeletion",
+                    ].includes(item.type) &&
                     item.state === "output-available" &&
                     typeof item.output === "object" &&
                     item.output !== null &&
@@ -119,7 +122,8 @@ export function MessageList({
                 }
                 const calendar =
                   part.type === "tool-findSlots" ||
-                  part.type === "tool-prepareMeetingDraft";
+                  part.type === "tool-prepareMeetingDraft" ||
+                  part.type === "tool-prepareMeetingDeletion";
                 if (
                   calendar &&
                   (part.state === "input-streaming" ||
@@ -129,14 +133,20 @@ export function MessageList({
                 return (
                   <div
                     className={
-                      part.type === "tool-prepareMeetingDraft"
+                      [
+                        "tool-prepareMeetingDraft",
+                        "tool-prepareMeetingDeletion",
+                      ].includes(part.type)
                         ? "sdk-tool assistant-draft-tool"
                         : "draft-card sdk-tool"
                     }
                     key={part.toolCallId}
                     data-tool-state={part.state}
                   >
-                    {part.type !== "tool-prepareMeetingDraft" && (
+                    {![
+                      "tool-prepareMeetingDraft",
+                      "tool-prepareMeetingDeletion",
+                    ].includes(part.type) && (
                       <strong>
                         {part.type === "tool-findSlots"
                           ? "Общее время"
