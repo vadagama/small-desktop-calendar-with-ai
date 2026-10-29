@@ -111,10 +111,9 @@ test("analytics report is calculated by main and rendered as a verifiable card",
       .getByLabel("API-ключ", { exact: true })
       .fill("synthetic-analytics-key");
     await dialog
-      .getByRole("button", { name: "Сохранить и использовать" })
+      .getByRole("button", { name: "Сохранить", exact: true })
       .click();
-    await expect(dialog.getByRole("status")).toContainText("Профиль сохранён");
-    await dialog.getByRole("button", { name: "Готово", exact: true }).click();
+    await expect(dialog).toHaveCount(0);
     const send = async (prompt: string) => {
       await page
         .getByRole("textbox", { name: "Сообщение ассистенту" })

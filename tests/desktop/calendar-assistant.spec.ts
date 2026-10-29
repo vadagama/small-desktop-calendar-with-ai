@@ -122,11 +122,8 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     await dialog
       .getByLabel("API-ключ", { exact: true })
       .fill("synthetic-calendar-key");
-    await dialog
-      .getByRole("button", { name: "Сохранить и использовать" })
-      .click();
-    await expect(dialog.getByRole("status")).toContainText("Профиль сохранён");
-    await dialog.getByRole("button", { name: "Готово", exact: true }).click();
+    await dialog.getByRole("button", { name: "Сохранить" }).click();
+    await expect(dialog).toHaveCount(0);
     const send = async (prompt: string) => {
       await page
         .getByRole("textbox", { name: "Сообщение ассистенту" })

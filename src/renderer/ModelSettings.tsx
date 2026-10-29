@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { CheckCircle2, X } from "lucide-react";
 import type {
   ProfileId,
   ProfileReply,
@@ -41,16 +41,28 @@ export function ModelSettings({
   const [apiKey, setApiKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState(initial.warning ?? "");
   const dialog = useRef<HTMLDialogElement>(null);
   const saved = state.profiles.find((profile) => profile.id === id);
-  const keepKey = saved && origin(saved.baseURL) === origin(baseURL);
+  const keepKey = saved?.hasKey && origin(saved.baseURL) === origin(baseURL);
+  const applied =
+    keepKey &&
+    state.active === id &&
+    saved.baseURL === baseURL &&
+    saved.modelId === modelId &&
+    !apiKey &&
+    !busy &&
+    !error;
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;
     if (!dialog.current?.open) dialog.current?.showModal();
     return () => before?.focus();
   }, []);
-  async function perform(action: () => Promise<ProfileReply>, message: string) {
+  async function perform(
+    action: () => Promise<ProfileReply>,
+    message: string,
+    closeOnSuccess = false,
+  ) {
     if (busy) return;
     setBusy(true);
     setError("");
@@ -66,6 +78,7 @@ export function ModelSettings({
       setState(reply.state);
       update(reply.state);
       setNotice(reply.state.warning || message);
+      if (closeOnSuccess) close();
     } catch {
       setError("Не удалось обратиться к настройкам модели");
     } finally {
@@ -106,6 +119,7 @@ export function ModelSettings({
                 ...(apiKey ? { apiKey } : {}),
               }),
             "Профиль сохранён и выбран",
+            true,
           );
         }}
       >
@@ -159,23 +173,34 @@ export function ModelSettings({
         </label>
         <label>
           API-ключ
-          <input
-            type="password"
-            value={apiKey}
-            required={!keepKey}
-            disabled={busy}
-            autoComplete="new-password"
-            spellCheck={false}
-            maxLength={8192}
-            onChange={(event) => setApiKey(event.target.value)}
-          />
+          <span className="model-key-field">
+            <input
+              type="password"
+              value={apiKey}
+              placeholder={keepKey ? `••••${saved?.keySuffix ?? ""}` : ""}
+              required={!keepKey}
+              disabled={busy}
+              autoComplete="new-password"
+              spellCheck={false}
+              maxLength={8192}
+              onChange={(event) => setApiKey(event.target.value)}
+            />
+            {applied && (
+              <span
+                className="model-key-applied"
+                role="img"
+                aria-label="Ключ сохранён и применён"
+                title="Ключ сохранён и применён"
+              >
+                <CheckCircle2 size={18} aria-hidden="true" />
+              </span>
+            )}
+          </span>
         </label>
         <p className="form-note">
           {keepKey
-            ? "Ключ уже был сохранён. Оставьте поле пустым, чтобы использовать его."
-            : "Для нового адреса сервиса нужен новый ключ."}{" "}
-          Поле очищается после отправки; сохранённый ключ в интерфейс не
-          возвращается.
+            ? "Ключ сохранён. Введите новый ключ, чтобы заменить его."
+            : "Для нового адреса сервиса нужен новый ключ."}
         </p>
         {error && (
           <p className="form-error" role="alert">
@@ -189,20 +214,7 @@ export function ModelSettings({
         )}
         <div className="model-actions">
           <button className="primary" type="submit" disabled={busy}>
-            Сохранить и использовать
-          </button>
-          <button
-            className="secondary"
-            type="button"
-            disabled={busy}
-            onClick={() =>
-              void perform(
-                () => window.smallDesktop.profiles.activate("synthetic"),
-                "Выбрана локальная проверка",
-              )
-            }
-          >
-            Локальная проверка
+            Сохранить
           </button>
           {saved && (
             <button
@@ -216,12 +228,9 @@ export function ModelSettings({
                 )
               }
             >
-              Удалить ключ и профиль
+              Удалить ключ
             </button>
           )}
-          <button className="text-button" type="button" onClick={close}>
-            Готово
-          </button>
         </div>
       </form>
     </dialog>

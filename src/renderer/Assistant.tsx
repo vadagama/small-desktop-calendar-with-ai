@@ -235,10 +235,6 @@ export function DesktopAssistant({
               )}
             </div>
           </form>
-          <p>
-            {local ? "Локальная проверка" : "Выбранный LLM-профиль"} · создание
-            встреч только после подтверждения
-          </p>
         </div>
         {agentSettings && (
           <AgentSettings

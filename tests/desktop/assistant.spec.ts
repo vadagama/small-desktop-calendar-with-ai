@@ -9,7 +9,11 @@ test("SDK chat streams a tool, handles errors, cancellation and a new turn", asy
   const app = await _electron.launch({
     ...(executablePath ? { executablePath } : {}),
     args: [...(executablePath ? [] : ["."]), `--user-data-dir=${userData}`],
-    env: { ...process.env, PATH: "/usr/bin:/bin:/usr/sbin:/sbin" },
+    env: {
+      ...process.env,
+      SMALL_TEST_SYNTHETIC: "1",
+      PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
+    },
   });
   try {
     const page = await app.firstWindow();
@@ -118,6 +122,30 @@ test("SDK chat streams a tool, handles errors, cancellation and a new turn", asy
       page.getByRole("button", { name: "Остановить ответ" }),
     ).toHaveCount(0);
     await page.screenshot({ path: "test-results/desktop/assistant.png" });
+  } finally {
+    await app.close();
+    await rm(userData, { recursive: true, force: true });
+  }
+});
+
+test("unconfigured chat requests model setup instead of using the synthetic model", async () => {
+  const userData = await mkdtemp(join(tmpdir(), "small-unconfigured-test-"));
+  const app = await _electron.launch({
+    args: [".", `--user-data-dir=${userData}`],
+    env: { ...process.env, SMALL_TEST_SYNTHETIC: "" },
+  });
+  try {
+    const page = await app.firstWindow();
+    await page
+      .getByRole("textbox", { name: "Сообщение ассистенту" })
+      .fill("Привет");
+    await page.getByRole("button", { name: "Отправить сообщение" }).click();
+    await expect(
+      page.getByRole("region", { name: "AI-ассистент" }).getByRole("alert"),
+    ).toContainText("Откройте настройки модели");
+    await expect(page.getByRole("log")).not.toContainText(
+      "Укажите два целых числа",
+    );
   } finally {
     await app.close();
     await rm(userData, { recursive: true, force: true });

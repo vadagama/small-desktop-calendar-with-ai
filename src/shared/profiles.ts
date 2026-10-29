@@ -13,7 +13,7 @@ export interface ModelConnection extends LlmProfile {
 }
 export interface ProfileState {
   active: ActiveProfile;
-  profiles: LlmProfile[];
+  profiles: (LlmProfile & { keySuffix?: string; hasKey?: boolean })[];
   warning?: string;
 }
 export type ProfileReply =

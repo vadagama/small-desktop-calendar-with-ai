@@ -37,6 +37,7 @@ test("stores only profile metadata on disk and never returns a key to the UI", a
   try {
     const state = await f.store.save({ ...profile, apiKey: key });
     assert.equal(state.active, "small");
+    assert.equal(state.profiles[0]?.keySuffix, key.slice(-4));
     assert.ok(!JSON.stringify(state).includes(key));
     assert.ok(
       !(
@@ -170,6 +171,23 @@ test("failed key deletion remains visible and is retried without losing the acti
     });
     await assert.rejects(unavailable.resolveActive(), /Keychain/);
     assert.equal((await unavailable.state()).active, "small");
+  } finally {
+    await f.clean();
+  }
+});
+
+test("an inactive saved profile requests activation rather than a new key", async () => {
+  const f = await fixture();
+  try {
+    await f.store.save({ ...profile, apiKey: "synthetic-saved-key" });
+    await f.store.activate("synthetic");
+    await assert.rejects(
+      f.store.resolveActive(),
+      /Профиль сохранён.*Сохранить/,
+    );
+    await f.store.save(profile);
+    assert.equal((await f.store.resolveActive())?.id, "small");
+    assert.equal(f.values.size, 1);
   } finally {
     await f.clean();
   }
