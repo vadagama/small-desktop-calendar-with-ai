@@ -22,7 +22,7 @@ export class NativeNotifications {
   private testPending = false;
   private testId: string | null = null;
   constructor(
-    private showWindow: () => void,
+    private showWindow: () => void | Promise<void>,
     private failed: () => void,
   ) {}
   show(options: NotificationConstructorOptions, action: () => void) {
@@ -90,23 +90,23 @@ export class NativeNotifications {
         {
           id: this.testId,
           title: "Small Calendar — проверка",
-          body: "Тест доставки. Кнопка откроет календарь Small в браузере.",
+          body: "Тест доставки. Кнопка откроет локальное приложение Small Calendar.",
           actions: [{ type: "button", text: "Открыть календарь" }],
         },
         () => {
-          void shell
-            .openExternal("https://team.small.kz/calendar")
+          void Promise.resolve()
+            .then(() => this.showWindow())
             .then(() => {
               this.last = {
                 status: "opened",
                 message:
-                  "Действие уведомления выполнено: календарь открыт в браузере.",
+                  "Действие уведомления выполнено: открыт локальный календарь Small.",
               };
             })
             .catch(() => {
               this.last = {
                 status: "failed",
-                message: "Не удалось открыть календарь в браузере.",
+                message: "Не удалось открыть локальный календарь.",
               };
             });
         },

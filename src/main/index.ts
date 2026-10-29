@@ -174,7 +174,7 @@ app.whenReady().then(async () => {
         if (window.isMinimized()) window.restore();
         window.show();
         window.focus();
-      } else void createWindow();
+      } else return createWindow();
     },
   );
   app.on("before-quit", () => reminders.stop());

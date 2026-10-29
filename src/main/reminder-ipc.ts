@@ -18,7 +18,7 @@ export function registerReminders(
   auth: SmallAuth,
   calendar: CalendarService,
   trusted: (event: IpcMainInvokeEvent) => boolean,
-  showWindow: () => void,
+  showWindow: () => void | Promise<void>,
 ) {
   const format = (date: string) =>
     new Intl.DateTimeFormat("ru", {
