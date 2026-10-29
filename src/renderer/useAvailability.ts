@@ -6,11 +6,15 @@ import type {
   SlotsResult,
 } from "../shared/calendar.js";
 
-export function useAvailability(accountId: string, expired: () => void) {
+export function useAvailability(
+  accountId: string,
+  expired: () => void,
+  initialPeople: CalendarPerson[] = [],
+) {
   const [people, setPeople] = useState<PeoplePage | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
-  const [selected, setSelected] = useState<CalendarPerson[]>([]);
+  const [selected, setSelected] = useState<CalendarPerson[]>(initialPeople);
   const [slots, setSlots] = useState<SlotsResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -66,13 +70,18 @@ export function useAvailability(accountId: string, expired: () => void) {
         : [...current, person],
     );
   }
-  async function find(date: string, durationMinutes: number) {
+  async function find(
+    date: string,
+    durationMinutes: number,
+    includeWeekends = false,
+  ) {
     const version = ++slotVersion.current;
     const query: SlotsQuery = {
       accountId,
       participantIds: selected.map((p) => p.participantId),
       date,
       durationMinutes,
+      ...(includeWeekends ? { includeWeekends } : {}),
     };
     setLoading(true);
     setSlots(null);

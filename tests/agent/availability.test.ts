@@ -184,3 +184,29 @@ test("excessive combined busy intervals cannot block the trusted process", async
     /слишком много/,
   );
 });
+
+test("manual creation can explicitly check weekend slots without changing the default", async () => {
+  const weekend = {
+    start: "2026-10-31T09:00:00+05:00",
+    end: "2026-10-31T09:30:00+05:00",
+  };
+  const f = setup({ data: { available_slots: [weekend] } });
+  await assert.rejects(
+    f.service.find({ ...query, date: "2026-10-31" }),
+    /рабочий день/,
+  );
+  assert.deepEqual(
+    (
+      await f.service.find({
+        ...query,
+        date: "2026-10-31",
+        includeWeekends: true,
+      })
+    ).slots,
+    [weekend],
+  );
+  assert.equal(
+    (f.calls[0]!.body as { include_weekends: boolean }).include_weekends,
+    true,
+  );
+});

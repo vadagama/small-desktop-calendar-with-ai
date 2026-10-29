@@ -17,7 +17,7 @@ const slots = z.strictObject({
   ...common,
   start_date: availabilityDate,
   duration_minutes: durationMinutes,
-  include_weekends: z.literal(false),
+  include_weekends: z.boolean(),
 });
 
 /** These POSTs only query availability; no event writes or force flag. */
