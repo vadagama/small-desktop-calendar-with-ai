@@ -1,4 +1,4 @@
-import type { CalendarReply } from "./calendar.js";
+import type { CalendarEvent, CalendarReply } from "./calendar.js";
 import { calendarDateAt, validCalendarDate } from "./calendar-time.js";
 
 /** "occurrence" changes one occurrence; "following" starts at it and never reaches the past. */
@@ -187,4 +187,26 @@ export interface SeriesApplyResult {
 export interface SeriesBridge {
   gate(request: SeriesRequest): Promise<CalendarReply<SeriesGateState>>;
   apply(request: SeriesRequest): Promise<CalendarReply<SeriesApplyResult>>;
+}
+
+/**
+ * Series, original date and own event id of a calendar event, or null when it is not a
+ * series occurrence. The original date is the local start date, which equals the real one
+ * only while the occurrence has not been moved (assumption A4).
+ */
+export function seriesTarget(
+  event: Pick<
+    CalendarEvent,
+    "lookup" | "originalEventId" | "recurring" | "startsAt"
+  >,
+): { seriesId: string; originalDate: string; eventId?: string } | null {
+  const own = "id" in event.lookup ? event.lookup.id : undefined;
+  const seriesId =
+    event.originalEventId ?? (event.recurring === true ? own : undefined);
+  if (!seriesId) return null;
+  const originalDate =
+    "originalEventId" in event.lookup
+      ? event.lookup.date
+      : calendarDateAt(event.startsAt);
+  return { seriesId, originalDate, ...(own ? { eventId: own } : {}) };
 }

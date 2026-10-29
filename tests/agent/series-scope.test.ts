@@ -10,6 +10,7 @@ import {
   scopeLabels,
   seriesOperationMatrix,
   seriesOperations,
+  seriesTarget,
   seriesScopes,
   type OccurrenceInput,
   type SeriesOperation,
@@ -231,4 +232,35 @@ test("the confirmation text states the scope, the date and what stays untouched"
     /Прошедшие встречи не изменятся/,
   );
   assert.throws(() => describeScope("following", "not-a-date"));
+});
+
+test("a series occurrence is recognised from calendar data in each representation", () => {
+  const base = { startsAt: "2026-11-05T19:30:00Z" };
+  assert.deepEqual(
+    seriesTarget({
+      ...base,
+      lookup: { originalEventId: "43", date: "2026-11-06" },
+      originalEventId: "43",
+      recurring: true,
+    }),
+    { seriesId: "43", originalDate: "2026-11-06" },
+  );
+  assert.deepEqual(
+    seriesTarget({
+      ...base,
+      lookup: { id: "900" },
+      originalEventId: "43",
+      recurring: true,
+    }),
+    { seriesId: "43", originalDate: "2026-11-06", eventId: "900" },
+  );
+  assert.deepEqual(
+    seriesTarget({ ...base, lookup: { id: "43" }, recurring: true }),
+    { seriesId: "43", originalDate: "2026-11-06", eventId: "43" },
+  );
+  assert.equal(seriesTarget({ ...base, lookup: { id: "9" } }), null);
+  assert.equal(
+    seriesTarget({ ...base, lookup: { id: "9" }, recurring: false }),
+    null,
+  );
 });

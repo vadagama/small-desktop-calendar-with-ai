@@ -2,6 +2,10 @@ import { EventAgenda } from "./EventAgenda.js";
 import { meetingLink } from "../shared/meeting-link.js";
 import { notifySuccess, notifyError } from "./notification-events.js";
 import { EventChangeForm } from "./EventChangeForm.js";
+import {
+  SeriesScopeDialog,
+  type SeriesDialogOperation,
+} from "./SeriesScopeDialog.js";
 import { useEffect, useRef, useState } from "react";
 import {
   X,
@@ -11,6 +15,7 @@ import {
   Link as LinkIcon,
   Pencil,
   Trash2,
+  CalendarClock,
   CalendarPlus,
   Check,
   HelpCircle,
@@ -51,6 +56,8 @@ export function EventDetails({
   const [allPeople, setAllPeople] = useState(false);
   const [editing, setEditing] = useState<"rename" | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [seriesOperation, setSeriesOperation] =
+    useState<SeriesDialogOperation | null>(null);
   const deletePending = useRef(false);
   function positionMenu() {
     const popup = menuPopup.current;
@@ -256,12 +263,27 @@ export function EventDetails({
                   calendarDateAt(event.startsAt) >= calendarToday() && (
                     <button
                       onClick={() => {
-                        setEditing("rename");
+                        if (event.recurring === true)
+                          setSeriesOperation("rename");
+                        else setEditing("rename");
                         menu.current!.open = false;
                       }}
                     >
                       <Pencil size={18} />
                       Редактировать
+                    </button>
+                  )}
+                {event.recurring === true &&
+                  event.participation === "organizer" &&
+                  calendarDateAt(event.startsAt) >= calendarToday() && (
+                    <button
+                      onClick={() => {
+                        setSeriesOperation("move");
+                        menu.current!.open = false;
+                      }}
+                    >
+                      <CalendarClock size={18} />
+                      Перенести
                     </button>
                   )}
                 {createWithPeople && (
@@ -282,7 +304,12 @@ export function EventDetails({
                     <button
                       className="danger-text"
                       disabled={deleting}
-                      onClick={() => void deleteEvent()}
+                      onClick={() => {
+                        if (event.recurring === true) {
+                          setSeriesOperation("delete");
+                          menu.current!.open = false;
+                        } else void deleteEvent();
+                      }}
                     >
                       <Trash2 size={18} />
                       Удалить
@@ -428,6 +455,23 @@ export function EventDetails({
             />
           )}
         </div>
+      )}
+      {event && seriesOperation && (
+        <SeriesScopeDialog
+          key={`${event.key}:${seriesOperation}`}
+          accountId={accountId}
+          event={event}
+          operation={seriesOperation}
+          expired={expired}
+          close={() => setSeriesOperation(null)}
+          done={() => {
+            const removed = seriesOperation === "delete";
+            setSeriesOperation(null);
+            changed?.();
+            if (removed) close();
+            else setRetry((value) => value + 1);
+          }}
+        />
       )}
       {event && event.participation === "invited" && "id" in event.lookup && (
         <footer className="event-rsvp">
