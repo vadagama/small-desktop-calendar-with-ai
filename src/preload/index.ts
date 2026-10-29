@@ -25,6 +25,9 @@ const bridge: DesktopBridge = {
     },
   },
   meetings: {
+    attach: (remaining) =>
+      ipcRenderer.invoke(meetingChannels.attach, remaining),
+    prepare: (input) => ipcRenderer.invoke(meetingChannels.prepare, input),
     read: (input) => ipcRenderer.invoke(meetingChannels.read, input),
     edit: (input) => ipcRenderer.invoke(meetingChannels.edit, input),
     confirm: (input) => ipcRenderer.invoke(meetingChannels.confirm, input),

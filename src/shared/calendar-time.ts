@@ -94,3 +94,18 @@ export function splitEventDays(
   }
   return result;
 }
+
+/** Next quarter-hour in the calendar timezone, with a 30-minute default. */
+export function defaultMeetingSchedule(date: string, now = new Date()) {
+  const current = parts(now);
+  let start = 9 * 60;
+  if (date === current.date)
+    start = Math.ceil((current.hour * 60 + current.minute + 1) / 15) * 15;
+  if (start + 30 >= 1440) {
+    date = addDateDays(date, 1);
+    start = 9 * 60;
+  }
+  const time = (value: number) =>
+    `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
+  return { date, start: time(start), end: time(start + 30) };
+}

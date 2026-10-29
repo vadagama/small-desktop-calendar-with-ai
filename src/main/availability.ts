@@ -16,6 +16,7 @@ const query = z.strictObject({
   participantIds,
   date: availabilityDate,
   durationMinutes,
+  includeWeekends: z.boolean().optional(),
 });
 const interval = z
   .strictObject({
@@ -53,7 +54,7 @@ export class AvailabilityService {
       );
     const q = parsed.data;
     const weekday = new Date(`${q.date}T12:00:00Z`).getUTCDay();
-    if (weekday === 0 || weekday === 6)
+    if (!q.includeWeekends && (weekday === 0 || weekday === 6))
       throw new CalendarError(
         "invalid",
         "Выберите рабочий день: подбор выполняется без выходных.",
@@ -69,7 +70,7 @@ export class AvailabilityService {
             ...common,
             start_date: q.date,
             duration_minutes: q.durationMinutes,
-            include_weekends: false,
+            include_weekends: q.includeWeekends ?? false,
           }),
         ),
       );

@@ -56,6 +56,7 @@ export interface PeoplePage {
   nextPage: number | null;
 }
 export interface SlotsQuery {
+  includeWeekends?: boolean;
   accountId: string;
   participantIds: string[];
   date: string;

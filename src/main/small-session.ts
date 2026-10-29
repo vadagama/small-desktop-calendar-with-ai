@@ -1,3 +1,4 @@
+import { isAttachmentUpload } from "./attachment-request.js";
 import { isMeetingCreateRequest } from "./meeting-request.js";
 import { session } from "electron";
 import { randomUUID } from "node:crypto";
@@ -44,6 +45,7 @@ export function createSmallSession(): AuthTransport {
     async request(path, init) {
       if (
         !paths.has(path) &&
+        !(init.method === "POST" && isAttachmentUpload(path, init.body)) &&
         !(init.method === "GET" && isCalendarReadPath(path)) &&
         !(
           init.method === "POST" &&

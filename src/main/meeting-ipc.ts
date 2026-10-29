@@ -1,3 +1,8 @@
+import { MeetingAttachments } from "./meeting-attachments.js";
+import { manualMeetingInput } from "../shared/meeting-draft.js";
+import { prepareMeetingDraft } from "./meeting-draft.js";
+import type { AvailabilityService } from "./availability.js";
+import { CalendarError } from "./calendar.js";
 import { meetingReference, meetingEdit } from "../shared/meeting-validation.js";
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
 import {
@@ -13,7 +18,78 @@ export function registerMeetingHandlers(
   service: MeetingOperations,
   auth: SmallAuth,
   trusted: (event: IpcMainInvokeEvent) => boolean,
+  availability: AvailabilityService,
 ) {
+  const attachments = new MeetingAttachments(auth);
+  ipcMain.handle(meetingChannels.attach, async (event, remaining: number) => {
+    const revision = auth.sessionRevision;
+    const check = () => {
+      if (!trusted(event) || revision !== auth.sessionRevision)
+        throw new SmallAuthError(
+          "Изменился аккаунт или окно приложения.",
+          "auth",
+        );
+    };
+    try {
+      check();
+      return { ok: true, files: await attachments.choose(check, remaining) };
+    } catch (error) {
+      return {
+        ok: false,
+        error:
+          error instanceof SmallAuthError
+            ? error.message
+            : "Не удалось загрузить файлы. Автоматический повтор не выполнялся.",
+      };
+    }
+  });
+  ipcMain.handle(meetingChannels.prepare, async (event, input: unknown) => {
+    if (!trusted(event))
+      return { ok: false, error: "Доступ к созданию встречи отклонён." };
+    const revision = auth.sessionRevision;
+    try {
+      const state = await auth.read();
+      if (state.status !== "signed-in" || revision !== auth.sessionRevision)
+        throw new SmallAuthError("Войдите в Small заново.", "auth");
+      const parsed = manualMeetingInput.safeParse(input);
+      if (
+        !parsed.success ||
+        !attachments.owns(parsed.data.options.attachmentIds, revision)
+      )
+        throw new SmallAuthError("Проверьте параметры и прикреплённые файлы.");
+      const { options, ...base } = parsed.data;
+      const draft = await prepareMeetingDraft(
+        state.profile,
+        base,
+        availability,
+        new AbortController().signal,
+        true,
+      );
+      if (revision !== auth.sessionRevision || !trusted(event))
+        throw new SmallAuthError(
+          "Изменился аккаунт или окно приложения.",
+          "auth",
+        );
+      return {
+        ok: true,
+        data: service.register({
+          ...draft,
+          options,
+          recurrence: options.recurrence ? "weekly" : "none",
+        }),
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        error:
+          error instanceof CalendarError ||
+          error instanceof SmallAuthError ||
+          error instanceof MeetingOperationError
+            ? error.message
+            : "Не удалось подготовить встречу. Запись не выполнялась.",
+      };
+    }
+  });
   for (const action of ["read", "edit", "confirm", "reconcile"] as const) {
     ipcMain.handle(
       meetingChannels[action],

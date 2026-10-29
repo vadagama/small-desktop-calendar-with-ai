@@ -13,6 +13,7 @@ export async function prepareMeetingDraft(
   input: unknown,
   availability: Pick<AvailabilityService, "find">,
   signal: AbortSignal,
+  includeWeekends = false,
 ): Promise<MeetingDraft> {
   signal.throwIfAborted();
   const parsed = meetingDraftInput.safeParse(input);
@@ -29,6 +30,7 @@ export async function prepareMeetingDraft(
     participantIds: q.participantIds,
     date: calendarDateAt(q.startsAt),
     durationMinutes: q.durationMinutes,
+    ...(includeWeekends ? { includeWeekends: true } : {}),
   });
   signal.throwIfAborted();
   if (
