@@ -1,4 +1,5 @@
 import { agentSettingsChannels } from "../shared/agent-settings.js";
+import { reminderChannels } from "../shared/reminders.js";
 import { meetingChannels } from "../shared/meeting-operations.js";
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import {
@@ -11,6 +12,11 @@ import { smallAuthChannels } from "../shared/small-auth.js";
 import { profileChannels } from "../shared/profiles.js";
 
 const bridge: DesktopBridge = {
+  reminders: {
+    read: () => ipcRenderer.invoke(reminderChannels.read),
+    save: (input) => ipcRenderer.invoke(reminderChannels.save, input),
+    join: (id) => ipcRenderer.invoke(reminderChannels.join, id),
+  },
   platform: process.platform,
   sandboxed: process.sandboxed === true,
   contextIsolated: process.contextIsolated === true,

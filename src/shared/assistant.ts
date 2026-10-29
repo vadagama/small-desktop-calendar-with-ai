@@ -40,6 +40,7 @@ export interface AssistantBridge {
   subscribe(listener: (event: AgentEvent) => void): () => void;
 }
 export interface DesktopBridge {
+  reminders: import("./reminders.js").ReminderBridge;
   platform: string;
   sandboxed: boolean;
   contextIsolated: boolean;

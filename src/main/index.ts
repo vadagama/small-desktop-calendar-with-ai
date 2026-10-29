@@ -3,6 +3,7 @@ import { ParticipantMemory } from "./participant-memory.js";
 import { AgentSettingsStore } from "./agent-settings.js";
 import { registerAgentSettingsHandlers } from "./agent-settings-ipc.js";
 import { EventRescheduleService } from "./event-reschedule.js";
+import { registerReminders } from "./reminder-ipc.js";
 import { EventChangeService } from "./event-change.js";
 import { MeetingOperations } from "./meeting-operations.js";
 import { MeetingJournal } from "./meeting-journal.js";
@@ -91,7 +92,18 @@ async function createWindow() {
   await window.loadURL(devUrl || localUrl);
 }
 
+const primaryInstance = app.requestSingleInstanceLock();
+if (!primaryInstance) app.quit();
+app.on("second-instance", () => {
+  const window = BrowserWindow.getAllWindows()[0];
+  if (window) {
+    if (window.isMinimized()) window.restore();
+    window.show();
+    window.focus();
+  } else if (app.isReady()) void createWindow();
+});
 app.whenReady().then(async () => {
+  if (!primaryInstance) return;
   app.dock?.setIcon(appIcon);
   const participantMemory = new ParticipantMemory(app.getPath("userData"));
   const agentSettings = new AgentSettingsStore(app.getPath("userData"));
@@ -152,11 +164,25 @@ app.whenReady().then(async () => {
       ),
     ),
   );
-  registerSmallAuthHandlers(
+  const reminders = registerReminders(
+    app.getPath("userData"),
     smallAuth,
+    calendar,
     assistant.trusted,
-    assistant.cancelActive,
+    () => {
+      const window = BrowserWindow.getAllWindows()[0];
+      if (window) {
+        if (window.isMinimized()) window.restore();
+        window.show();
+        window.focus();
+      } else void createWindow();
+    },
   );
+  app.on("before-quit", () => reminders.stop());
+  registerSmallAuthHandlers(smallAuth, assistant.trusted, () => {
+    assistant.cancelActive();
+    reminders.invalidate();
+  });
   session.defaultSession.setPermissionRequestHandler(
     (_contents, _permission, callback) => callback(false),
   );
@@ -189,7 +215,10 @@ app.whenReady().then(async () => {
       const headers = new Headers(response.headers);
       headers.set("Content-Security-Policy", csp);
       headers.set("X-Content-Type-Options", "nosniff");
-      return new Response(response.body, { status: response.status, headers });
+      return new Response(response.body, {
+        status: response.status,
+        headers,
+      });
     } catch {
       return new Response("Not found", { status: 404 });
     }
