@@ -21,7 +21,6 @@ import {
   HelpCircle,
 } from "lucide-react";
 import type { CalendarEvent, EventLookup } from "../shared/calendar.js";
-import type { EventInvalidation } from "../shared/calendar-invalidation.js";
 import {
   seriesInvalidation,
   type EventInvalidation,

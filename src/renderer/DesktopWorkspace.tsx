@@ -86,24 +86,13 @@ export function DesktopWorkspace() {
     setRevision((value) => value + 1);
   }, []);
   const calendar = useSmallCalendar(accountId, date, view, expired);
-  const showCreated = (result: MeetingView) => {
-    setCreatedId(result.eventId ?? null);
-    const visible = calendarRange(date, view);
-    const start = Date.parse(result.draft.startsAt);
-    // A meeting inside the range on screen is added in place: no navigation, no new query.
-    const inRange =
-      calendar.my &&
-      start >= Date.parse(visible.start) &&
-      start < Date.parse(visible.end);
-    if (inRange && result.eventId)
-      calendar.addEvent(eventFromCreatedMeeting(result.draft, result.eventId));
-    if (!inRange) setDate(calendarDateAt(result.draft.startsAt));
-    calendar.setMy(true);
-    calendar.refreshAfterWrite(meetingInvalidation(result.draft));
-  };
   useEffect(() => {
     const created = (event: Event) => {
-      const result = (event as CustomEvent<MeetingView>).detail;
+      const result = (
+        event as CustomEvent<
+          import("../shared/meeting-operations.js").MeetingView
+        >
+      ).detail;
       if (result.draft.organizer.id !== currentAccount.current) return;
       setCreatedId(result.eventId ?? null);
       setDate(calendarDateAt(result.draft.startsAt));
