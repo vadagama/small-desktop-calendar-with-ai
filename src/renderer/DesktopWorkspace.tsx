@@ -1,5 +1,6 @@
+import { NewMeeting } from "./NewMeeting";
 import { useCallback, useEffect, useState } from "react";
-import { CalendarDays, Settings2, UsersRound } from "lucide-react";
+import { CalendarDays, Settings2, UsersRound, Plus, Clock } from "lucide-react";
 import { Calendar } from "../../prototype/src/CalendarView";
 import type { Meeting } from "../../prototype/src/types";
 import { DesktopAssistant } from "./Assistant";
@@ -18,6 +19,7 @@ import type { CalendarEvent, CalendarView } from "../shared/calendar.js";
 import type { SmallAuthState } from "../shared/small-auth.js";
 
 export function DesktopWorkspace() {
+  const [creating, setCreating] = useState(false);
   const [account, setAccount] = useState<SmallAuthState | null>(null);
   const [revision, setRevision] = useState(0);
   const [date, setDate] = useState(calendarToday);
@@ -33,6 +35,7 @@ export function DesktopWorkspace() {
   } | null>(null);
   const accountId = account?.status === "signed-in" ? account.profile.id : null;
   useEffect(() => {
+    setCreating(false);
     setSelected(null);
     setAvailabilityAccount(null);
   }, [accountId]);
@@ -98,6 +101,14 @@ export function DesktopWorkspace() {
         >
           <Settings2 size={19} />
         </button>
+        <button
+          aria-label="Подобрать время"
+          title="Подобрать время"
+          disabled={!accountId}
+          onClick={() => setAvailabilityAccount(accountId)}
+        >
+          <Clock size={19} />
+        </button>
         <SmallAccount onChange={setAccount} revision={revision} />
       </nav>
       <CalendarFilters
@@ -122,15 +133,16 @@ export function DesktopWorkspace() {
             </span>
           </div>
           <button
-            className="secondary"
+            className="primary header-create"
+            aria-label="Создать событие"
             disabled={!accountId}
-            onClick={() => setAvailabilityAccount(accountId)}
+            title={
+              !accountId ? "Войдите в Small для создания встречи" : undefined
+            }
+            onClick={() => setCreating(true)}
           >
-            Подобрать время
+            Создать <Plus size={16} />
           </button>
-          <span className="subtle">
-            {account?.status === "signed-in" ? account.profile.name : ""}
-          </span>
         </header>
         <DockWorkspace
           settingsOpen={settingsOpen}
@@ -212,6 +224,16 @@ export function DesktopWorkspace() {
           <span>Чтение Team API · Asia/Almaty</span>
         </footer>
       </main>
+      {creating && account?.status === "signed-in" && (
+        <NewMeeting
+          key={account.profile.id}
+          account={account.profile}
+          initialDate={date}
+          close={() => setCreating(false)}
+          expired={expired}
+          created={calendar.refresh}
+        />
+      )}
       {availabilityAccount && availabilityAccount === accountId && (
         <Availability
           key={accountId}
