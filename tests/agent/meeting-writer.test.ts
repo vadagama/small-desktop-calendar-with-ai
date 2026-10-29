@@ -74,3 +74,98 @@ test("verification requires the exact event ID, fields and full participant set"
   assert.equal(reads, 9);
   await assert.rejects(service.verify(d, "../42"));
 });
+
+test("room conflicts and incomplete room reads prevent creation", async () => {
+  const d = draft();
+  d.options = {
+    calendarIds: [7],
+    attachmentIds: [],
+    notificationRecipientIds: [],
+    recurrence: null,
+  };
+  for (const incomplete of [true, false]) {
+    const service = new SmallMeetingWriter(
+      {
+        createCalendarEvent: async () => {
+          throw new Error("no write");
+        },
+        readCalendar: async () => {
+          throw new Error("unused");
+        },
+      },
+      {
+        events: async () => ({
+          issues: incomplete
+            ? [{ kind: "denied", source: "7", message: "denied" }]
+            : [],
+          events: incomplete
+            ? []
+            : [
+                {
+                  key: "room",
+                  lookup: { id: "7" },
+                  title: "Busy",
+                  startsAt: d.startsAt,
+                  endsAt: d.endsAt,
+                  calendarIds: ["7"],
+                  description: "",
+                  organizer: "",
+                  location: "",
+                },
+              ],
+        }),
+      },
+      {
+        find: async () => ({
+          slots: [{ start: d.startsAt, end: d.endsAt }],
+          participantIds: d.participantIds,
+          date: "2099-10-29",
+          durationMinutes: 30,
+          timezone: "Asia/Almaty",
+        }),
+      },
+    );
+    await assert.rejects(service.preflight(d), /Переговорная/);
+  }
+});
+
+test("a later recurrence conflict blocks the whole series before create", async () => {
+  const d = draft();
+  d.options = {
+    calendarIds: [],
+    attachmentIds: [],
+    notificationRecipientIds: [],
+    recurrence: { FREQ: "WEEKLY", BYDAY: ["TH"], UNTIL: "2099-11-05" },
+  };
+  d.recurrence = "weekly";
+  const checked: string[] = [];
+  const service = new SmallMeetingWriter(
+    {
+      createCalendarEvent: async () => {
+        throw new Error("no writes");
+      },
+      readCalendar: async () => {
+        throw new Error("unused");
+      },
+    },
+    { events: async () => ({ events: [], issues: [] }) },
+    {
+      find: async (input) => {
+        const q = input as { date: string };
+        checked.push(q.date);
+        return {
+          slots:
+            q.date === "2099-10-29"
+              ? [{ start: d.startsAt, end: d.endsAt }]
+              : [],
+          participantIds: d.participantIds,
+          date: q.date,
+          durationMinutes: 30,
+          timezone: "Asia/Almaty",
+        };
+      },
+    },
+  );
+  await assert.rejects(service.preflight(d), /Время больше не свободно/);
+  assert.deepEqual(checked, ["2099-10-29", "2099-11-05"]);
+});

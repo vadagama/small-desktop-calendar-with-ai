@@ -9,6 +9,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       syntheticMeetingWrites: number;
       syntheticEventOwner?: string;
       syntheticEventMutations: number;
+      syntheticCreatedPayload?: Record<string, unknown>;
     };
     inspection.syntheticMeetingWrites = 0;
     inspection.syntheticEventMutations = 0;
@@ -58,6 +59,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         const claims = Buffer.from(
           JSON.stringify({
             uid: employee,
+            guidfl: "synthetic-organizer",
             name: employee,
             preferred_username: employee,
           }),
@@ -69,6 +71,17 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       if (path.endsWith("/logout")) return Response.json({});
       if (!request.headers.get("authorization")?.startsWith("Bearer header."))
         return new Response(null, { status: 401 });
+      if (path === "/gate/team/api/attachments" && request.method === "POST") {
+        const form = await request.formData();
+        if (
+          !(form.get("file") instanceof Blob) ||
+          form.get("is_public") !== "true"
+        )
+          return new Response(null, { status: 400 });
+        return Response.json({
+          data: { id: "synthetic-file", path: "synthetic.txt" },
+        });
+      }
       if (
         path === "/gate/team/api/calendar/events" &&
         request.method === "POST"
@@ -77,9 +90,14 @@ export async function mockSmall(app: ElectronApplication, date: string) {
           return new Response(null, { status: 400 });
         const body = await request.json();
         inspection.syntheticMeetingWrites++;
+        inspection.syntheticCreatedPayload = body;
         const event = {
           ...body,
           id: `synthetic-created-${inspection.syntheticMeetingWrites}`,
+          attachments: body.attachments.map((id: string) => ({ id })),
+          notification_recipients: body.notification_recipient_ids.map(
+            (id: string) => ({ id }),
+          ),
           participants: body.participant_ids.map((id: string) => ({ id })),
           creator_name: employee,
         };
