@@ -13,6 +13,8 @@ export interface CalendarEvent {
   startsAt: string;
   endsAt: string;
   calendarIds: string[];
+  participation?: "organizer" | "invited" | "informed" | "unknown";
+  accepted?: boolean;
   organizer: string;
   description: string;
   location: string;

@@ -24,6 +24,7 @@ export interface CalendarSession {
     accountId: string,
     action: (
       get: (path: string, body?: unknown) => Promise<Response>,
+      participantId?: string,
     ) => Promise<T>,
   ): Promise<T>;
 }
@@ -59,6 +60,9 @@ const eventSchema = z
     ends_at: timestamp,
     calendar_ids: z.array(id).max(100).nullish(),
     creator_name: text,
+    creator_id: id.nullish(),
+    is_informed: z.boolean().nullish(),
+    participants: z.array(z.object({ id, status: text })).nullish(),
     description: text,
     location: text,
   })
@@ -76,7 +80,7 @@ function parse<T>(schema: z.ZodType<T>, input: unknown): T {
     );
   return result.data;
 }
-function normalize(value: unknown): CalendarEvent {
+function normalize(value: unknown, participantId?: string): CalendarEvent {
   const e = parse(eventSchema, value);
   const localDate = calendarDateAt(e.starts_at);
   const lookup = e.id
@@ -91,6 +95,18 @@ function normalize(value: unknown): CalendarEvent {
     startsAt: e.starts_at,
     endsAt: e.ends_at,
     calendarIds: e.calendar_ids ?? [],
+    accepted:
+      e.participants?.some(
+        (p) => p.id === participantId && p.status === "accepted",
+      ) ?? false,
+    participation:
+      Boolean(participantId) && e.creator_id === participantId
+        ? "organizer"
+        : e.is_informed === true
+          ? "informed"
+          : e.is_informed === false
+            ? "invited"
+            : "unknown",
     organizer: e.creator_name ?? "",
     description: e.description ?? "",
     location: e.location ?? "",
@@ -219,81 +235,86 @@ export class CalendarService {
   async events(input: unknown): Promise<CalendarResult> {
     const q = parse(querySchema, input);
     const range = calendarRange(q.date, q.view);
-    return this.session.readCalendar(q.accountId, async (get) => {
-      const events = new Map<string, CalendarEvent>();
-      const issues: CalendarIssue[] = [];
-      const sources = q.myCalendar ? ["my"] : [...new Set(q.calendarIds)];
-      const params = new URLSearchParams({
-        start_date: range.start,
-        end_date: range.end,
-      });
-      for (const source of sources) {
-        try {
-          const body = parse(
-            z.object({
-              data: z.union([
-                z.array(z.unknown()),
-                z.record(z.string(), z.unknown()),
-              ]),
-              pagination: z.unknown().optional(),
-              meta: z.unknown().optional(),
-            }),
-            await calendarJson(
-              await get(`/gate/team/api/calendars/${source}/events?${params}`),
-            ),
-          );
-          const items = Array.isArray(body.data)
-            ? body.data
-            : Object.values(body.data);
-          if (items.length > 5000 || body.pagination || body.meta)
-            issues.push({
-              source,
-              kind: "invalid",
-              message:
-                "Полнота ответа Small не подтверждена: лимит или метаданные пагинации.",
-            });
-          let invalid = false;
-          for (const item of items.slice(0, 5000)) {
-            try {
-              const e = normalize(item);
-              if (
-                Date.parse(e.startsAt) < Date.parse(range.end) &&
-                Date.parse(e.endsAt) > Date.parse(range.start)
-              )
-                events.set(e.key, e);
-            } catch {
-              invalid = true;
+    return this.session.readCalendar(
+      q.accountId,
+      async (get, participantId) => {
+        const events = new Map<string, CalendarEvent>();
+        const issues: CalendarIssue[] = [];
+        const sources = q.myCalendar ? ["my"] : [...new Set(q.calendarIds)];
+        const params = new URLSearchParams({
+          start_date: range.start,
+          end_date: range.end,
+        });
+        for (const source of sources) {
+          try {
+            const body = parse(
+              z.object({
+                data: z.union([
+                  z.array(z.unknown()),
+                  z.record(z.string(), z.unknown()),
+                ]),
+                pagination: z.unknown().optional(),
+                meta: z.unknown().optional(),
+              }),
+              await calendarJson(
+                await get(
+                  `/gate/team/api/calendars/${source}/events?${params}`,
+                ),
+              ),
+            );
+            const items = Array.isArray(body.data)
+              ? body.data
+              : Object.values(body.data);
+            if (items.length > 5000 || body.pagination || body.meta)
+              issues.push({
+                source,
+                kind: "invalid",
+                message:
+                  "Полнота ответа Small не подтверждена: лимит или метаданные пагинации.",
+              });
+            let invalid = false;
+            for (const item of items.slice(0, 5000)) {
+              try {
+                const e = normalize(item, participantId);
+                if (
+                  Date.parse(e.startsAt) < Date.parse(range.end) &&
+                  Date.parse(e.endsAt) > Date.parse(range.start)
+                )
+                  events.set(e.key, e);
+              } catch {
+                invalid = true;
+              }
             }
-          }
-          if (invalid)
+            if (invalid)
+              issues.push({
+                source,
+                kind: "invalid",
+                message:
+                  "Часть событий имеет неизвестный формат. Данные неполные.",
+              });
+          } catch (error) {
+            if (error instanceof CalendarError && error.kind === "auth")
+              throw error;
             issues.push({
               source,
-              kind: "invalid",
+              kind: error instanceof CalendarError ? error.kind : "network",
               message:
-                "Часть событий имеет неизвестный формат. Данные неполные.",
+                error instanceof CalendarError
+                  ? error.message
+                  : "Не удалось загрузить календарь Small. Занятость неизвестна.",
             });
-        } catch (error) {
-          if (error instanceof CalendarError && error.kind === "auth")
-            throw error;
-          issues.push({
-            source,
-            kind: error instanceof CalendarError ? error.kind : "network",
-            message:
-              error instanceof CalendarError
-                ? error.message
-                : "Не удалось загрузить календарь Small. Занятость неизвестна.",
-          });
+          }
         }
-      }
-      return { events: [...events.values()], issues };
-    });
+        return { events: [...events.values()], issues };
+      },
+    );
   }
   async detail(input: unknown) {
     const { accountId, lookup } = parse(
       account.extend({ lookup: lookupSchema }),
       input,
     );
-    return this.session.readCalendar(accountId, async (get) => {
+    return this.session.readCalendar(accountId, async (get, participantId) => {
       const path =
         "id" in lookup
           ? `/gate/team/api/calendar/events/${lookup.id}`
@@ -316,7 +337,7 @@ export class CalendarService {
           "Карточка Small не совпадает с запрошенным событием.",
         );
       }
-      return normalize(raw);
+      return normalize(raw, participantId);
     });
   }
 }

@@ -189,6 +189,7 @@ export class SmallAuth {
     accountId: string,
     action: (
       get: (path: string, body?: unknown) => Promise<Response>,
+      participantId?: string,
     ) => Promise<T>,
   ): Promise<T> {
     const version = this.version;
@@ -221,7 +222,7 @@ export class SmallAuth {
             "auth",
           );
         return response;
-      });
+      }, state.profile.participantId);
       assertCurrent();
       if (!this.token)
         throw new SmallAuthError(
