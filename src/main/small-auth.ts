@@ -1,3 +1,4 @@
+import { meetingCreateBody, meetingCreatePath } from "./meeting-request.js";
 import { z } from "zod";
 import { CalendarError } from "./calendar.js";
 import { isAvailabilityRequest } from "./availability-request.js";
@@ -169,6 +170,9 @@ export class SmallAuth {
     }
     return this.token ? this.profile() : signedOut;
   }
+  get sessionRevision() {
+    return this.version;
+  }
   read() {
     return this.run(() => this.current());
   }
@@ -216,6 +220,23 @@ export class SmallAuth {
           "auth",
         );
       return result;
+    });
+  }
+  /** One attempt only: never refresh-and-replay a calendar write. */
+  createCalendarEvent(accountId: string, input: unknown): Promise<Response> {
+    const version = this.version;
+    const body = meetingCreateBody.safeParse(input);
+    if (!body.success)
+      return Promise.reject(new SmallAuthError("Некорректная встреча."));
+    return this.run(async () => {
+      const state = await this.current();
+      if (
+        version !== this.version ||
+        state.status !== "signed-in" ||
+        state.profile.id !== accountId
+      )
+        throw new SmallAuthError("Изменился аккаунт Small.", "auth");
+      return this.request(meetingCreatePath, "POST", body.data);
     });
   }
   login(input: unknown) {
