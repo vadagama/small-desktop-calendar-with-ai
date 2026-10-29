@@ -1,3 +1,5 @@
+import { Reminders } from "./Reminders";
+import { Bell } from "lucide-react";
 import { NewMeeting } from "./NewMeeting";
 import { useCallback, useEffect, useState } from "react";
 import { CalendarDays, Settings2, UsersRound, Plus, Clock } from "lucide-react";
@@ -20,6 +22,7 @@ import type { CalendarEvent, CalendarView } from "../shared/calendar.js";
 import type { SmallAuthState } from "../shared/small-auth.js";
 
 export function DesktopWorkspace() {
+  const [remindersOpen, setRemindersOpen] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [account, setAccount] = useState<SmallAuthState | null>(null);
@@ -37,6 +40,7 @@ export function DesktopWorkspace() {
   } | null>(null);
   const accountId = account?.status === "signed-in" ? account.profile.id : null;
   useEffect(() => {
+    setRemindersOpen(false);
     setCreating(false);
     setCreatedId(null);
     setSelected(null);
@@ -127,6 +131,13 @@ export function DesktopWorkspace() {
           onClick={() => setAvailabilityAccount(accountId)}
         >
           <Clock size={19} />
+        </button>
+        <button
+          aria-label="Напоминания"
+          title="Напоминания"
+          onClick={() => setRemindersOpen(true)}
+        >
+          <Bell size={19} />
         </button>
         <SmallAccount onChange={setAccount} revision={revision} />
       </nav>
@@ -244,6 +255,7 @@ export function DesktopWorkspace() {
           <span>Чтение Team API · Asia/Almaty</span>
         </footer>
       </main>
+      {remindersOpen && <Reminders close={() => setRemindersOpen(false)} />}
       {creating && account?.status === "signed-in" && (
         <NewMeeting
           key={account.profile.id}
