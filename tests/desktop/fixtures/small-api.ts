@@ -7,8 +7,11 @@ export async function mockSmall(app: ElectronApplication, date: string) {
     let employee = "employee-a";
     const inspection = globalThis as typeof globalThis & {
       syntheticMeetingWrites: number;
+      syntheticEventOwner?: string;
+      syntheticEventMutations: number;
     };
     inspection.syntheticMeetingWrites = 0;
+    inspection.syntheticEventMutations = 0;
     const created: Array<{
       id: string;
       title: string;
@@ -21,6 +24,13 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       if (url.origin !== "https://team.small.kz")
         return new Response(null, { status: 403 });
       const path = url.pathname;
+      if (
+        path.includes("/calendar/events") &&
+        request.method !== "GET" &&
+        !path.endsWith("/find-slots") &&
+        !path.endsWith("/busy-intervals")
+      )
+        inspection.syntheticEventMutations++;
       if (path.endsWith("/login")) {
         const input = await request.json();
         if (input.password !== "synthetic-password")
@@ -201,6 +211,9 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         ends_at: `${date}T10:00:00+05:00`,
         calendar_ids: [7],
         creator_name: "Синтетический организатор",
+        creator_id: inspection.syntheticEventOwner ?? employee,
+        is_recurring: false,
+        participants: [{ id: employee }, { id: "synthetic-b" }],
         description: "Синтетическая повестка",
         location: "Тестовая переговорная",
       };
@@ -208,6 +221,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         ...event,
         id: null,
         original_event_id: 43,
+        is_recurring: true,
         title: `Синтетическая серия ${suffix}`,
         starts_at: `${date}T11:00:00+05:00`,
         ends_at: `${date}T11:30:00+05:00`,
