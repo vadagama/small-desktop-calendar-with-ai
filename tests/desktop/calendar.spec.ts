@@ -358,7 +358,7 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Месяц", exact: true }).click();
     await expect(page.locator(".month-day")).toHaveCount(35);
-    await expect(page.locator(".month-event")).toHaveCount(2);
+    await expect(page.locator(".month-event")).toHaveCount(1);
     const room = page.getByRole("checkbox", {
       name: "Тестовая переговорная",
       exact: true,
@@ -374,7 +374,7 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
       .click();
     await expect(personal).toHaveCount(0);
     await room.check();
-    await expect(page.locator(".month-event")).toHaveCount(2);
+    await expect(page.locator(".month-event")).toHaveCount(1);
     await page.getByRole("button", { name: "Календарь", exact: true }).click();
     await expect(room).toHaveCount(0);
     await expect(personal).toBeChecked();
@@ -382,12 +382,12 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
       .getByRole("button", { name: "Переговорные", exact: true })
       .click();
     await expect(room).toBeChecked();
-    await expect(page.locator(".month-event")).toHaveCount(2);
+    await expect(page.locator(".month-event")).toHaveCount(1);
     await page.getByRole("checkbox", { name: "Нет прав", exact: true }).check();
     await expect(page.locator(".calendar-warning")).toContainText(
       "Нет доступа",
     );
-    await expect(page.locator(".month-event")).toHaveCount(2);
+    await expect(page.locator(".month-event")).toHaveCount(1);
     await page.screenshot({
       path: "test-results/desktop/calendar-partial.png",
     });

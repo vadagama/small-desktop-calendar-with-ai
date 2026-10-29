@@ -1,5 +1,16 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  EventMutationJournal,
+  mutationHash,
+} from "../../src/main/event-mutation-journal.js";
+const directory = mkdtempSync(join(tmpdir(), "event-mutations-"));
+after(() => rmSync(directory, { recursive: true, force: true }));
+const journal = () =>
+  new EventMutationJournal(join(directory, crypto.randomUUID()));
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { test, after } from "node:test";
 import { EventRescheduleService } from "../../src/main/event-reschedule.js";
 const event = {
   id: "42",
@@ -28,21 +39,24 @@ const input = {
 function fixture(patch = {}, status = 200) {
   let value = { ...event, ...patch };
   const writes: unknown[] = [];
-  const service = new EventRescheduleService({
-    readCalendar: async (_id, action) =>
-      action(async () => Response.json({ data: value }), "person-a"),
-    updateCalendarEvent: async (_id, _event, payload) => {
-      writes.push(payload);
-      if (status === 200)
-        value = {
-          ...value,
-          title: payload.title,
-          starts_at: payload.starts_at,
-          ends_at: payload.ends_at,
-        };
-      return Response.json({ data: value }, { status });
+  const service = new EventRescheduleService(
+    {
+      readCalendar: async (_id, action) =>
+        action(async () => Response.json({ data: value }), "person-a"),
+      updateCalendarEvent: async (_id, _event, payload) => {
+        writes.push(payload);
+        if (status === 200)
+          value = {
+            ...value,
+            title: payload.title,
+            starts_at: payload.starts_at,
+            ends_at: payload.ends_at,
+          };
+        return Response.json({ data: value }, { status });
+      },
     },
-  });
+    journal(),
+  );
   return { service, writes };
 }
 test("reschedule preserves meeting fields and verifies new interval", async () => {
@@ -102,33 +116,39 @@ test("incomplete event details cannot erase recipients or attachments", async ()
 });
 test("unconfirmed and failed writes are not retried", async () => {
   let writes = 0;
-  const service = new EventRescheduleService({
-    readCalendar: async (_id, action) =>
-      action(async () => Response.json({ data: event }), "person-a"),
-    updateCalendarEvent: async () => {
-      writes++;
-      return Response.json({ data: event });
+  const service = new EventRescheduleService(
+    {
+      readCalendar: async (_id, action) =>
+        action(async () => Response.json({ data: event }), "person-a"),
+      updateCalendarEvent: async () => {
+        writes++;
+        return Response.json({ data: event });
+      },
     },
-  });
+    journal(),
+  );
   await assert.rejects(service.reschedule(input), /подтвердить/);
   assert.equal(writes, 1);
 });
 test("only invited identity may reply", async () => {
   let writes = 0;
   for (const participantId of ["outsider", "person-a"]) {
-    const service = new EventRescheduleService({
-      readCalendar: async (_id, action) =>
-        action(async () => Response.json({ data: event }), participantId),
-      updateCalendarEvent: async () => {
-        throw Error("Unexpected update");
+    const service = new EventRescheduleService(
+      {
+        readCalendar: async (_id, action) =>
+          action(async () => Response.json({ data: event }), participantId),
+        updateCalendarEvent: async () => {
+          throw Error("Unexpected update");
+        },
+        respondCalendarEvent: async (_id, eventId, status) => {
+          assert.equal(eventId, "42");
+          assert.equal(status, "accepted");
+          writes++;
+          return Response.json({ data: { status } });
+        },
       },
-      respondCalendarEvent: async (_id, eventId, status) => {
-        assert.equal(eventId, "42");
-        assert.equal(status, "accepted");
-        writes++;
-        return Response.json({ data: { status } });
-      },
-    });
+      journal(),
+    );
     if (participantId === "outsider")
       await assert.rejects(
         service.respond({
@@ -173,19 +193,28 @@ test("direct changes reject foreign organizers and recurring events", async () =
     assert.equal(writes.length, 0);
   }
 });
-test("delete sends one request without a preview and accepts 204", async () => {
+test("delete verifies absence after an acknowledged 204", async () => {
   let writes = 0;
-  const service = new EventRescheduleService({
-    readCalendar: async (_id, action) =>
-      action(async () => Response.json({ data: event }), "person-a"),
-    updateCalendarEvent: async () => {
-      throw new Error("unexpected update");
+  const service = new EventRescheduleService(
+    {
+      readCalendar: async (_id, action) =>
+        action(
+          async () =>
+            writes
+              ? new Response(null, { status: 404 })
+              : Response.json({ data: event }),
+          "person-a",
+        ),
+      updateCalendarEvent: async () => {
+        throw new Error("unexpected update");
+      },
+      deleteCalendarEvent: async () => {
+        writes++;
+        return new Response(null, { status: 204 });
+      },
     },
-    deleteCalendarEvent: async () => {
-      writes++;
-      return new Response(null, { status: 204 });
-    },
-  });
+    journal(),
+  );
   await service.applyChange({
     accountId: input.accountId,
     eventId: "42",
@@ -248,4 +277,258 @@ test("recurring event with an id moves only a single occurrence and preserves it
     (writes[0] as Record<string, unknown>).recurrence_rule,
     rule,
   );
+});
+
+test("unknown writes remain blocked across restart and changed requests", async () => {
+  const log = journal();
+  let writes = 0;
+  const session = {
+    readCalendar: async <T>(
+      _id: string,
+      action: (
+        get: (path: string) => Promise<Response>,
+        person?: string,
+      ) => Promise<T>,
+    ) => action(async () => Response.json({ data: event }), "person-a"),
+    updateCalendarEvent: async () => {
+      writes++;
+      throw Error("timeout");
+    },
+  };
+  await assert.rejects(
+    new EventRescheduleService(session, log).reschedule(input),
+  );
+  await assert.rejects(
+    new EventRescheduleService(session, log).reschedule(input),
+    /неизвестен/,
+  );
+  await assert.rejects(
+    new EventRescheduleService(session, log).applyChange({
+      accountId: input.accountId,
+      eventId: "42",
+      change: { kind: "rename", title: "Other" },
+    }),
+    /неизвестен/,
+  );
+  assert.equal(writes, 1);
+});
+
+test("a timed out update that reached the server is reconciled without another write", async () => {
+  let value = { ...event };
+  let writes = 0;
+  const log = journal();
+  const service = new EventRescheduleService(
+    {
+      readCalendar: async (_id, action) =>
+        action(async () => Response.json({ data: value }), "person-a"),
+      updateCalendarEvent: async (_id, _eventId, body) => {
+        writes++;
+        value = { ...value, title: body.title };
+        throw Error("response lost");
+      },
+    },
+    log,
+  );
+  const request = {
+    accountId: input.accountId,
+    eventId: "42",
+    change: { kind: "rename", title: "Applied" },
+  };
+  await service.applyChange(request);
+  await service.applyChange(request);
+  assert.equal(writes, 1);
+  assert.equal(await log.read(input.accountId, "42"), null);
+});
+
+test("successful status cannot hide changed fields and a later read can resolve the journal", async () => {
+  let value = { ...event };
+  let writes = 0;
+  const log = journal();
+  const session = {
+    readCalendar: async <T>(
+      _id: string,
+      action: (
+        get: (path: string) => Promise<Response>,
+        person?: string,
+      ) => Promise<T>,
+    ) => action(async () => Response.json({ data: value }), "person-a"),
+    updateCalendarEvent: async () => {
+      writes++;
+      value = { ...event, title: "Applied", description: "Unexpected change" };
+      return Response.json({});
+    },
+  };
+  const request = {
+    accountId: input.accountId,
+    eventId: "42",
+    change: { kind: "rename", title: "Applied" },
+  };
+  await assert.rejects(
+    new EventRescheduleService(session, log).applyChange(request),
+    /неизвестен/,
+  );
+  value.description = event.description;
+  await new EventRescheduleService(session, log).applyChange(request);
+  assert.equal(writes, 1);
+  assert.equal(await log.read(input.accountId, "42"), null);
+});
+
+test("delete timeout followed by 404 stays unknown even across restart", async () => {
+  let writes = 0;
+  const log = journal();
+  const session = {
+    readCalendar: async <T>(
+      _id: string,
+      action: (
+        get: (path: string) => Promise<Response>,
+        person?: string,
+      ) => Promise<T>,
+    ) =>
+      action(
+        async () =>
+          writes
+            ? new Response(null, { status: 404 })
+            : Response.json({ data: event }),
+        "person-a",
+      ),
+    updateCalendarEvent: async () => {
+      throw Error("unexpected update");
+    },
+    deleteCalendarEvent: async () => {
+      writes++;
+      throw Error("response lost");
+    },
+  };
+  const request = {
+    accountId: input.accountId,
+    eventId: "42",
+    change: { kind: "cancel" },
+  };
+  await assert.rejects(
+    new EventRescheduleService(session, log).applyChange(request),
+    /неизвестен/,
+  );
+  await assert.rejects(
+    new EventRescheduleService(session, log).applyChange(request),
+    /неизвестен/,
+  );
+  assert.equal(writes, 1);
+});
+
+test("acknowledged deletion is reconciled after restart but 403 is not success", async () => {
+  let writes = 0;
+  let readStatus = 200;
+  const log = journal();
+  const session = {
+    readCalendar: async <T>(
+      _id: string,
+      action: (
+        get: (path: string) => Promise<Response>,
+        person?: string,
+      ) => Promise<T>,
+    ) =>
+      action(
+        async () =>
+          readStatus === 200
+            ? Response.json({ data: event })
+            : new Response(null, { status: readStatus }),
+        "person-a",
+      ),
+    updateCalendarEvent: async () => {
+      throw Error("unexpected update");
+    },
+    deleteCalendarEvent: async () => {
+      writes++;
+      readStatus = 403;
+      return new Response(null, { status: 204 });
+    },
+  };
+  const request = {
+    accountId: input.accountId,
+    eventId: "42",
+    change: { kind: "cancel" },
+  };
+  await assert.rejects(
+    new EventRescheduleService(session, log).applyChange(request),
+    /неизвестен/,
+  );
+  readStatus = 404;
+  await new EventRescheduleService(session, log).applyChange(request);
+  assert.equal(writes, 1);
+  assert.equal(await log.read(input.accountId, "42"), null);
+});
+
+test("journal is scoped by account and contains no event contents", async () => {
+  const log = journal();
+  let writes = 0;
+  const session = {
+    readCalendar: async <T>(
+      _id: string,
+      action: (
+        get: (path: string) => Promise<Response>,
+        person?: string,
+      ) => Promise<T>,
+    ) => action(async () => Response.json({ data: event }), "person-a"),
+    updateCalendarEvent: async () => {
+      writes++;
+      throw Error("timeout");
+    },
+  };
+  const request = {
+    accountId: input.accountId,
+    eventId: "42",
+    change: { kind: "rename", title: "Private synthetic title" },
+  };
+  await assert.rejects(
+    new EventRescheduleService(session, log).applyChange(request),
+  );
+  const entry = await log.read(input.accountId, "42");
+  assert.ok(entry);
+  assert.ok(!JSON.stringify(entry).includes("Private"));
+  await assert.rejects(
+    new EventRescheduleService(session, log).applyChange({
+      ...request,
+      accountId: "another-account",
+    }),
+  );
+  assert.equal(writes, 2);
+});
+
+test("exclusive journal claims allow only one operation", async () => {
+  const log = journal();
+  const entry = {
+    requestHash: "a".repeat(64),
+    resultHash: "b".repeat(64),
+    kind: "update" as const,
+    acknowledged: false,
+  };
+  const results = await Promise.allSettled([
+    log.claim("account", "event", entry),
+    log.claim("account", "event", entry),
+  ]);
+  assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
+  assert.equal(results.filter((r) => r.status === "rejected").length, 1);
+  assert.deepEqual(await log.read("account", "event"), entry);
+});
+
+test("corrupt durable state blocks writes instead of resetting the journal", async () => {
+  const path = mkdtempSync(join(directory, "corrupt-"));
+  writeFileSync(
+    join(path, mutationHash([input.accountId, input.eventId]) + ".json"),
+    "{",
+  );
+  let writes = 0;
+  const service = new EventRescheduleService(
+    {
+      readCalendar: async (_id, action) =>
+        action(async () => Response.json({ data: event }), "person-a"),
+      updateCalendarEvent: async () => {
+        writes++;
+        return Response.json({});
+      },
+    },
+    new EventMutationJournal(path),
+  );
+  await assert.rejects(service.reschedule(input));
+  assert.equal(writes, 0);
 });

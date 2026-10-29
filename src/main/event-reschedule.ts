@@ -1,3 +1,8 @@
+import {
+  EventMutationJournal,
+  mutationHash,
+  type EventMutationRecord,
+} from "./event-mutation-journal.js";
 import { calendarDateAt, calendarToday } from "../shared/calendar-time.js";
 import { z } from "zod";
 import {
@@ -80,6 +85,45 @@ const detail = z.object({
     attachments: z.array(z.object({ id })),
   }),
 });
+function updateBody(e: z.infer<typeof detail>["data"]): EventUpdateBody {
+  return eventUpdateBody.parse({
+    title: e.title,
+    description: e.description ?? "",
+    location: e.location ?? "",
+    starts_at: e.starts_at,
+    ends_at: e.ends_at,
+    timezone: e.timezone,
+    is_recurring: e.is_recurring,
+    ...(e.is_recurring
+      ? {
+          recurrence_rule: e.recurrence_rule,
+          recurrence_type: "custom",
+          recurring_edit_type: "single",
+        }
+      : {}),
+    is_public: e.is_public,
+    calendar_ids: e.calendar_ids,
+    participant_ids: e.participants.map((p) => p.id),
+    notification_recipient_ids: e.notification_recipients.map((p) => p.id),
+    attachments: e.attachments.map((p) => p.id),
+  });
+}
+function fingerprint(body: EventUpdateBody) {
+  return mutationHash({
+    ...body,
+    starts_at: Date.parse(body.starts_at),
+    ends_at: Date.parse(body.ends_at),
+    calendar_ids: [...body.calendar_ids].sort((a, b) => a - b),
+    participant_ids: [...body.participant_ids].sort(),
+    notification_recipient_ids: [...body.notification_recipient_ids].sort(),
+    attachments: [...body.attachments].sort(),
+  });
+}
+const unknownOutcome = () =>
+  new CalendarError(
+    "network",
+    "Результат изменения неизвестен: не удалось подтвердить сохранение. Повторная запись заблокирована. Повторное действие только проверит состояние встречи.",
+  );
 export function isParticipantStatusRequest(path: string, body: unknown) {
   return (
     /^\/gate\/team\/api\/calendar\/events\/[A-Za-z0-9_-]{1,128}\/participant-status$/.test(
@@ -108,7 +152,96 @@ export class EventRescheduleService {
         body: EventUpdateBody,
       ): Promise<Response>;
     },
+    private journal: EventMutationJournal,
   ) {}
+  private async verified(
+    accountId: string,
+    eventId: string,
+    entry: EventMutationRecord,
+  ) {
+    try {
+      return await this.session.readCalendar(
+        accountId,
+        async (get, participantId) => {
+          const response = await get(
+            `/gate/team/api/calendar/events/${eventId}`,
+          );
+          if (entry.kind === "delete")
+            return entry.acknowledged && response.status === 404;
+          const parsed = detail.safeParse(await calendarJson(response));
+          if (
+            !parsed.success ||
+            parsed.data.data.id !== eventId ||
+            parsed.data.data.creator_id !== (participantId ?? accountId)
+          )
+            return false;
+          return fingerprint(updateBody(parsed.data.data)) === entry.resultHash;
+        },
+      );
+    } catch {
+      return false;
+    }
+  }
+  private async reconcile(
+    accountId: string,
+    eventId: string,
+    request: unknown,
+  ) {
+    const entry = await this.journal.read(accountId, eventId);
+    if (!entry) return false;
+    if (!(await this.verified(accountId, eventId, entry)))
+      throw unknownOutcome();
+    await this.journal.clear(accountId, eventId);
+    if (entry.requestHash !== mutationHash(request))
+      throw new CalendarError(
+        "invalid",
+        "Предыдущее изменение подтверждено. Обновите календарь и повторите новое действие.",
+      );
+    return true;
+  }
+  private async writeMutation(
+    accountId: string,
+    eventId: string,
+    request: unknown,
+    body: EventUpdateBody | null,
+    write: () => Promise<Response>,
+  ) {
+    const entry: EventMutationRecord = {
+      requestHash: mutationHash(request),
+      resultHash: mutationHash(null),
+      kind: body ? "update" : "delete",
+      acknowledged: false,
+    };
+    if (body) entry.resultHash = fingerprint(body);
+    // Claim and fsync precede the network request. A crash leaves retries blocked.
+    await this.journal.claim(accountId, eventId, entry);
+    let response: Response;
+    try {
+      response = await write();
+    } catch {
+      if (await this.verified(accountId, eventId, entry)) {
+        await this.journal.clear(accountId, eventId);
+        return;
+      }
+      throw unknownOutcome();
+    }
+    if (!response.ok) {
+      if ([400, 401, 403, 404, 409, 422].includes(response.status)) {
+        await this.journal.clear(accountId, eventId);
+        await calendarJson(response);
+      }
+      if (await this.verified(accountId, eventId, entry)) {
+        await this.journal.clear(accountId, eventId);
+        return;
+      }
+      throw unknownOutcome();
+    }
+    await this.journal.acknowledge(accountId, eventId);
+    entry.acknowledged = true;
+    if (!(await this.verified(accountId, eventId, entry)))
+      throw unknownOutcome();
+    await this.journal.clear(accountId, eventId);
+  }
   async applyChange(input: unknown): Promise<void> {
     const v = z
       .strictObject({
@@ -128,6 +261,7 @@ export class EventRescheduleService {
       throw new CalendarError("invalid", "Изменение уже сохраняется.");
     this.pending.add(key);
     try {
+      if (await this.reconcile(v.accountId, v.eventId, v)) return;
       const e = await this.session.readCalendar(
         v.accountId,
         async (get, participantId) => {
@@ -170,47 +304,17 @@ export class EventRescheduleService {
       if (v.change.kind === "cancel") {
         if (!this.session.deleteCalendarEvent)
           throw new CalendarError("invalid", "Удаление недоступно.");
-        const response = await this.session.deleteCalendarEvent(
-          v.accountId,
-          v.eventId,
+        await this.writeMutation(v.accountId, v.eventId, v, null, () =>
+          this.session.deleteCalendarEvent!(v.accountId, v.eventId),
         );
-        if (!response.ok) await calendarJson(response);
         return;
       }
       const title = v.change.title;
-      const body = eventUpdateBody.parse({
-        title,
-        description: e.description ?? "",
-        location: e.location ?? "",
-        starts_at: e.starts_at,
-        ends_at: e.ends_at,
-        timezone: e.timezone,
-        is_recurring: false,
-        is_public: e.is_public,
-        calendar_ids: e.calendar_ids,
-        participant_ids: e.participants.map((p) => p.id),
-        notification_recipient_ids: e.notification_recipients.map((p) => p.id),
-        attachments: e.attachments.map((p) => p.id),
-      });
-      await calendarJson(
-        await this.session.updateCalendarEvent(v.accountId, v.eventId, body),
+      if (title === e.title) return;
+      const body = eventUpdateBody.parse({ ...updateBody(e), title });
+      await this.writeMutation(v.accountId, v.eventId, v, body, () =>
+        this.session.updateCalendarEvent(v.accountId, v.eventId, body),
       );
-      await this.session.readCalendar(v.accountId, async (get) => {
-        const parsed = detail.safeParse(
-          await calendarJson(
-            await get(`/gate/team/api/calendar/events/${v.eventId}`),
-          ),
-        );
-        if (
-          !parsed.success ||
-          parsed.data.data.id !== v.eventId ||
-          parsed.data.data.title !== title
-        )
-          throw new CalendarError(
-            "network",
-            "Не удалось подтвердить сохранение. Обновите календарь перед повтором.",
-          );
-      });
     } finally {
       this.pending.delete(key);
     }
@@ -256,6 +360,7 @@ export class EventRescheduleService {
       throw new CalendarError("invalid", "Время встречи уже сохраняется.");
     this.pending.add(key);
     try {
+      if (await this.reconcile(v.accountId, v.eventId, v)) return;
       const body = await this.session.readCalendar(
         v.accountId,
         async (get, participantId) => {
@@ -331,35 +436,9 @@ export class EventRescheduleService {
           });
         },
       );
-      // One write attempt; force=false preserves the server's conflict checks.
-      const response = await this.session.updateCalendarEvent(
-        v.accountId,
-        v.eventId,
-        body,
+      await this.writeMutation(v.accountId, v.eventId, v, body, () =>
+        this.session.updateCalendarEvent(v.accountId, v.eventId, body),
       );
-      if (response.status === 409 || response.status === 422)
-        throw new CalendarError(
-          "invalid",
-          "Это время недоступно. Встреча не перенесена.",
-        );
-      await calendarJson(response);
-      await this.session.readCalendar(v.accountId, async (get) => {
-        const parsed = detail.safeParse(
-          await calendarJson(
-            await get(`/gate/team/api/calendar/events/${v.eventId}`),
-          ),
-        );
-        if (
-          !parsed.success ||
-          parsed.data.data.id !== v.eventId ||
-          Date.parse(parsed.data.data.starts_at) !== Date.parse(v.startsAt) ||
-          Date.parse(parsed.data.data.ends_at) !== Date.parse(v.endsAt)
-        )
-          throw new CalendarError(
-            "network",
-            "Не удалось подтвердить новое время. Проверьте обновлённый календарь перед повтором.",
-          );
-      });
     } finally {
       this.pending.delete(key);
     }

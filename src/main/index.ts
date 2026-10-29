@@ -1,3 +1,4 @@
+import { EventMutationJournal } from "./event-mutation-journal.js";
 import { ParticipantMemory } from "./participant-memory.js";
 import { AgentSettingsStore } from "./agent-settings.js";
 import { registerAgentSettingsHandlers } from "./agent-settings-ipc.js";
@@ -144,7 +145,12 @@ app.whenReady().then(async () => {
     assistant.trusted,
     availability,
     new EventChangeService(smallAuth),
-    new EventRescheduleService(smallAuth),
+    new EventRescheduleService(
+      smallAuth,
+      new EventMutationJournal(
+        resolve(app.getPath("userData"), "event-mutations"),
+      ),
+    ),
   );
   registerSmallAuthHandlers(
     smallAuth,
