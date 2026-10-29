@@ -1,4 +1,7 @@
-import { reminderChannels } from "../shared/reminders.js";
+import {
+  reminderChannels,
+  nativeNotificationChannels,
+} from "../shared/reminders.js";
 import { meetingChannels } from "../shared/meeting-operations.js";
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import {
@@ -11,6 +14,11 @@ import { smallAuthChannels } from "../shared/small-auth.js";
 import { profileChannels } from "../shared/profiles.js";
 
 const bridge: DesktopBridge = {
+  notifications: {
+    read: () => ipcRenderer.invoke(nativeNotificationChannels.read),
+    test: () => ipcRenderer.invoke(nativeNotificationChannels.test),
+    settings: () => ipcRenderer.invoke(nativeNotificationChannels.settings),
+  },
   reminders: {
     read: () => ipcRenderer.invoke(reminderChannels.read),
     save: (input) => ipcRenderer.invoke(reminderChannels.save, input),

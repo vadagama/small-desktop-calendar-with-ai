@@ -1,6 +1,6 @@
+import { NativeNotifications } from "./native-notifications.js";
 import {
   ipcMain,
-  Notification,
   powerMonitor,
   shell,
   type IpcMainInvokeEvent,
@@ -18,7 +18,7 @@ export function registerReminders(
   auth: SmallAuth,
   calendar: CalendarService,
   trusted: (event: IpcMainInvokeEvent) => boolean,
-  showWindow: () => void,
+  showWindow: () => void | Promise<void>,
 ) {
   const format = (date: string) =>
     new Intl.DateTimeFormat("ru", {
@@ -26,26 +26,26 @@ export function registerReminders(
       dateStyle: "short",
       timeStyle: "short",
     }).format(new Date(date));
+  const native = new NativeNotifications(showWindow, () =>
+    reminders.nativeFailed(),
+  );
+  native.register(trusted);
   const reminders = new Reminders(new ReminderStore(directory), {
     auth,
     calendar,
     open: (url) => shell.openExternal(url),
     notify: (item, join) => {
-      if (!Notification.isSupported()) {
-        reminders.nativeFailed();
-        return () => {};
-      }
-      const notification = new Notification({
-        title: item.event.title,
-        subtitle: `${format(item.event.startsAt)} — ${format(item.event.endsAt)} · ${calendarTimeZone}`,
-        body: `Организатор: ${item.event.organizer || "не указан"}${item.canJoin ? "" : "\nСсылка на встречу отсутствует"}`,
-        actions: item.canJoin ? [{ type: "button", text: "Подключиться" }] : [],
-      });
-      notification.on("failed", () => reminders.nativeFailed());
-      notification.on("click", showWindow);
-      notification.on("action", () => join());
-      notification.show();
-      return () => notification.close();
+      return native.show(
+        {
+          title: item.event.title,
+          subtitle: `${format(item.event.startsAt)} — ${format(item.event.endsAt)} · ${calendarTimeZone}`,
+          body: `Организатор: ${item.event.organizer || "не указан"}${item.canJoin ? "" : "\nСсылка на встречу отсутствует"}`,
+          actions: item.canJoin
+            ? [{ type: "button", text: "Подключиться" }]
+            : [],
+        },
+        join,
+      );
     },
   });
   const handle = (
