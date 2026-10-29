@@ -1,3 +1,4 @@
+import { attachmentPath, isAttachmentUpload } from "./attachment-request.js";
 import { meetingCreateBody, meetingCreatePath } from "./meeting-request.js";
 import { z } from "zod";
 import { CalendarError } from "./calendar.js";
@@ -29,6 +30,10 @@ const tokenResponse = z.object({
 });
 const identity = z.object({
   uid: z.union([z.string().min(1), z.number()]),
+  guidfl: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{1,128}$/)
+    .optional(),
   preferred_username: z.string().min(1).max(200),
   name: z.string().min(1).max(500),
 });
@@ -149,6 +154,7 @@ export class SmallAuth {
         id: String(claims.uid),
         name: claims.name,
         username: claims.preferred_username,
+        ...(claims.guidfl ? { participantId: claims.guidfl } : {}),
       },
     };
   }
@@ -237,6 +243,27 @@ export class SmallAuth {
       )
         throw new SmallAuthError("Изменился аккаунт Small.", "auth");
       return this.request(meetingCreatePath, "POST", body.data);
+    });
+  }
+  uploadAttachment(accountId: string, body: FormData): Promise<Response> {
+    const version = this.version;
+    if (!isAttachmentUpload(attachmentPath, body))
+      return Promise.reject(new SmallAuthError("Некорректный файл."));
+    return this.run(async () => {
+      const state = await this.current();
+      if (
+        version !== this.version ||
+        state.status !== "signed-in" ||
+        state.profile.id !== accountId
+      )
+        throw new SmallAuthError("Изменился аккаунт Small.", "auth");
+      return this.transport.request(attachmentPath, {
+        method: "POST",
+        body,
+        headers: { Authorization: `Bearer ${this.token}` },
+        redirect: "error",
+        signal: AbortSignal.timeout(30000),
+      });
     });
   }
   login(input: unknown) {

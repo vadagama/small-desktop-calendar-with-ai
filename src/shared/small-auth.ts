@@ -7,7 +7,12 @@ export type SmallAuthState =
   | { status: "signed-out"; warning?: string }
   | {
       status: "signed-in";
-      profile: { id: string; name: string; username: string };
+      profile: {
+        id: string;
+        name: string;
+        username: string;
+        participantId?: string;
+      };
     };
 export type SmallAuthReply =
   { ok: true; state: SmallAuthState } | { ok: false; error: string };
