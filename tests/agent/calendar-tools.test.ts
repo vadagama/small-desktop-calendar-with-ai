@@ -238,3 +238,75 @@ test("schedule reads own account without participant selection and rejects accou
   );
   assert.equal((calls[0] as { accountId: string }).accountId, "account-a");
 });
+
+test("analytics reads only the signed-in account with its participant id and rejects injection", async () => {
+  const calls: unknown[] = [];
+  const calendar = {
+    searchPeople: async () => {
+      throw Error("must not search participants");
+    },
+    events: async (input: unknown) => {
+      calls.push(input);
+      return {
+        events: [
+          {
+            key: "a",
+            lookup: { id: "a" },
+            title: "Sync",
+            startsAt: "2026-10-29T05:00:00Z",
+            endsAt: "2026-10-29T06:00:00Z",
+            calendarIds: [],
+            organizer: "Анна",
+            location: "",
+            description: "",
+            participation: "invited" as const,
+            participants: [
+              {
+                id: "person-a",
+                name: "Я",
+                status: "accepted",
+                organizer: false,
+              },
+            ],
+          },
+        ],
+        issues: [],
+      };
+    },
+  };
+  const availability = {
+    find: async () => {
+      throw Error("must not search slots");
+    },
+  };
+  const make = (participantId?: string) =>
+    createCalendarToolExecutor(
+      "account-a",
+      "Сколько часов встреч сегодня?",
+      new AbortController().signal,
+      calendar,
+      availability,
+      "Я",
+      undefined,
+      undefined,
+      undefined,
+      participantId,
+    );
+  const execute = make("person-a");
+  assert.equal(
+    (await execute("meetingAnalytics", { period: "today", accountId: "x" })).ok,
+    false,
+  );
+  assert.equal(calls.length, 0);
+  const result = await execute("meetingAnalytics", { period: "today" });
+  assert.ok(
+    result.ok &&
+      "kind" in result.data &&
+      result.data.kind === "analytics" &&
+      result.data.totals.count === 1,
+  );
+  assert.equal((calls[0] as { accountId: string }).accountId, "account-a");
+  const unknown = await make()("meetingAnalytics", { period: "today" });
+  assert.equal(unknown.ok, false);
+  assert.equal(calls.length, 1);
+});

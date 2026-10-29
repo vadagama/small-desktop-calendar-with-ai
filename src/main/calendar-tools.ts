@@ -1,4 +1,5 @@
 import { readSchedule } from "./schedule.js";
+import { readAnalytics } from "./analytics.js";
 import { z } from "zod";
 import { CalendarConversation } from "./calendar-conversation.js";
 import type { CalendarPerson } from "../shared/calendar.js";
@@ -46,6 +47,19 @@ export function createCalendarToolExecutor(
       let checkedPeople: CalendarPerson[] = [];
       if (name === "listMeetings") {
         data = await readSchedule(accountId, input, calendar, signal);
+      } else if (name === "meetingAnalytics") {
+        if (!organizerParticipantId)
+          throw new CalendarError(
+            "denied",
+            "Не удалось определить ваш профиль участника Small.",
+          );
+        data = await readAnalytics(
+          accountId,
+          organizerParticipantId,
+          input,
+          calendar,
+          signal,
+        );
       } else if (name === "searchPeople") {
         const parsed = peopleToolInput.safeParse(input);
         if (!parsed.success)
