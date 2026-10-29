@@ -3,6 +3,13 @@ import { ParticipantMemory } from "./participant-memory.js";
 import { AgentSettingsStore } from "./agent-settings.js";
 import { registerAgentSettingsHandlers } from "./agent-settings-ipc.js";
 import { EventRescheduleService } from "./event-reschedule.js";
+import { registerReminders } from "./reminder-ipc.js";
+import { TopicRuleStore } from "./topic-rules.js";
+import { registerTopicRuleHandlers } from "./analytics-ipc.js";
+import { SmallSeriesBackend } from "./series-backend.js";
+import { SeriesMutationService } from "./series-adapter.js";
+import { SeriesController } from "./series-controller.js";
+import { registerSeriesHandlers } from "./series-ipc.js";
 import { EventChangeService } from "./event-change.js";
 import { MeetingOperations } from "./meeting-operations.js";
 import { MeetingJournal } from "./meeting-journal.js";
@@ -25,6 +32,7 @@ import { safeStorageCipher } from "./event-cache-cipher.js";
 import { calendarChannels, type CalendarChange } from "../shared/calendar.js";
 import type { MeetingWriter } from "./meeting-operations.js";
 import { meetingTarget } from "./write-target.js";
+import { invalidatingSeries } from "./series-invalidation.js";
 import { AvailabilityService } from "./availability.js";
 import { registerCalendarHandlers } from "./calendar-ipc.js";
 import { SmallAuth } from "./small-auth.js";
@@ -98,10 +106,22 @@ async function createWindow() {
   await window.loadURL(devUrl || localUrl);
 }
 
+const primaryInstance = app.requestSingleInstanceLock();
+if (!primaryInstance) app.quit();
+app.on("second-instance", () => {
+  const window = BrowserWindow.getAllWindows()[0];
+  if (window) {
+    if (window.isMinimized()) window.restore();
+    window.show();
+    window.focus();
+  } else if (app.isReady()) void createWindow();
+});
 app.whenReady().then(async () => {
+  if (!primaryInstance) return;
   app.dock?.setIcon(appIcon);
   const participantMemory = new ParticipantMemory(app.getPath("userData"));
   const agentSettings = new AgentSettingsStore(app.getPath("userData"));
+  const topicRules = new TopicRuleStore(app.getPath("userData"));
   const profiles = new ProfileStore(
     app.getPath("userData"),
     new KeychainSecrets(app.getPath("userData")),
@@ -183,12 +203,14 @@ app.whenReady().then(async () => {
             conversation,
             participantMemory,
             state.profile.participantId,
+            () => topicRules.read(),
           )
         : null;
     },
     () => agentSettings.read(),
   );
   registerAgentSettingsHandlers(agentSettings, assistant.trusted);
+  registerTopicRuleHandlers(topicRules, assistant.trusted);
   registerProfileHandlers(profiles, assistant.trusted, assistant.cancelActive);
   registerMeetingHandlers(meetings, smallAuth, assistant.trusted, availability);
 
@@ -206,10 +228,41 @@ app.whenReady().then(async () => {
     calendarSync,
     catalog,
   );
+  const series = new SeriesController(
+    smallAuth,
+    new SeriesMutationService(
+      new SmallSeriesBackend(smallAuth, calendar),
+      new EventMutationJournal(
+        resolve(app.getPath("userData"), "series-mutations"),
+      ),
+    ),
+  );
+  registerSeriesHandlers(
+    invalidatingSeries(series, calendarSync),
+    assistant.trusted,
+  );
+  const reminders = registerReminders(
+    app.getPath("userData"),
+    smallAuth,
+    calendar,
+    assistant.trusted,
+    () => {
+      const window = BrowserWindow.getAllWindows()[0];
+      if (window) {
+        if (window.isMinimized()) window.restore();
+        window.show();
+        window.focus();
+      } else return createWindow();
+    },
+  );
+  app.on("before-quit", () => reminders.stop());
   registerSmallAuthHandlers(
     smallAuth,
     assistant.trusted,
-    assistant.cancelActive,
+    () => {
+      assistant.cancelActive();
+      reminders.invalidate();
+    },
     () => calendarSync.reset().catch(() => {}),
   );
   session.defaultSession.setPermissionRequestHandler(
@@ -244,7 +297,10 @@ app.whenReady().then(async () => {
       const headers = new Headers(response.headers);
       headers.set("Content-Security-Policy", csp);
       headers.set("X-Content-Type-Options", "nosniff");
-      return new Response(response.body, { status: response.status, headers });
+      return new Response(response.body, {
+        status: response.status,
+        headers,
+      });
     } catch {
       return new Response("Not found", { status: 404 });
     }

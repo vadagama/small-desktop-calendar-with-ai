@@ -238,3 +238,134 @@ test("schedule reads own account without participant selection and rejects accou
   );
   assert.equal((calls[0] as { accountId: string }).accountId, "account-a");
 });
+
+test("analytics reads only the signed-in account with its participant id and rejects injection", async () => {
+  const calls: unknown[] = [];
+  const calendar = {
+    searchPeople: async () => {
+      throw Error("must not search participants");
+    },
+    events: async (input: unknown) => {
+      calls.push(input);
+      return {
+        events: [
+          {
+            key: "a",
+            lookup: { id: "a" },
+            title: "Sync",
+            startsAt: "2026-10-29T05:00:00Z",
+            endsAt: "2026-10-29T06:00:00Z",
+            calendarIds: [],
+            organizer: "Анна",
+            location: "",
+            description: "",
+            participation: "invited" as const,
+            participants: [
+              {
+                id: "person-a",
+                name: "Я",
+                status: "accepted",
+                organizer: false,
+              },
+            ],
+          },
+        ],
+        issues: [],
+      };
+    },
+  };
+  const availability = {
+    find: async () => {
+      throw Error("must not search slots");
+    },
+  };
+  const make = (participantId?: string) =>
+    createCalendarToolExecutor(
+      "account-a",
+      "Сколько часов встреч сегодня?",
+      new AbortController().signal,
+      calendar,
+      availability,
+      "Я",
+      undefined,
+      undefined,
+      undefined,
+      participantId,
+    );
+  const execute = make("person-a");
+  assert.equal(
+    (await execute("meetingAnalytics", { period: "today", accountId: "x" })).ok,
+    false,
+  );
+  assert.equal(calls.length, 0);
+  const result = await execute("meetingAnalytics", { period: "today" });
+  assert.ok(
+    result.ok &&
+      "kind" in result.data &&
+      result.data.kind === "analytics" &&
+      result.data.totals.count === 1,
+  );
+  assert.equal((calls[0] as { accountId: string }).accountId, "account-a");
+  const unknown = await make()("meetingAnalytics", { period: "today" });
+  assert.equal(unknown.ok, false);
+  assert.equal(calls.length, 1);
+});
+
+test("analytics applies saved topic rules and reports an unreadable rules file", async () => {
+  const calendar = {
+    searchPeople: async () => {
+      throw Error("must not search participants");
+    },
+    events: async () => ({
+      events: [
+        {
+          key: "a",
+          lookup: { id: "a" },
+          title: "Daily standup",
+          startsAt: "2026-10-29T05:00:00Z",
+          endsAt: "2026-10-29T05:30:00Z",
+          calendarIds: [],
+          organizer: "Анна",
+          location: "",
+          description: "",
+          participation: "organizer" as const,
+        },
+      ],
+      issues: [],
+    }),
+  };
+  const make = (
+    rules: () => Promise<never[] | { topic: string; keywords: string[] }[]>,
+  ) =>
+    createCalendarToolExecutor(
+      "account-a",
+      "Темы встреч",
+      new AbortController().signal,
+      calendar,
+      {
+        find: async () => {
+          throw Error("must not search slots");
+        },
+      },
+      "Я",
+      undefined,
+      undefined,
+      undefined,
+      "person-a",
+      rules,
+    );
+  const ok = await make(async () => [
+    { topic: "Процесс", keywords: ["daily"] },
+  ])("meetingAnalytics", { period: "today" });
+  assert.ok(ok.ok && "kind" in ok.data && ok.data.kind === "analytics");
+  assert.deepEqual(
+    ok.data.byTopic.map((bucket) => bucket.name),
+    ["Процесс"],
+  );
+  const broken = await make(async () => {
+    throw new Error("secret path /Users/x/topic-rules.json");
+  })("meetingAnalytics", { period: "today" });
+  assert.equal(broken.ok, false);
+  assert.ok(!broken.ok && /правила тем/.test(broken.error));
+  assert.ok(!broken.ok && !broken.error.includes("/Users/"));
+});

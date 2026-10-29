@@ -5,6 +5,7 @@ import type {
   CalendarIssueKind,
   CalendarResult,
 } from "../shared/calendar.js";
+import { OccurrenceSet, occurrenceAliases } from "../shared/occurrence-key.js";
 import {
   calendarDateAt,
   calendarRange,
@@ -87,6 +88,11 @@ function parse<T>(schema: z.ZodType<T>, input: unknown): T {
 function normalize(value: unknown, participantId?: string): CalendarEvent {
   const e = parse(eventSchema, value);
   const localDate = calendarDateAt(e.starts_at);
+  const aliases = occurrenceAliases({
+    seriesId: e.original_event_id,
+    id: e.id,
+    startsAt: e.starts_at,
+  });
   const lookup = e.id
     ? { id: e.id }
     : { originalEventId: e.original_event_id!, date: localDate };
@@ -111,6 +117,8 @@ function normalize(value: unknown, participantId?: string): CalendarEvent {
           : e.is_informed === false
             ? "invited"
             : "unknown",
+    ...(e.original_event_id ? { originalEventId: e.original_event_id } : {}),
+    ...(aliases.length ? { aliases } : {}),
     ...(e.original_event_id
       ? { recurring: true }
       : typeof e.is_recurring === "boolean"
@@ -254,7 +262,7 @@ export class CalendarService {
     return this.session.readCalendar(
       q.accountId,
       async (get, participantId) => {
-        const events = new Map<string, CalendarEvent>();
+        const events = new OccurrenceSet();
         const issues: CalendarIssue[] = [];
         const sources = q.myCalendar ? ["my"] : [...new Set(q.calendarIds)];
         const params = new URLSearchParams({
@@ -296,7 +304,7 @@ export class CalendarService {
                   Date.parse(e.startsAt) < Date.parse(range.end) &&
                   Date.parse(e.endsAt) > Date.parse(range.start)
                 )
-                  events.set(e.key, e);
+                  events.add(e);
               } catch {
                 invalid = true;
               }
@@ -321,7 +329,7 @@ export class CalendarService {
             });
           }
         }
-        return { events: [...events.values()], issues };
+        return { events: events.values(), issues };
       },
     );
   }

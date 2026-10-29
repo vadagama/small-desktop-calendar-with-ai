@@ -7,10 +7,7 @@ import type {
 } from "../../src/shared/calendar.js";
 import {
   CALENDAR_STORE_LIMIT,
-  adoptConfirmedEvents,
   applyCalendarResult,
-  eventFromCreatedMeeting,
-  insertCalendarEvent,
   calendarQueryKey,
   deriveCalendarView,
   pruneAffectedCalendarStore,
@@ -343,63 +340,4 @@ test("after a write only the ranges it may have touched are dropped, the renewed
     ),
     false,
   );
-});
-
-test("a created meeting is inserted once and keeps the confirmation time", () => {
-  const store = storeCalendarResult(
-    {},
-    "k",
-    result([event("event:1")], 100),
-    100,
-  );
-  const ours = eventFromCreatedMeeting(
-    {
-      title: "Synthetic new",
-      agenda: "",
-      location: "",
-      startsAt: "2026-10-29T06:00:00Z",
-      endsAt: "2026-10-29T06:30:00Z",
-      organizer: { name: "Synthetic organizer" },
-      recurrence: "none",
-    },
-    "2",
-  );
-  const added = insertCalendarEvent(store, "k", ours);
-  assert.deepEqual(
-    added.k!.events.map((e) => e.key),
-    ["event:1", "event:2"],
-  );
-  assert.equal(added.k!.fetchedAt, 100);
-  assert.equal(insertCalendarEvent(added, "k", ours), added);
-  assert.equal(insertCalendarEvent(store, "other", ours), store);
-});
-
-test("Small's version of our own event is not reported as a change", () => {
-  const guess = event("event:2", "Synthetic new");
-  const confirmed = { ...guess, participants: [] };
-  const store = insertCalendarEvent(
-    storeCalendarResult({}, "k", result([event("event:1")], 100), 100),
-    "k",
-    guess,
-  );
-  const adopted = adoptConfirmedEvents(store, "k", new Set(["event:2"]), [
-    event("event:1"),
-    confirmed,
-  ]);
-  const next = storeCalendarResult(
-    adopted,
-    "k",
-    result([event("event:1"), confirmed], 200),
-    200,
-  );
-  assert.equal(next.k!.revision, 0);
-  // Without adopting, the same read looks like a change of the event.
-  const plain = storeCalendarResult(
-    store,
-    "k",
-    result([event("event:1"), confirmed], 200),
-    200,
-  );
-  assert.equal(plain.k!.revision, 1);
-  assert.equal(adoptConfirmedEvents(store, "k", new Set(), []), store);
 });

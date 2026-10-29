@@ -1,3 +1,6 @@
+import { Reminders } from "./Reminders";
+import { Bell, Tags } from "lucide-react";
+import { AnalyticsRules } from "./AnalyticsRules";
 import {
   events,
   notifySuccess,
@@ -16,8 +19,6 @@ import { CalendarFilters } from "./CalendarFilters";
 import { EventDetails } from "./EventDetails";
 import { CalendarFreshnessBar } from "./CalendarFreshnessBar";
 import { meetingInvalidation } from "../shared/calendar-invalidation.js";
-import { eventFromCreatedMeeting } from "../shared/calendar-view-state.js";
-import type { MeetingView } from "../shared/meeting-operations.js";
 import {
   beginMove,
   classifyMoveReply,
@@ -44,6 +45,8 @@ import type { CalendarEvent, CalendarView } from "../shared/calendar.js";
 import type { SmallAuthState } from "../shared/small-auth.js";
 
 export function DesktopWorkspace() {
+  const [remindersOpen, setRemindersOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [savingTime, setSavingTime] = useState(false);
   // Moves shown at their new time while Small has not confirmed them yet.
   const [moves, setMoves] = useState<PendingMoves>({});
@@ -70,6 +73,7 @@ export function DesktopWorkspace() {
   const accountId = account?.status === "signed-in" ? account.profile.id : null;
   currentAccount.current = accountId;
   useEffect(() => {
+    setRemindersOpen(false);
     setCreating(false);
     setCreatedId(null);
     setSelected(null);
@@ -101,12 +105,15 @@ export function DesktopWorkspace() {
     const created = (event: Event) => {
       const result = (event as CustomEvent<MeetingView>).detail;
       if (result.draft.organizer.id !== currentAccount.current) return;
-      showCreated(result);
+      setCreatedId(result.eventId ?? null);
+      setDate(calendarDateAt(result.draft.startsAt));
+      calendar.setMy(true);
+      calendar.refreshAfterWrite(meetingInvalidation(result.draft));
     };
     events.addEventListener("assistant-meeting-created", created);
     return () =>
       events.removeEventListener("assistant-meeting-created", created);
-  }, [showCreated]);
+  }, [calendar.setMy, calendar.refreshAfterWrite]);
   const range = calendarRange(date, view);
   const byId = new Map<string, CalendarEvent>();
   const shownEvents = overlayMoves(calendar.events, moves);
@@ -341,6 +348,20 @@ export function DesktopWorkspace() {
         >
           <Settings2 size={19} />
         </button>
+        <button
+          aria-label="Правила тем аналитики"
+          title="Правила тем аналитики"
+          onClick={() => setRulesOpen(true)}
+        >
+          <Tags size={19} />
+        </button>
+        <button
+          aria-label="Напоминания"
+          title="Напоминания"
+          onClick={() => setRemindersOpen(true)}
+        >
+          <Bell size={19} />
+        </button>
         <SmallAccount onChange={setAccount} revision={revision} />
       </nav>
       <CalendarFilters
@@ -485,6 +506,8 @@ export function DesktopWorkspace() {
           <span>Team API · Asia/Almaty</span>
         </footer>
       </main>
+      {remindersOpen && <Reminders close={() => setRemindersOpen(false)} />}
+      {rulesOpen && <AnalyticsRules close={() => setRulesOpen(false)} />}
       {creating && account?.status === "signed-in" && (
         <NewMeeting
           key={account.profile.id}
@@ -501,7 +524,12 @@ export function DesktopWorkspace() {
           initialSlot={initialSlot ?? undefined}
           close={() => setCreating(false)}
           expired={expired}
-          created={showCreated}
+          created={(result) => {
+            setCreatedId(result.eventId ?? null);
+            setDate(calendarDateAt(result.draft.startsAt));
+            calendar.setMy(true);
+            calendar.refreshAfterWrite(meetingInvalidation(result.draft));
+          }}
         />
       )}
       {selected && selected.accountId === accountId && (
@@ -509,9 +537,7 @@ export function DesktopWorkspace() {
           key={`${selected.accountId}:${selected.event.key}`}
           accountId={selected.accountId}
           lookup={selected.event.lookup}
-          changed={(write, removed) =>
-            calendar.refreshAfterWrite(write, removed)
-          }
+          changed={(write) => calendar.refreshAfterWrite(write)}
           remote={remote}
           acknowledgeRemote={() => setRemote(null)}
           createWithPeople={(event) => {

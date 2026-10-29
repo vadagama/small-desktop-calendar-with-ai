@@ -92,66 +92,6 @@ export function applyCalendarResult(
     : { ...base, diff, revision: previous.revision + 1 };
 }
 
-/** The card of a meeting Small just confirmed, shown before the next read brings the full one. */
-export function eventFromCreatedMeeting(
-  draft: {
-    title: string;
-    agenda: string;
-    location: string;
-    startsAt: string;
-    endsAt: string;
-    organizer: { name: string };
-    recurrence: "none" | "weekly";
-  },
-  eventId: string,
-): CalendarEvent {
-  return {
-    key: `event:${eventId}`,
-    lookup: { id: eventId },
-    title: draft.title,
-    startsAt: draft.startsAt,
-    endsAt: draft.endsAt,
-    calendarIds: [],
-    participation: "organizer",
-    accepted: true,
-    organizer: draft.organizer.name,
-    description: draft.agenda,
-    location: draft.location,
-    recurring: draft.recurrence === "weekly",
-  };
-}
-
-/** Adds an event to a stored range without touching when that range was confirmed. */
-export function insertCalendarEvent(
-  store: CalendarStore,
-  key: string,
-  event: CalendarEvent,
-): CalendarStore {
-  const data = store[key];
-  if (!data || data.events.some((known) => known.key === event.key))
-    return store;
-  return { ...store, [key]: { ...data, events: [...data.events, event] } };
-}
-
-/**
- * Before a read replaces the range, Small's version of an event we inserted ourselves
- * becomes the "previous" one, so confirming our own guess does not look like a change.
- */
-export function adoptConfirmedEvents(
-  store: CalendarStore,
-  key: string,
-  ours: ReadonlySet<string>,
-  confirmed: CalendarEvent[],
-): CalendarStore {
-  const data = store[key];
-  if (!data || !ours.size) return store;
-  const theirs = new Map(confirmed.map((event) => [event.key, event]));
-  const events = data.events.map((event) =>
-    ours.has(event.key) ? (theirs.get(event.key) ?? event) : event,
-  );
-  return { ...store, [key]: { ...data, events } };
-}
-
 /** Recently viewed ranges, oldest first, so going back to one needs no loading screen. */
 export type CalendarStore = Record<string, CalendarData>;
 export const CALENDAR_STORE_LIMIT = 8;

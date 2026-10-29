@@ -4,6 +4,7 @@ import {
   calendarRange,
 } from "../shared/calendar-time.js";
 import { scheduleToolInput, type ScheduleResult } from "../shared/schedule.js";
+import { OccurrenceSet } from "../shared/occurrence-key.js";
 import type { CalendarService } from "./calendar.js";
 
 export function schedulePeriod(input: unknown, now = new Date().toISOString()) {
@@ -21,17 +22,16 @@ export function schedulePeriod(input: unknown, now = new Date().toISOString()) {
   return { from: date, to: date };
 }
 
-export async function readSchedule(
+/** Reads every week of a period once and keeps full events that intersect it. */
+export async function collectEvents(
   accountId: string,
-  input: unknown,
+  period: { from: string; to: string },
   calendar: Pick<CalendarService, "events">,
   signal: AbortSignal,
-  now?: string,
-): Promise<ScheduleResult> {
-  const period = schedulePeriod(input, now);
+) {
   const start = Date.parse(calendarRange(period.from, "day").start);
   const end = Date.parse(calendarRange(period.to, "day").end);
-  const events = new Map<string, ScheduleResult["events"][number]>();
+  const events = new OccurrenceSet();
   const issues: ScheduleResult["issues"] = [];
   for (let date = period.from; date <= period.to;) {
     signal.throwIfAborted();
@@ -45,20 +45,44 @@ export async function readSchedule(
     signal.throwIfAborted();
     issues.push(...result.issues);
     for (const event of result.events) {
-      if (
-        Date.parse(event.startsAt) < end &&
-        Date.parse(event.endsAt) > start
-      ) {
-        const { key, title, startsAt, endsAt, location, organizer } = event;
-        events.set(key, { key, title, startsAt, endsAt, location, organizer });
-      }
+      if (Date.parse(event.startsAt) < end && Date.parse(event.endsAt) > start)
+        events.add(event);
     }
     date = calendarDateAt(calendarRange(date, "week").end);
   }
-  const sorted = [...events.values()].sort(
-    (a, b) =>
-      Date.parse(a.startsAt) - Date.parse(b.startsAt) ||
-      a.key.localeCompare(b.key),
+  const sorted = events
+    .values()
+    .sort(
+      (a, b) =>
+        Date.parse(a.startsAt) - Date.parse(b.startsAt) ||
+        a.key.localeCompare(b.key),
+    );
+  return { events: sorted, issues };
+}
+
+export async function readSchedule(
+  accountId: string,
+  input: unknown,
+  calendar: Pick<CalendarService, "events">,
+  signal: AbortSignal,
+  now?: string,
+): Promise<ScheduleResult> {
+  const period = schedulePeriod(input, now);
+  const { events: all, issues } = await collectEvents(
+    accountId,
+    period,
+    calendar,
+    signal,
+  );
+  const sorted = all.map(
+    ({ key, title, startsAt, endsAt, location, organizer }) => ({
+      key,
+      title,
+      startsAt,
+      endsAt,
+      location,
+      organizer,
+    }),
   );
   if (sorted.length > 200)
     issues.push({

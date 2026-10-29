@@ -357,3 +357,82 @@ test("calendar updates and replies send JSON bodies once without replaying an un
   assert.deepEqual(received[1]?.body, { status: "accepted" });
   assert.equal(f.refreshes(), 0);
 });
+
+test("series writes are validated, sent once with exact routes and never replayed on 401", async () => {
+  const f = setup();
+  await f.auth.login(login);
+  const received: {
+    path: string;
+    method: string | undefined;
+    body: unknown;
+  }[] = [];
+  const original = f.transport.request;
+  f.transport.request = async (path, init) => {
+    if (init.method === "POST" || init.method === "PUT") {
+      received.push({
+        path,
+        method: init.method,
+        body: JSON.parse(String(init.body)),
+      });
+      return new Response(null, { status: 401 });
+    }
+    return original(path, init);
+  };
+  const body = {
+    title: "Серия",
+    description: "",
+    location: "",
+    starts_at: "2099-10-29T09:00:00+05:00",
+    ends_at: "2099-10-29T10:00:00+05:00",
+    timezone: "Asia/Almaty",
+    is_recurring: true as const,
+    recurrence_rule: { FREQ: "WEEKLY", BYDAY: ["TH"], UNTIL: "2099-12-31" },
+    recurrence_type: "custom" as const,
+    recurring_edit_type: "all-next" as const,
+    is_public: false,
+    calendar_ids: [],
+    participant_ids: ["employee-a"],
+    notification_recipient_ids: [],
+    attachments: [],
+  };
+  await f.auth.materializeCalendarEvent("employee-a", "43", "2099-10-29");
+  await f.auth.updateSeriesCalendarEvent("employee-a", "900", body);
+  await f.auth.cancelCalendarEvent("employee-a", "900", "Отмена");
+  assert.deepEqual(
+    received.map((r) => [r.method, r.path]),
+    [
+      ["POST", "/gate/team/api/calendar/events/from-template"],
+      ["PUT", "/gate/team/api/calendar/events/900?force=false"],
+      ["POST", "/gate/team/api/calendar/events/900/cancel"],
+    ],
+  );
+  assert.deepEqual(received[0]?.body, {
+    original_event_id: "43",
+    date: "2099-10-29",
+  });
+  assert.deepEqual(received[1]?.body, body);
+  assert.deepEqual(received[2]?.body, { reason: "Отмена" });
+  assert.equal(f.refreshes(), 0);
+  const before = received.length;
+  for (const bad of [
+    () => f.auth.materializeCalendarEvent("employee-a", "a/b", "2099-10-29"),
+    () => f.auth.materializeCalendarEvent("employee-a", "43", "tomorrow"),
+    () => f.auth.updateSeriesCalendarEvent("employee-a", "9/0", body),
+    () =>
+      f.auth.updateSeriesCalendarEvent("employee-a", "900", {
+        ...body,
+        is_recurring: false,
+      } as never),
+    () =>
+      f.auth.updateSeriesCalendarEvent("employee-a", "900", {
+        ...body,
+        recurring_edit_type: "all",
+      } as never),
+    () => f.auth.cancelCalendarEvent("employee-a", "900", ""),
+    () => f.auth.cancelCalendarEvent("employee-a", "../x", "r"),
+    () => f.auth.cancelCalendarEvent("other-account", "900", "r"),
+    () => f.auth.materializeCalendarEvent("other-account", "43", "2099-10-29"),
+  ])
+    await assert.rejects(bad());
+  assert.equal(received.length, before);
+});

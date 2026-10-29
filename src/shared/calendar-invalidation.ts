@@ -11,6 +11,22 @@ export interface EventInvalidation {
 }
 
 const FAR_FUTURE = "9999-12-31T00:00:00.000Z";
+/** Every range there can be: for writes whose affected times cannot be named. */
+export const ANY_TIME: TimeWindow = {
+  start: "1970-01-01T00:00:00.000Z",
+  end: FAR_FUTURE,
+};
+
+/** A series operation may touch any occurrence, so it touches every range holding the series. */
+export const seriesInvalidation = (
+  event: Pick<CalendarEvent, "lookup" | "originalEventId">,
+): EventInvalidation => ({
+  eventIds: [
+    event.originalEventId ??
+      ("id" in event.lookup ? event.lookup.id : event.lookup.originalEventId),
+  ],
+  windows: [ANY_TIME],
+});
 
 /** A recurring meeting appears in every later range, not only around its first date. */
 export const recurringWindow = (start: string): TimeWindow => ({
@@ -43,22 +59,25 @@ function overlaps(range: TimeWindow, window: TimeWindow) {
   return rangeStart < windowEnd && windowStart < rangeEnd;
 }
 
-/** An occurrence of a series belongs to its original event. */
+/** An occurrence of a series belongs to its original event, however it was reported. */
 export function eventMatches(
-  event: Pick<CalendarEvent, "key" | "lookup">,
+  event: Pick<CalendarEvent, "key" | "lookup" | "originalEventId">,
   eventIds: string[],
 ) {
   const own =
     "id" in event.lookup ? event.lookup.id : event.lookup.originalEventId;
   return (
-    eventIds.includes(own) || eventIds.some((id) => event.key === `event:${id}`)
+    eventIds.includes(own) ||
+    (event.originalEventId !== undefined &&
+      eventIds.includes(event.originalEventId)) ||
+    eventIds.some((id) => event.key === `event:${id}`)
   );
 }
 
 /** `range: null` means the span of the cached range is unknown, so it is affected. */
 export function invalidationAffects(
   range: TimeWindow | null,
-  events: Pick<CalendarEvent, "key" | "lookup">[],
+  events: Pick<CalendarEvent, "key" | "lookup" | "originalEventId">[],
   match: EventInvalidation,
 ) {
   if (!range) return true;

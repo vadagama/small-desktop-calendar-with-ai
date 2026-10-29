@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { CalendarEvent } from "../../src/shared/calendar.js";
 import {
+  ANY_TIME,
   eventMatches,
   invalidationAffects,
   meetingInvalidation,
   recurringWindow,
+  seriesInvalidation,
 } from "../../src/shared/calendar-invalidation.js";
 
 type Ref = Pick<CalendarEvent, "key" | "lookup">;
@@ -141,4 +143,42 @@ test("a new meeting touches its own span, a weekly one every later range", () =>
     ),
     false,
   );
+});
+
+test("a series is matched by the original event the calendar reports, wherever its key points", () => {
+  const reported = {
+    key: "series:9:111",
+    lookup: { originalEventId: "9", date: "2026-10-29" },
+  };
+  assert.equal(eventMatches(reported, ["9"]), true);
+  // A materialized occurrence has its own id but names the series it belongs to.
+  const materialized = {
+    key: "event:50",
+    lookup: { id: "50" },
+    originalEventId: "9",
+  };
+  assert.equal(eventMatches(materialized, ["9"]), true);
+  assert.equal(eventMatches(materialized, ["50"]), true);
+  assert.equal(eventMatches(materialized, ["51"]), false);
+});
+
+test("a series operation touches every range that holds the series, at any time", () => {
+  const target = seriesInvalidation({
+    lookup: { id: "50" },
+    originalEventId: "9",
+  });
+  assert.deepEqual(target.eventIds, ["9"]);
+  assert.deepEqual(target.windows, [ANY_TIME]);
+  const fromOccurrence = seriesInvalidation({
+    lookup: { originalEventId: "9", date: "2026-10-29" },
+  });
+  assert.deepEqual(fromOccurrence.eventIds, ["9"]);
+  const plain = seriesInvalidation({ lookup: { id: "7" } });
+  assert.deepEqual(plain.eventIds, ["7"]);
+  for (const range of [
+    { start: "1999-01-04T00:00:00Z", end: "1999-01-11T00:00:00Z" },
+    { start: "2026-10-26T00:00:00Z", end: "2026-11-02T00:00:00Z" },
+    { start: "2300-01-01T00:00:00Z", end: "2300-01-08T00:00:00Z" },
+  ])
+    assert.equal(invalidationAffects(range, [], target), true);
 });

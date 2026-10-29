@@ -2,6 +2,10 @@ import { EventAgenda } from "./EventAgenda.js";
 import { meetingLink } from "../shared/meeting-link.js";
 import { notifySuccess, notifyError } from "./notification-events.js";
 import { EventChangeForm } from "./EventChangeForm.js";
+import {
+  SeriesScopeDialog,
+  type SeriesDialogOperation,
+} from "./SeriesScopeDialog.js";
 import { useEffect, useRef, useState } from "react";
 import {
   X,
@@ -11,12 +15,17 @@ import {
   Link as LinkIcon,
   Pencil,
   Trash2,
+  CalendarClock,
   CalendarPlus,
   Check,
   HelpCircle,
 } from "lucide-react";
 import type { CalendarEvent, EventLookup } from "../shared/calendar.js";
 import type { EventInvalidation } from "../shared/calendar-invalidation.js";
+import {
+  seriesInvalidation,
+  type EventInvalidation,
+} from "../shared/calendar-invalidation.js";
 import {
   calendarDateAt,
   calendarToday,
@@ -37,7 +46,7 @@ export function EventDetails({
   lookup: EventLookup;
   close: () => void;
   expired: () => void;
-  changed?: (write: EventInvalidation, removed?: boolean) => void;
+  changed?: (write: EventInvalidation) => void;
   /** What happened to this event on the server while the card was open. */
   remote?: "changed" | "missing" | null;
   acknowledgeRemote?: () => void;
@@ -59,6 +68,8 @@ export function EventDetails({
   const [allPeople, setAllPeople] = useState(false);
   const [editing, setEditing] = useState<"rename" | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [seriesOperation, setSeriesOperation] =
+    useState<SeriesDialogOperation | null>(null);
   const deletePending = useRef(false);
   function positionMenu() {
     const popup = menuPopup.current;
@@ -183,7 +194,7 @@ export function EventDetails({
       });
       if (reply.ok) {
         notifySuccess("Событие успешно удалено");
-        changed?.({ eventIds: [event.lookup.id], windows: [] }, true);
+        changed?.({ eventIds: [event.lookup.id], windows: [] });
         close();
       } else {
         notifyError("удалить событие", reply.kind);
@@ -269,12 +280,27 @@ export function EventDetails({
                     <button
                       disabled={gone}
                       onClick={() => {
-                        setEditing("rename");
+                        if (event.recurring === true)
+                          setSeriesOperation("rename");
+                        else setEditing("rename");
                         menu.current!.open = false;
                       }}
                     >
                       <Pencil size={18} />
                       Редактировать
+                    </button>
+                  )}
+                {event.recurring === true &&
+                  event.participation === "organizer" &&
+                  calendarDateAt(event.startsAt) >= calendarToday() && (
+                    <button
+                      onClick={() => {
+                        setSeriesOperation("move");
+                        menu.current!.open = false;
+                      }}
+                    >
+                      <CalendarClock size={18} />
+                      Перенести
                     </button>
                   )}
                 {createWithPeople && (
@@ -295,7 +321,12 @@ export function EventDetails({
                     <button
                       className="danger-text"
                       disabled={deleting || gone}
-                      onClick={() => void deleteEvent()}
+                      onClick={() => {
+                        if (event.recurring === true) {
+                          setSeriesOperation("delete");
+                          menu.current!.open = false;
+                        } else void deleteEvent();
+                      }}
                     >
                       <Trash2 size={18} />
                       Удалить
@@ -465,6 +496,23 @@ export function EventDetails({
             />
           )}
         </div>
+      )}
+      {event && seriesOperation && (
+        <SeriesScopeDialog
+          key={`${event.key}:${seriesOperation}`}
+          accountId={accountId}
+          event={event}
+          operation={seriesOperation}
+          expired={expired}
+          close={() => setSeriesOperation(null)}
+          done={() => {
+            const removed = seriesOperation === "delete";
+            setSeriesOperation(null);
+            changed?.(seriesInvalidation(event));
+            if (removed) close();
+            else setRetry((value) => value + 1);
+          }}
+        />
       )}
       {event && event.participation === "invited" && "id" in event.lookup && (
         <footer className="event-rsvp">

@@ -1,15 +1,9 @@
 import { startTransition, useEffect, useRef, useState } from "react";
-import type {
-  CalendarEvent,
-  CalendarView,
-  SmallCalendar,
-} from "../shared/calendar.js";
+import type { CalendarView, SmallCalendar } from "../shared/calendar.js";
 import { isEmptyDiff } from "../shared/calendar-diff.js";
 import type { EventInvalidation } from "../shared/calendar-invalidation.js";
 import {
-  adoptConfirmedEvents,
   calendarQueryKey,
-  insertCalendarEvent,
   deriveCalendarView,
   pruneAffectedCalendarStore,
   sameCalendarQuery,
@@ -29,13 +23,6 @@ export function useSmallCalendar(
   // A manual refresh or a reload after a write must reach Small; navigation may use the cache.
   const forced = useRef(false);
   const refreshedAt = useRef(0);
-  // Events this session inserted itself after Small confirmed a create, until a read returns them.
-  const ownEvents = useRef(new Set<string>());
-  const takeOwnEvents = (confirmed: { key: string }[]) => {
-    const mine = new Set(ownEvents.current);
-    for (const event of confirmed) ownEvents.current.delete(event.key);
-    return mine;
-  };
   // Only the user's own refresh asks Small for the calendar list again; a write cannot change it.
   const manual = useRef(false);
   const [selection, setSelection] = useState<{
@@ -112,14 +99,8 @@ export function useSmallCalendar(
         if (!active) return;
         if (!reply.ok && reply.kind === "auth") expired();
         if (reply.ok) {
-          const mine = takeOwnEvents(reply.data.events);
           setStore((previous) =>
-            storeCalendarResult(
-              adoptConfirmedEvents(previous, key, mine, reply.data.events),
-              key,
-              reply.data,
-              Date.now(),
-            ),
+            storeCalendarResult(previous, key, reply.data, Date.now()),
           );
           setFailure(null);
         } else setFailure({ key, message: reply.error });
@@ -150,15 +131,9 @@ export function useSmallCalendar(
       }
       if (!sameCalendarQuery(change.query, { accountId, date, view, my, ids }))
         return;
-      const mine = takeOwnEvents(change.result.events);
       const apply = () => {
         setStore((previous) =>
-          storeCalendarResult(
-            adoptConfirmedEvents(previous, key, mine, change.result.events),
-            key,
-            change.result,
-            Date.now(),
-          ),
+          storeCalendarResult(previous, key, change.result, Date.now()),
         );
         setFailure(null);
       };
@@ -168,26 +143,9 @@ export function useSmallCalendar(
     });
     // key includes every query field, so the closure above always matches it.
   }, [accountId, key, expired]);
-  const renew = (write?: EventInvalidation, removed = false) => {
+  const renew = (write?: EventInvalidation) => {
     forced.current = true;
     refreshedAt.current = Date.now();
-    // Small already confirmed the delete: take the event off the screen at once and let the
-    // renewal below only reconcile, instead of waiting for the network.
-    if (write && removed) {
-      const gone = new Set(write.eventIds);
-      startTransition(() =>
-        setStore((previous) => {
-          const data = previous[key];
-          if (!data) return previous;
-          const events = data.events.filter(
-            (event) => !("id" in event.lookup && gone.has(event.lookup.id)),
-          );
-          return events.length === data.events.length
-            ? previous
-            : { ...previous, [key]: { ...data, events } };
-        }),
-      );
-    }
     if (write)
       setStore((previous) => pruneAffectedCalendarStore(previous, key, write));
     setReload((value) => value + 1);
@@ -215,16 +173,8 @@ export function useSmallCalendar(
       manual.current = true;
       renew();
     },
-    /** Shows a meeting Small just created at once; the renewal after the write confirms it. */
-    addEvent: (event: CalendarEvent) => {
-      ownEvents.current.add(event.key);
-      startTransition(() =>
-        setStore((previous) => insertCalendarEvent(previous, key, event)),
-      );
-    },
     /** Renews the current range and forgets the other ranges the write may have changed. */
-    refreshAfterWrite: (write: EventInvalidation, removed = false) =>
-      renew(write, removed),
+    refreshAfterWrite: (write: EventInvalidation) => renew(write),
     setMy: (next: boolean) => setSelection({ accountId, my: next, ids }),
     toggle: (id: string) =>
       setSelection({

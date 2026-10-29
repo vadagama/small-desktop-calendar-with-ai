@@ -32,6 +32,7 @@ export const slotsToolInput = z.strictObject({
 });
 export type CalendarToolResult = CalendarReply<
   | import("./schedule.js").ScheduleResult
+  | import("./analytics.js").AnalyticsResult
   | PeoplePage
   | SlotsResult
   | MeetingDraft

@@ -53,6 +53,8 @@ const participant = z.strictObject({
 const calendarEvent = z.strictObject({
   participants: z.array(participant).optional(),
   recurring: z.boolean().optional(),
+  originalEventId: z.string().optional(),
+  aliases: z.array(z.string()).optional(),
   key: z.string(),
   lookup: z.union([
     z.strictObject({ id: z.string() }),
@@ -363,7 +365,12 @@ export class EventCache {
       } catch {
         // An unreadable key leaves the range unknown, which counts as affected.
       }
-      return invalidationAffects(range, events.data.events, match);
+      // zod reports optional fields as `| undefined`, which the shared type forbids.
+      return invalidationAffects(
+        range,
+        events.data.events as CalendarEvent[],
+        match,
+      );
     };
     for (const [id, entry] of [...this.memory]) {
       const [owner, kind, key] = id.split("\0");

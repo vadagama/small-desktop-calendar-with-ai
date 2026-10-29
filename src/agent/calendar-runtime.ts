@@ -41,6 +41,7 @@ export async function streamCalendarTurn(
   const runTool: CalendarToolExecutor = async (name, input) => {
     const skills: Record<string, string> = {
       listMeetings: "schedule",
+      meetingAnalytics: "analytics",
       searchPeople: "people-search",
       selectParticipants: "people-search",
       participantMemory: "people-search",
@@ -68,6 +69,9 @@ export async function streamCalendarTurn(
       ...(enabled.some((s) => s.id === "schedule")
         ? ["listMeetings" as const]
         : []),
+      ...(enabled.some((s) => s.id === "analytics")
+        ? ["meetingAnalytics" as const]
+        : []),
       ...(enabled.some((s) => s.id === "people-search")
         ? [
             "searchPeople" as const,
@@ -91,6 +95,12 @@ export async function streamCalendarTurn(
           "Прочитать мои встречи за весь сегодняшний/завтрашний день, текущую/следующую неделю или период до 31 дня (custom, from/to включительно). Включает прошедшие часы дня и выходные. Результат изложи кратко по дням в Markdown; при complete=false явно сообщи о неполноте.",
         inputSchema: scheduleToolInput,
         execute: (input) => runTool("listMeetings", input),
+      }),
+      meetingAnalytics: tool({
+        description:
+          "Подсчитать мои встречи за период (today, tomorrow, this-week, next-week или custom от from до to включительно, до 31 дня): количество, часы, регулярные, разбивки и состав отчёта. Все числа считает инструмент; сообщай только их, не пересчитывай и не выдумывай темы, команды и отмены. При complete=false явно скажи, что итог частичный.",
+        inputSchema: scheduleToolInput,
+        execute: (input) => runTool("meetingAnalytics", input),
       }),
       loadReference: tool({
         description:

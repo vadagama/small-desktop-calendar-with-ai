@@ -11,6 +11,10 @@ export interface CalendarEvent {
     organizer: boolean;
   }[];
   recurring?: boolean;
+  /** Series the occurrence belongs to, when the calendar reports it. */
+  originalEventId?: string;
+  /** Other identities of the same occurrence (see occurrence-key.ts); the key itself never changes. */
+  aliases?: string[];
   key: string;
   lookup: EventLookup;
   title: string;

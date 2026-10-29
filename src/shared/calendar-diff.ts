@@ -52,6 +52,8 @@ export function eventFingerprint(event: CalendarEvent): string {
     event.description,
     event.location,
     event.recurring ?? null,
+    event.originalEventId ?? null,
+    [...(event.aliases ?? [])].sort(byText),
     event.participants
       ? [...event.participants]
           .sort((a, b) => byText(a.id, b.id))

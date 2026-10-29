@@ -1,4 +1,5 @@
 import { eventUpdateBody, type EventUpdateBody } from "./event-reschedule.js";
+import { seriesUpdateBody, type SeriesUpdateBody } from "./series-adapter.js";
 import { attachmentPath, isAttachmentUpload } from "./attachment-request.js";
 import { meetingCreateBody, meetingCreatePath } from "./meeting-request.js";
 import { z } from "zod";
@@ -320,6 +321,87 @@ export class SmallAuth {
         body.data,
       );
     });
+  }
+  /**
+   * Series writes (T13). One attempt, never replayed. The trusted transport does not allow
+   * these routes until the series contract is verified, so today they fail before sending.
+   */
+  private seriesWrite(
+    accountId: string,
+    path: string,
+    method: "POST" | "PUT",
+    body: unknown,
+  ): Promise<Response> {
+    const version = this.version;
+    return this.run(async () => {
+      const state = await this.current();
+      if (
+        version !== this.version ||
+        state.status !== "signed-in" ||
+        state.profile.id !== accountId
+      )
+        throw new SmallAuthError("Изменился аккаунт Small.", "auth");
+      return this.request(path, method, body);
+    });
+  }
+  /** Field names of the from-template body come from the client bundle and are unconfirmed (A2). */
+  materializeCalendarEvent(
+    accountId: string,
+    originalEventId: string,
+    date: string,
+  ): Promise<Response> {
+    const parsed = z
+      .strictObject({
+        original_event_id: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .safeParse({ original_event_id: originalEventId, date });
+    if (!parsed.success)
+      return Promise.reject(
+        new SmallAuthError("Некорректное вхождение серии."),
+      );
+    return this.seriesWrite(
+      accountId,
+      "/gate/team/api/calendar/events/from-template",
+      "POST",
+      parsed.data,
+    );
+  }
+  updateSeriesCalendarEvent(
+    accountId: string,
+    eventId: string,
+    input: SeriesUpdateBody,
+  ): Promise<Response> {
+    const body = seriesUpdateBody.safeParse(input);
+    if (!body.success || !/^[A-Za-z0-9_-]{1,128}$/.test(eventId))
+      return Promise.reject(
+        new SmallAuthError("Некорректное изменение встречи."),
+      );
+    return this.seriesWrite(
+      accountId,
+      `/gate/team/api/calendar/events/${eventId}?force=false`,
+      "PUT",
+      body.data,
+    );
+  }
+  /** The `reason` body is taken from the client bundle and is unconfirmed (A7). */
+  cancelCalendarEvent(
+    accountId: string,
+    eventId: string,
+    reason: string,
+  ): Promise<Response> {
+    if (
+      !/^[A-Za-z0-9_-]{1,128}$/.test(eventId) ||
+      !reason ||
+      reason.length > 500
+    )
+      return Promise.reject(new SmallAuthError("Некорректная отмена встречи."));
+    return this.seriesWrite(
+      accountId,
+      `/gate/team/api/calendar/events/${eventId}/cancel`,
+      "POST",
+      { reason },
+    );
   }
   uploadAttachment(accountId: string, body: FormData): Promise<Response> {
     const version = this.version;

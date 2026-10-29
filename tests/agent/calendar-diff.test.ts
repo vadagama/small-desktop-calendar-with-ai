@@ -148,3 +148,14 @@ test("an event that reappears with the same data is not reported as changed", ()
   );
   assert.ok(isEmptyDiff(diff));
 });
+
+test("the series identity is part of what makes two events the same", () => {
+  const base = eventFingerprint(event());
+  assert.notEqual(base, eventFingerprint(event({ originalEventId: "9" })));
+  assert.notEqual(base, eventFingerprint(event({ aliases: ["series:9:1"] })));
+  // The order in which aliases were reported does not matter.
+  assert.equal(
+    eventFingerprint(event({ aliases: ["a", "b"] })),
+    eventFingerprint(event({ aliases: ["b", "a"] })),
+  );
+});

@@ -80,8 +80,7 @@ test("when Small stops answering the data stays on screen with a warning, and re
       .locator(".calendar-event")
       .filter({ hasText: "Устойчивая встреча" });
     const bar = page.locator(".calendar-freshness");
-    // While everything works the panel is not shown at all.
-    await expect(bar).toHaveCount(0);
+    await expect(bar).toContainText("Обновлено");
     await serve(app, 503);
     await expect(bar).toContainText("Нет связи с Small. Данные на");
     await expect(bar).toHaveAttribute("role", "status");
@@ -89,8 +88,8 @@ test("when Small stops answering the data stays on screen with a warning, and re
     await expect(card).toContainText("09:00 – 09:30");
     await expect(page.getByText("Загружаю календарь Small…")).toHaveCount(0);
     await serve(app, null);
-    // Contact is back: the warning goes away on its own.
-    await expect(bar).toHaveCount(0);
+    await expect(bar).toContainText("Обновлено");
+    await expect(bar).not.toContainText("Нет связи");
     await expect(card).toContainText("09:00 – 09:30");
   });
 });

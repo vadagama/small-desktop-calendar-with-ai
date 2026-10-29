@@ -549,3 +549,19 @@ test("temporary files left by a crash are removed once they are old", async () =
     assert.equal(left.includes("y.json.recent.tmp"), true);
   });
 });
+
+test("events that carry the series identity the calendar reports are cached, not refused", async () => {
+  await withCache(async ({ open }) => {
+    const reported: CalendarEvent = {
+      ...event("event:50"),
+      originalEventId: "9",
+      aliases: ["series:9:111", "event:50"],
+    };
+    const cache = open();
+    assert.equal(await cache.putEvents("a", "k", complete(reported)), true);
+    assert.deepEqual((await open().getEvents("a", "k"))?.events, [reported]);
+    // A range holding an occurrence of series 9 is dropped when series 9 is written.
+    await cache.invalidateEvents("a", { eventIds: ["9"], windows: [] });
+    assert.equal(await open().getEvents("a", "k"), null);
+  });
+});

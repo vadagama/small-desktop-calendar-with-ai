@@ -107,7 +107,7 @@ test("the calendar list and people search come from the cache until the user ref
     // The user's own refresh does.
     await page.getByRole("button", { name: "Обновить", exact: true }).click();
     await expect.poll(async () => (await counts()).calendars).toBe(2);
-    await page.getByRole("button", { name: "Обновить", exact: true }).click();
+    await page.getByRole("button", { name: "Обновить календарь" }).click();
     await expect.poll(async () => (await counts()).calendars).toBe(3);
 
     // Signing out and in again forgets everything.
