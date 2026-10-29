@@ -7,6 +7,8 @@ import {
 } from "../../src/main/series-backend.js";
 import { SmallAuthError } from "../../src/main/small-auth.js";
 import type { CalendarEvent } from "../../src/shared/calendar.js";
+import { occurrenceAliases } from "../../src/shared/occurrence-key.js";
+import { legacyOccurrenceKey } from "../../src/shared/series-scope.js";
 
 const event = (
   patch: Partial<CalendarEvent> & { key: string },
@@ -304,4 +306,68 @@ test("a local refusal is reported as never sent, while a network failure stays u
     failing.materialize("acc", "43", "2026-11-05"),
     /network/,
   );
+});
+
+const seriesView = (
+  id: string | null,
+  startsAt: string,
+  series = "43",
+): CalendarEvent =>
+  event({
+    key: id ? `event:${id}` : legacyOccurrenceKey(series, startsAt),
+    lookup: id
+      ? { id }
+      : { originalEventId: series, date: startsAt.slice(0, 10) },
+    originalEventId: series,
+    recurring: true,
+    startsAt,
+    endsAt: new Date(Date.parse(startsAt) + 3600000).toISOString(),
+    aliases: occurrenceAliases({ seriesId: series, id, startsAt }),
+  });
+const window = (events: CalendarEvent[]) =>
+  new SmallSeriesBackend(session().value, calendarWith(events)).window(
+    "acc",
+    "43",
+    "2026-10-29",
+    "2026-11-30",
+  );
+
+test("the window shows one view per occurrence: the materialized one replaces the virtual one", async () => {
+  for (const order of [0, 1]) {
+    const views = [
+      seriesView(null, "2026-11-05T05:00:00Z"),
+      seriesView("900", "2026-11-05T09:00:00Z"),
+    ];
+    const { views: result } = await window(order ? views.reverse() : views);
+    assert.deepEqual(
+      result.map((v) => [v.key, v.eventId, v.startsAt]),
+      [["series:43:2026-11-05", "900", "2026-11-05T09:00:00Z"]],
+    );
+  }
+});
+
+test("views are ordered by time, other series stay out and separate events are all kept", async () => {
+  const { views, complete } = await window([
+    seriesView("901", "2026-11-12T05:00:00Z"),
+    seriesView(null, "2026-11-05T05:00:00Z"),
+    seriesView(null, "2026-11-05T05:00:00Z", "77"),
+    seriesView("902", "2026-11-12T05:00:00Z"),
+  ]);
+  assert.equal(complete, true);
+  assert.deepEqual(
+    views.map((v) => [v.startsAt, v.eventId ?? null]),
+    [
+      ["2026-11-05T05:00:00Z", null],
+      ["2026-11-12T05:00:00Z", "901"],
+      ["2026-11-12T05:00:00Z", "902"],
+    ],
+  );
+});
+
+test("an occurrence moved to another day stays a separate view", async () => {
+  const { views } = await window([
+    seriesView(null, "2026-11-05T05:00:00Z"),
+    seriesView("900", "2026-11-06T05:00:00Z"),
+  ]);
+  assert.equal(views.length, 2);
 });
