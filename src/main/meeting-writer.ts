@@ -1,3 +1,5 @@
+import { meetingOccurrences } from "./meeting-occurrences.js";
+import { recurrenceRule } from "../shared/meeting-options.js";
 import { z } from "zod";
 import type { MeetingDraft } from "../shared/meeting-draft.js";
 import { calendarDateAt } from "../shared/calendar-time.js";
@@ -26,6 +28,10 @@ const detail = z.object({
     ends_at: z.iso.datetime({ offset: true }),
     is_public: z.boolean(),
     is_recurring: z.boolean(),
+    calendar_ids: z.array(id).optional(),
+    notification_recipients: z.array(z.object({ id })).optional(),
+    attachments: z.array(z.object({ id })).optional(),
+    recurrence_rule: recurrenceRule.nullish(),
     participants: z.array(z.object({ id })).max(100),
   }),
 });
@@ -45,11 +51,16 @@ export class SmallMeetingWriter implements MeetingWriter {
     });
   }
   async preflight(d: MeetingDraft) {
+    for (const occurrence of meetingOccurrences(d))
+      await this.checkOccurrence(occurrence);
+  }
+  private async checkOccurrence(d: MeetingDraft) {
     const available = await this.availability.find({
       accountId: d.organizer.id,
       participantIds: d.participantIds,
       date: calendarDateAt(d.startsAt),
       durationMinutes: d.durationMinutes,
+      ...(d.options ? { includeWeekends: true } : {}),
     });
     if (
       !available.slots.some(
@@ -62,6 +73,27 @@ export class SmallMeetingWriter implements MeetingWriter {
         "invalid",
         "Время больше не свободно. Подготовьте новый черновик.",
       );
+    if (d.options?.calendarIds.length) {
+      const rooms = await this.calendar.events({
+        accountId: d.organizer.id,
+        date: calendarDateAt(d.startsAt),
+        view: "day",
+        myCalendar: false,
+        calendarIds: d.options.calendarIds.map(String),
+      });
+      if (
+        rooms.issues.length ||
+        rooms.events.some(
+          (e) =>
+            Date.parse(e.startsAt) < Date.parse(d.endsAt) &&
+            Date.parse(e.endsAt) > Date.parse(d.startsAt),
+        )
+      )
+        throw new CalendarError(
+          "invalid",
+          "Переговорная занята или её доступность не подтверждена.",
+        );
+    }
     const events = await this.events(d);
     if (events.issues.length)
       throw new CalendarError(
@@ -110,7 +142,19 @@ export class SmallMeetingWriter implements MeetingWriter {
       Date.parse(e.starts_at) === Date.parse(d.startsAt) &&
       Date.parse(e.ends_at) === Date.parse(d.endsAt) &&
       !e.is_public &&
-      !e.is_recurring &&
+      e.is_recurring === expected.is_recurring &&
+      (!expected.is_recurring ||
+        JSON.stringify(e.recurrence_rule) ===
+          JSON.stringify(expected.recurrence_rule)) &&
+      (!d.options ||
+        (JSON.stringify((e.calendar_ids ?? []).sort()) ===
+          JSON.stringify(d.options.calendarIds.map(String).sort()) &&
+          JSON.stringify(
+            (e.notification_recipients ?? []).map((p) => p.id).sort(),
+          ) ===
+            JSON.stringify([...d.options.notificationRecipientIds].sort()) &&
+          JSON.stringify((e.attachments ?? []).map((p) => p.id).sort()) ===
+            JSON.stringify([...d.options.attachmentIds].sort()))) &&
       JSON.stringify(e.participants.map((p) => p.id).sort()) ===
         JSON.stringify([...d.participantIds].sort())
     );

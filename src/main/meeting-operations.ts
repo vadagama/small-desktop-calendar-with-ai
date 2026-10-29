@@ -1,3 +1,4 @@
+import { CalendarError } from "./calendar.js";
 import { createHash } from "node:crypto";
 import {
   meetingDraftSchema,
@@ -140,7 +141,7 @@ export class MeetingOperations {
       });
       entry.phase = "succeeded";
       entry.message = "Встреча создана и проверена.";
-    } catch {
+    } catch (error) {
       // Even a failed durable claim can have left a file. Never proceed without certainty.
       if (claimed || journalAccess) {
         entry.phase = "unknown";
@@ -163,7 +164,9 @@ export class MeetingOperations {
       } else {
         entry.phase = "preview";
         entry.message =
-          "Отправка не выполнена. Проверьте доступ, конфликты и журнал перед новой попыткой.";
+          error instanceof CalendarError
+            ? error.message
+            : "Отправка не выполнена. Проверьте доступ, конфликты и журнал перед новой попыткой.";
       }
     }
     return structuredClone(entry);
