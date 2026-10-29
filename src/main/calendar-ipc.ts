@@ -5,6 +5,13 @@ import { calendarChannels, type CalendarReply } from "../shared/calendar.js";
 import { CalendarError, type CalendarService } from "./calendar.js";
 import { SmallAuthError } from "./small-auth.js";
 import type { AvailabilityService } from "./availability.js";
+import type { CalendarSync } from "./calendar-sync.js";
+import type { CachedCatalog } from "./calendar-catalog.js";
+import {
+  eventTarget,
+  rescheduleTarget,
+  type WriteTarget,
+} from "./write-target.js";
 
 export function registerCalendarHandlers(
   service: CalendarService,
@@ -12,7 +19,23 @@ export function registerCalendarHandlers(
   availability: AvailabilityService,
   changes: EventChangeService,
   reschedules: EventRescheduleService,
+  sync: CalendarSync,
+  catalog: CachedCatalog,
 ) {
+  // Whatever the outcome (success, refusal or unknown), Small's state may now
+  // differ from the cached copy.
+  const written =
+    <T>(
+      action: (input: unknown) => Promise<T>,
+      target: (input: unknown) => WriteTarget | null,
+    ) =>
+    async (input: unknown) => {
+      try {
+        return await action(input);
+      } finally {
+        await sync.invalidate(target(input) ?? undefined);
+      }
+    };
   const handle = <T>(
     channel: string,
     action: (input: unknown) => Promise<T>,
@@ -31,6 +54,9 @@ export function registerCalendarHandlers(
         } catch (error) {
           return {
             ok: false,
+            ...(error instanceof CalendarError && error.unknownOutcome
+              ? { unknownOutcome: true as const }
+              : {}),
             kind:
               error instanceof CalendarError
                 ? error.kind
@@ -46,7 +72,10 @@ export function registerCalendarHandlers(
       },
     );
   };
-  handle(calendarChannels.respond, (input) => reschedules.respond(input));
+  handle(
+    calendarChannels.respond,
+    written((input) => reschedules.respond(input), eventTarget),
+  );
   const httpsLink = (input: unknown) => {
     if (typeof input !== "string" || input.length > 4000)
       throw new CalendarError("invalid", "Некорректная ссылка.");
@@ -61,14 +90,18 @@ export function registerCalendarHandlers(
   handle(calendarChannels.copyLink, async (input) => {
     clipboard.writeText(httpsLink(input));
   });
-  handle(calendarChannels.reschedule, (input) => reschedules.reschedule(input));
-  handle(calendarChannels.applyChange, (input) =>
-    reschedules.applyChange(input),
+  handle(
+    calendarChannels.reschedule,
+    written((input) => reschedules.reschedule(input), rescheduleTarget),
+  );
+  handle(
+    calendarChannels.applyChange,
+    written((input) => reschedules.applyChange(input), eventTarget),
   );
   handle(calendarChannels.previewChange, (input) => changes.preview(input));
-  handle(calendarChannels.calendars, (input) => service.calendars(input));
-  handle(calendarChannels.events, (input) => service.events(input));
+  handle(calendarChannels.calendars, (input) => catalog.calendars(input));
+  handle(calendarChannels.events, (input) => sync.read(input));
   handle(calendarChannels.detail, (input) => service.detail(input));
-  handle(calendarChannels.people, (input) => service.searchPeople(input));
+  handle(calendarChannels.people, (input) => catalog.searchPeople(input));
   handle(calendarChannels.slots, (input) => availability.find(input));
 }

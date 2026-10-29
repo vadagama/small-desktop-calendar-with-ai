@@ -22,7 +22,7 @@ import {
   weekStart,
 } from "./calendar";
 import type { DataState, Meeting, View, Slot } from "./types";
-import { useEffect, useRef, useState } from "react";
+import { ViewTransition, useEffect, useRef, useState } from "react";
 interface Props {
   date: string;
   setDate: (date: string) => void;
@@ -38,8 +38,13 @@ interface Props {
   create?: (slot: Slot) => void;
   canChange?: (meeting: Meeting) => boolean;
   revealEventId?: string;
+  /** Cards to highlight after a background change, by meeting id. */
+  changes?: Record<string, "added" | "changed" | "moved">;
+  /** Cards whose new time is not confirmed by the server yet, by meeting id. */
+  pending?: Record<string, "saving" | "unknown">;
   today?: string;
   footerLabel?: string;
+  hideFooter?: boolean;
   statusContent?: React.ReactNode;
 }
 export function Calendar(p: Props) {
@@ -272,6 +277,9 @@ export function Calendar(p: Props) {
                               : "Роль не указана"
                       }
                       data-new-event={e.id === p.revealEventId || undefined}
+                      data-change={p.changes?.[e.id]}
+                      data-pending={p.pending?.[e.id]}
+                      aria-busy={p.pending?.[e.id] ? true : undefined}
                       className={`month-event calendar-${e.calendar} participation-${e.participation ?? "unknown"} ${e.accepted && e.participation !== "informed" ? "accepted" : ""}`}
                       key={e.id}
                       onClick={() => {
@@ -346,160 +354,170 @@ export function Calendar(p: Props) {
                   )}
                   {layoutEvents(filtered.filter((e) => e.date === day)).map(
                     ({ event: e, column, columns }) => (
-                      <button
+                      <ViewTransition
                         key={e.id}
-                        {...tooltip.bind(e)}
-                        aria-description={
-                          e.participation === "organizer"
-                            ? "Моя встреча"
-                            : e.participation === "informed"
-                              ? "Я информируемый"
-                              : e.participation === "invited"
-                                ? "Я приглашён"
-                                : "Роль не указана"
-                        }
-                        data-new-event={e.id === p.revealEventId || undefined}
-                        className={`calendar-event calendar-${e.calendar} participation-${e.participation ?? "unknown"} ${e.accepted && e.participation !== "informed" ? "accepted" : ""} ${e.duration <= 30 ? "compact" : ""}`}
-                        style={{
-                          left: `calc(${(column * 100) / columns}% + 3px)`,
-                          right: "auto",
-                          width: `calc(${100 / columns}% - 6px)`,
-                          top:
-                            (preview?.id === e.id ? preview.start : e.start) *
-                            (64 / 60),
-                          transform:
-                            preview?.id === e.id
-                              ? `translateX(${preview.x}px)`
-                              : undefined,
-                          zIndex: preview?.id === e.id ? 5 : undefined,
-                          height:
-                            (preview?.id === e.id
-                              ? preview.duration
-                              : e.duration) *
-                              (64 / 60) -
-                            3,
-                        }}
-                        onPointerDown={(event) => {
-                          tooltip.hide();
-                          suppressClick.current = false;
-                          if (
-                            p.readOnly ||
-                            p.canChange?.(e) === false ||
-                            event.button !== 0
-                          )
-                            return;
-                          const mode =
-                            (event.target as HTMLElement).dataset.resize ||
-                            "move";
-                          gesture.current = {
-                            event: e,
-                            mode,
-                            x: event.clientX,
-                            y: event.clientY,
-                            width:
-                              event.currentTarget.parentElement!.getBoundingClientRect()
-                                .width,
-                            moved: false,
-                          };
-                          suppressClick.current = false;
-                          event.currentTarget.setPointerCapture(
-                            event.pointerId,
-                          );
-                        }}
-                        onPointerMove={(event) => {
-                          const g = gesture.current;
-                          if (!g || g.event.id !== e.id) return;
-                          if (
-                            Math.abs(event.clientX - g.x) +
-                              Math.abs(event.clientY - g.y) <
-                              5 &&
-                            !g.moved
-                          )
-                            return;
-                          g.moved = true;
-                          const next = position(event.clientX, event.clientY);
-                          setPreview({
-                            id: e.id,
-                            start: next.start,
-                            duration: next.duration,
-                            x: next.offset * g.width,
-                          });
-                        }}
-                        onPointerUp={(event) => {
-                          const g = gesture.current;
-                          if (!g) return;
-                          if (g.moved) {
-                            const { offset: _offset, ...updated } = position(
-                              event.clientX,
-                              event.clientY,
-                            );
-                            if (
-                              updated.start !== e.start ||
-                              updated.duration !== e.duration ||
-                              updated.date !== e.date
-                            )
-                              p.change(updated);
-                            suppressClick.current = true;
-                          }
-                          gesture.current = null;
-                          setPreview(null);
-                          event.currentTarget.releasePointerCapture(
-                            event.pointerId,
-                          );
-                        }}
-                        onLostPointerCapture={() => {
-                          gesture.current = null;
-                          setPreview(null);
-                        }}
-                        onPointerCancel={() => {
-                          gesture.current = null;
-                          setPreview(null);
-                        }}
-                        onClick={() => {
-                          if (suppressClick.current) {
-                            suppressClick.current = false;
-                            return;
-                          }
-                          tooltip.hide();
-                          p.select(e);
-                        }}
+                        default="none"
+                        enter="auto"
+                        exit="auto"
+                        update="auto"
                       >
-                        {!p.readOnly && p.canChange?.(e) !== false && (
-                          <>
-                            <span
-                              className="event-resize start"
-                              aria-hidden="true"
-                              data-resize="start"
-                              title="Изменить начало"
-                            />
-                            <span
-                              className="event-resize end"
-                              aria-hidden="true"
-                              data-resize="end"
-                              title="Изменить окончание"
-                            />
-                          </>
-                        )}
-                        <strong>
-                          {e.title}
-                          {e.duration <= 30 && (
+                        <button
+                          {...tooltip.bind(e)}
+                          aria-description={
+                            e.participation === "organizer"
+                              ? "Моя встреча"
+                              : e.participation === "informed"
+                                ? "Я информируемый"
+                                : e.participation === "invited"
+                                  ? "Я приглашён"
+                                  : "Роль не указана"
+                          }
+                          data-new-event={e.id === p.revealEventId || undefined}
+                          data-change={p.changes?.[e.id]}
+                          data-pending={p.pending?.[e.id]}
+                          aria-busy={p.pending?.[e.id] ? true : undefined}
+                          className={`calendar-event calendar-${e.calendar} participation-${e.participation ?? "unknown"} ${e.accepted && e.participation !== "informed" ? "accepted" : ""} ${e.duration <= 30 ? "compact" : ""}`}
+                          style={{
+                            left: `calc(${(column * 100) / columns}% + 3px)`,
+                            right: "auto",
+                            width: `calc(${100 / columns}% - 6px)`,
+                            top:
+                              (preview?.id === e.id ? preview.start : e.start) *
+                              (64 / 60),
+                            transform:
+                              preview?.id === e.id
+                                ? `translateX(${preview.x}px)`
+                                : undefined,
+                            zIndex: preview?.id === e.id ? 5 : undefined,
+                            height:
+                              (preview?.id === e.id
+                                ? preview.duration
+                                : e.duration) *
+                                (64 / 60) -
+                              3,
+                          }}
+                          onPointerDown={(event) => {
+                            tooltip.hide();
+                            suppressClick.current = false;
+                            if (
+                              p.readOnly ||
+                              p.canChange?.(e) === false ||
+                              event.button !== 0
+                            )
+                              return;
+                            const mode =
+                              (event.target as HTMLElement).dataset.resize ||
+                              "move";
+                            gesture.current = {
+                              event: e,
+                              mode,
+                              x: event.clientX,
+                              y: event.clientY,
+                              width:
+                                event.currentTarget.parentElement!.getBoundingClientRect()
+                                  .width,
+                              moved: false,
+                            };
+                            suppressClick.current = false;
+                            event.currentTarget.setPointerCapture(
+                              event.pointerId,
+                            );
+                          }}
+                          onPointerMove={(event) => {
+                            const g = gesture.current;
+                            if (!g || g.event.id !== e.id) return;
+                            if (
+                              Math.abs(event.clientX - g.x) +
+                                Math.abs(event.clientY - g.y) <
+                                5 &&
+                              !g.moved
+                            )
+                              return;
+                            g.moved = true;
+                            const next = position(event.clientX, event.clientY);
+                            setPreview({
+                              id: e.id,
+                              start: next.start,
+                              duration: next.duration,
+                              x: next.offset * g.width,
+                            });
+                          }}
+                          onPointerUp={(event) => {
+                            const g = gesture.current;
+                            if (!g) return;
+                            if (g.moved) {
+                              const { offset: _offset, ...updated } = position(
+                                event.clientX,
+                                event.clientY,
+                              );
+                              if (
+                                updated.start !== e.start ||
+                                updated.duration !== e.duration ||
+                                updated.date !== e.date
+                              )
+                                p.change(updated);
+                              suppressClick.current = true;
+                            }
+                            gesture.current = null;
+                            setPreview(null);
+                            event.currentTarget.releasePointerCapture(
+                              event.pointerId,
+                            );
+                          }}
+                          onLostPointerCapture={() => {
+                            gesture.current = null;
+                            setPreview(null);
+                          }}
+                          onPointerCancel={() => {
+                            gesture.current = null;
+                            setPreview(null);
+                          }}
+                          onClick={() => {
+                            if (suppressClick.current) {
+                              suppressClick.current = false;
+                              return;
+                            }
+                            tooltip.hide();
+                            p.select(e);
+                          }}
+                        >
+                          {!p.readOnly && p.canChange?.(e) !== false && (
                             <>
-                              {" "}
-                              {time(e.start)} - {time(e.start + e.duration)}
+                              <span
+                                className="event-resize start"
+                                aria-hidden="true"
+                                data-resize="start"
+                                title="Изменить начало"
+                              />
+                              <span
+                                className="event-resize end"
+                                aria-hidden="true"
+                                data-resize="end"
+                                title="Изменить окончание"
+                              />
                             </>
                           )}
-                        </strong>
-                        <span className="event-time">
-                          {time(e.start)} – {time(e.start + e.duration)}
-                        </span>
-                        {!p.readOnly && e.duration >= 60 && (
-                          <small>
-                            {!p.readOnly && e.location === "Онлайн"
-                              ? `${e.people.length} участника · Онлайн`
-                              : e.location}
-                          </small>
-                        )}
-                      </button>
+                          <strong>
+                            {e.title}
+                            {e.duration <= 30 && (
+                              <>
+                                {" "}
+                                {time(e.start)} - {time(e.start + e.duration)}
+                              </>
+                            )}
+                          </strong>
+                          <span className="event-time">
+                            {time(e.start)} – {time(e.start + e.duration)}
+                          </span>
+                          {!p.readOnly && e.duration >= 60 && (
+                            <small>
+                              {!p.readOnly && e.location === "Онлайн"
+                                ? `${e.people.length} участника · Онлайн`
+                                : e.location}
+                            </small>
+                          )}
+                        </button>
+                      </ViewTransition>
                     ),
                   )}
                 </div>
@@ -519,19 +537,21 @@ export function Calendar(p: Props) {
         </div>
       )}
       {tooltip.tooltip}
-      <div className="calendar-footer">
-        <span>
-          <span className="status-dot" />
-          {p.footerLabel ?? "Демонстрационные данные"}
-        </span>
-        <span>
-          {p.view === "week"
-            ? "Неделя · Пн–Вс"
-            : p.view === "day"
-              ? "День"
-              : "Месяц"}
-        </span>
-      </div>
+      {!p.hideFooter && (
+        <div className="calendar-footer">
+          <span>
+            <span className="status-dot" />
+            {p.footerLabel ?? "Демонстрационные данные"}
+          </span>
+          <span>
+            {p.view === "week"
+              ? "Неделя · Пн–Вс"
+              : p.view === "day"
+                ? "День"
+                : "Месяц"}
+          </span>
+        </div>
+      )}
     </section>
   );
 }

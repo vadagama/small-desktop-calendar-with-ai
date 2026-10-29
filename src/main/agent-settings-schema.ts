@@ -5,6 +5,10 @@ export const agentSettingsSchema = z
     version: z.union([z.literal(1), z.literal(2), z.literal(3)]),
     mood: z.enum(moodIds).default("neutral"),
     instructions: z.string().max(8000),
+    promptTemplates: z
+      .array(z.string().trim().min(1).max(2000))
+      .max(5)
+      .optional(),
     skills: z
       .array(
         z.strictObject({

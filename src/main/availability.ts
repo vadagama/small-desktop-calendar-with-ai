@@ -17,6 +17,9 @@ const query = z.strictObject({
   date: availabilityDate,
   durationMinutes,
   includeWeekends: z.boolean().optional(),
+  exactInterval: z
+    .strictObject({ start: z.string().max(40), end: z.string().max(40) })
+    .optional(),
   timeFrom: z
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
@@ -86,7 +89,8 @@ export class AvailabilityService {
         "Начало диапазона должно быть раньше окончания.",
       );
     const weekday = new Date(`${q.date}T12:00:00Z`).getUTCDay();
-    if (!q.includeWeekends && (weekday === 0 || weekday === 6))
+    const isWeekend = weekday === 0 || weekday === 6;
+    if (!q.includeWeekends && isWeekend)
       throw new CalendarError(
         "invalid",
         "Выберите рабочий день: подбор выполняется без выходных.",
@@ -96,16 +100,26 @@ export class AvailabilityService {
         participant_ids: q.participantIds,
         timezone: "Asia/Almaty" as const,
       };
-      const rawSlots = slotsResponse.safeParse(
-        await calendarJson(
-          await request("/gate/team/api/calendar/events/find-slots", {
-            ...common,
-            start_date: q.date,
-            duration_minutes: q.durationMinutes,
-            include_weekends: q.includeWeekends ?? false,
-          }),
-        ),
-      );
+      // Выходные: сетка слотов Small не применяется, интервал проверяется только по занятости.
+      const weekendInterval =
+        q.includeWeekends && isWeekend ? q.exactInterval : undefined;
+      const rawSlots = weekendInterval
+        ? {
+            success: true as const,
+            data: {
+              data: { available_slots: [weekendInterval], has_more: false },
+            },
+          }
+        : slotsResponse.safeParse(
+            await calendarJson(
+              await request("/gate/team/api/calendar/events/find-slots", {
+                ...common,
+                start_date: q.date,
+                duration_minutes: q.durationMinutes,
+                include_weekends: q.includeWeekends ?? false,
+              }),
+            ),
+          );
       if (!rawSlots.success)
         throw new CalendarError(
           "invalid",

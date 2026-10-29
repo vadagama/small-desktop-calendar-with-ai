@@ -64,11 +64,11 @@ test("cancelled caller does not cancel shared access or prompt again", async () 
   assert.equal(f.reads(), 1);
 });
 
-test("writes update cached values, identical saves skip Keychain, removal clears the secret", async () => {
+test("writes update cached values, identical saves refresh Keychain, removal clears the secret", async () => {
   const f = fixture();
   await f.store.get("model");
   await f.store.set("model", "synthetic-key");
-  assert.equal(f.writes(), 0);
+  assert.equal(f.writes(), 1);
   await f.store.set("model", "synthetic-new");
   assert.equal(await f.store.get("model"), "synthetic-new");
   await f.store.remove("model");

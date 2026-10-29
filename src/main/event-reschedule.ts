@@ -55,6 +55,10 @@ const id = z
   ])
   .transform(String);
 const stamp = z.iso.datetime({ offset: true });
+/** What Small returns for an event after it was deleted: still readable, but cancelled. */
+const cancelledEvent = z.object({
+  data: z.object({ id, status: z.literal("cancelled") }),
+});
 const query = z
   .strictObject({
     accountId: z.string().min(1),
@@ -123,6 +127,7 @@ const unknownOutcome = () =>
   new CalendarError(
     "network",
     "Результат изменения неизвестен: не удалось подтвердить сохранение. Повторная запись заблокирована. Повторное действие только проверит состояние встречи.",
+    true,
   );
 export function isParticipantStatusRequest(path: string, body: unknown) {
   return (
@@ -166,8 +171,16 @@ export class EventRescheduleService {
           const response = await get(
             `/gate/team/api/calendar/events/${eventId}`,
           );
-          if (entry.kind === "delete")
-            return entry.acknowledged && response.status === 404;
+          if (entry.kind === "delete") {
+            // Without an acknowledged DELETE nothing proves this delete was ours.
+            if (!entry.acknowledged) return false;
+            if (response.status === 404) return true;
+            // Small deletes softly: the event stays readable with status "cancelled".
+            const parsed = cancelledEvent.safeParse(
+              await calendarJson(response).catch(() => null),
+            );
+            return parsed.success && parsed.data.data.id === eventId;
+          }
           const parsed = detail.safeParse(await calendarJson(response));
           if (
             !parsed.success ||

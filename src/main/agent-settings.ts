@@ -14,13 +14,28 @@ export class AgentSettingsStore {
     await this.pending;
     const defaults = await loadAgentDefaults(this.directory);
     try {
+      const saved = agentSettingsSchema.parse(
+        JSON.parse(
+          await readFile(join(this.directory, "agent-settings.json"), "utf8"),
+        ),
+      );
+      const originalTemplates = [
+        "Найди 30 минут завтра после обеда",
+        "Подготовь встречу по развитию календаря",
+        "Помоги выбрать участников встречи",
+      ];
+      const unchanged =
+        JSON.stringify(saved.promptTemplates) ===
+        JSON.stringify(originalTemplates);
       return migrateBundledSkills({
         ...defaults,
-        settings: agentSettingsSchema.parse(
-          JSON.parse(
-            await readFile(join(this.directory, "agent-settings.json"), "utf8"),
-          ),
-        ),
+        settings: {
+          ...defaults.settings,
+          ...saved,
+          ...(unchanged
+            ? { promptTemplates: defaults.settings.promptTemplates }
+            : {}),
+        },
       });
     } catch (error) {
       if (

@@ -37,6 +37,7 @@ export interface AgentSettings {
   version: 1 | 2 | 3;
   mood: Mood;
   instructions: string;
+  promptTemplates?: string[] | undefined;
   skills: { id: SkillId; enabled: boolean; content: string }[];
 }
 export interface AgentSettingsState {

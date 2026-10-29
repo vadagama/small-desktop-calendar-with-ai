@@ -117,3 +117,71 @@ test("version 2 gains schedule while preserving customized and disabled skills",
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("prompt templates persist, allow empty lists and reject more than five or blank entries", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "prompt-templates-"));
+  try {
+    const store = new AgentSettingsStore(dir);
+    const { settings } = await store.read();
+    const prompts = ["Какие встречи сегодня?", "Подготовь встречу завтра"];
+    await store.save({ ...settings, promptTemplates: prompts });
+    assert.deepEqual(
+      (await new AgentSettingsStore(dir).read()).settings.promptTemplates,
+      prompts,
+    );
+    for (const promptTemplates of [
+      Array(6).fill("Тест"),
+      [" "],
+      ["x".repeat(2001)],
+    ])
+      await assert.rejects(() => store.save({ ...settings, promptTemplates }));
+    assert.deepEqual((await store.read()).settings.promptTemplates, prompts);
+    await store.save({ ...settings, promptTemplates: [] });
+    assert.deepEqual((await store.read()).settings.promptTemplates, []);
+    const legacy = { ...settings };
+    delete legacy.promptTemplates;
+    await writeFile(join(dir, "agent-settings.json"), JSON.stringify(legacy));
+    assert.equal((await store.read()).settings.promptTemplates?.length, 3);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("saved original suggestions upgrade without replacing edited or empty templates", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "prompt-upgrade-"));
+  const old = [
+    "Найди 30 минут завтра после обеда",
+    "Подготовь встречу по развитию календаря",
+    "Помоги выбрать участников встречи",
+  ];
+  try {
+    const store = new AgentSettingsStore(dir);
+    const { settings } = await store.read();
+    await writeFile(
+      join(dir, "agent-settings.json"),
+      JSON.stringify({
+        ...settings,
+        promptTemplates: old,
+        instructions: "Мои инструкции",
+      }),
+    );
+    const updated = await store.read();
+    assert.deepEqual(
+      updated.settings.promptTemplates,
+      settings.promptTemplates,
+    );
+    assert.equal(updated.settings.instructions, "Мои инструкции");
+    for (const promptTemplates of [[...old.slice(0, 2), "Мой запрос"], []]) {
+      await writeFile(
+        join(dir, "agent-settings.json"),
+        JSON.stringify({ ...settings, promptTemplates }),
+      );
+      assert.deepEqual(
+        (await store.read()).settings.promptTemplates,
+        promptTemplates,
+      );
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

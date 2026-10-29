@@ -1,4 +1,9 @@
-import { events, notifySuccess, notifyError } from "./notification-events.js";
+import {
+  events,
+  notifySuccess,
+  notifyError,
+  notifyInfo,
+} from "./notification-events.js";
 import { NewMeeting } from "./NewMeeting";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarDays, Settings2, UsersRound, Plus } from "lucide-react";
@@ -9,7 +14,26 @@ import { DockWorkspace } from "./DockWorkspace";
 import { SmallAccount } from "./SmallAccount";
 import { CalendarFilters } from "./CalendarFilters";
 import { EventDetails } from "./EventDetails";
+import { CalendarFreshnessBar } from "./CalendarFreshnessBar";
+import { meetingInvalidation } from "../shared/calendar-invalidation.js";
+import { eventFromCreatedMeeting } from "../shared/calendar-view-state.js";
+import type { MeetingView } from "../shared/meeting-operations.js";
+import {
+  beginMove,
+  classifyMoveReply,
+  isMoveLocked,
+  moveBadge,
+  overlayMoves,
+  resolveMove,
+  settleMoves,
+  type MoveReply,
+  type PendingMoves,
+} from "../shared/optimistic-move.js";
 import { useSmallCalendar } from "./useSmallCalendar";
+import {
+  calendarChangeMarks,
+  type CalendarChangeKind,
+} from "../shared/calendar-change-marks.js";
 import {
   calendarDateAt,
   calendarRange,
@@ -21,6 +45,8 @@ import type { SmallAuthState } from "../shared/small-auth.js";
 
 export function DesktopWorkspace() {
   const [savingTime, setSavingTime] = useState(false);
+  // Moves shown at their new time while Small has not confirmed them yet.
+  const [moves, setMoves] = useState<PendingMoves>({});
   const saving = useRef(false);
   const currentAccount = useRef<string | null>(null);
   const [initialPeople, setInitialPeople] = useState<
@@ -39,38 +65,52 @@ export function DesktopWorkspace() {
     accountId: string;
     event: CalendarEvent;
   } | null>(null);
+  // What happened to the open card on the server since it was opened.
+  const [remote, setRemote] = useState<"changed" | "missing" | null>(null);
   const accountId = account?.status === "signed-in" ? account.profile.id : null;
   currentAccount.current = accountId;
   useEffect(() => {
     setCreating(false);
     setCreatedId(null);
     setSelected(null);
+    setMoves({});
+    setRemote(null);
   }, [accountId]);
+  useEffect(() => setRemote(null), [selected?.event.key]);
   const expired = useCallback(() => {
     setAccount(null);
     setRevision((value) => value + 1);
   }, []);
   const calendar = useSmallCalendar(accountId, date, view, expired);
+  const showCreated = (result: MeetingView) => {
+    setCreatedId(result.eventId ?? null);
+    const visible = calendarRange(date, view);
+    const start = Date.parse(result.draft.startsAt);
+    // A meeting inside the range on screen is added in place: no navigation, no new query.
+    const inRange =
+      calendar.my &&
+      start >= Date.parse(visible.start) &&
+      start < Date.parse(visible.end);
+    if (inRange && result.eventId)
+      calendar.addEvent(eventFromCreatedMeeting(result.draft, result.eventId));
+    if (!inRange) setDate(calendarDateAt(result.draft.startsAt));
+    calendar.setMy(true);
+    calendar.refreshAfterWrite(meetingInvalidation(result.draft));
+  };
   useEffect(() => {
     const created = (event: Event) => {
-      const result = (
-        event as CustomEvent<
-          import("../shared/meeting-operations.js").MeetingView
-        >
-      ).detail;
+      const result = (event as CustomEvent<MeetingView>).detail;
       if (result.draft.organizer.id !== currentAccount.current) return;
-      setCreatedId(result.eventId ?? null);
-      setDate(calendarDateAt(result.draft.startsAt));
-      calendar.setMy(true);
-      calendar.refresh();
+      showCreated(result);
     };
     events.addEventListener("assistant-meeting-created", created);
     return () =>
       events.removeEventListener("assistant-meeting-created", created);
-  }, [calendar.setMy, calendar.refresh]);
+  }, [showCreated]);
   const range = calendarRange(date, view);
   const byId = new Map<string, CalendarEvent>();
-  const meetings: Meeting[] = calendar.events.flatMap((event) =>
+  const shownEvents = overlayMoves(calendar.events, moves);
+  const meetings: Meeting[] = shownEvents.flatMap((event) =>
     splitEventDays(event.startsAt, event.endsAt, range).map((part) => {
       const id = `${event.key}:${part.date}`;
       byId.set(id, event);
@@ -100,6 +140,7 @@ export function DesktopWorkspace() {
       calendarDateAt(event.startsAt) >= calendarToday() &&
       meeting.date >= calendarToday() &&
       !savingTime &&
+      !isMoveLocked(moves, event.key) &&
       event.participation === "organizer" &&
       "id" in event.lookup &&
       // Only whole events can be dragged; grid durations round away seconds.
@@ -121,32 +162,100 @@ export function DesktopWorkspace() {
     setSavingTime(true);
     const accountAtStart = accountId;
     const base = Date.parse(calendarRange(meeting.date, "day").start);
+    const startsAt = new Date(base + meeting.start * 60000).toISOString();
+    const endsAt = new Date(
+      base + (meeting.start + meeting.duration) * 60000,
+    ).toISOString();
+    // Whatever the outcome, the old and the new time may now differ from what is stored.
+    const written = {
+      eventIds: [event.lookup.id],
+      windows: [
+        { start: event.startsAt, end: event.endsAt },
+        { start: startsAt, end: endsAt },
+      ],
+    };
+    // The card moves at once; the reply or fresh data from Small decides whether it stays.
+    setMoves((current) =>
+      beginMove(
+        current,
+        event.key,
+        { startsAt: event.startsAt, endsAt: event.endsAt },
+        { startsAt, endsAt },
+        Date.now(),
+      ),
+    );
+    const finish = (reply: MoveReply) =>
+      setMoves((current) => resolveMove(current, event.key, reply, Date.now()));
     try {
       const reply = await window.smallDesktop.calendar.reschedule({
         accountId,
         eventId: event.lookup.id,
         beforeStart: event.startsAt,
         beforeEnd: event.endsAt,
-        startsAt: new Date(base + meeting.start * 60000).toISOString(),
-        endsAt: new Date(
-          base + (meeting.start + meeting.duration) * 60000,
-        ).toISOString(),
+        startsAt,
+        endsAt,
       });
       if (currentAccount.current !== accountAtStart) return;
-      if (!reply.ok) {
+      finish(classifyMoveReply(reply));
+      if (reply.ok) notifySuccess("Время события изменено");
+      else {
         notifyError("перенести событие", reply.kind);
         if (reply.kind === "auth") expired();
-      } else notifySuccess("Время события изменено");
-      calendar.refresh();
+      }
+      calendar.refreshAfterWrite(written);
     } catch {
       if (currentAccount.current === accountAtStart) {
+        finish("unknown");
         notifyError("перенести событие");
-        calendar.refresh();
+        calendar.refreshAfterWrite(written);
       }
     } finally {
       saving.current = false;
       setSavingTime(false);
     }
+  }
+  // Data read from Small after a confirmed or unknown move decides what became of it.
+  const announced = useRef(new Set<string>());
+  useEffect(() => {
+    if (!Object.keys(moves).length) return;
+    const settle = () => {
+      const now = Date.now();
+      const { settled } = settleMoves(
+        moves,
+        calendar.events,
+        calendar.fetchedAt,
+        now,
+      );
+      if (!settled.length) return;
+      setMoves(
+        (current) =>
+          settleMoves(current, calendar.events, calendar.fetchedAt, now).moves,
+      );
+      for (const item of settled) {
+        const id = `${item.key}:${moves[item.key]?.since}`;
+        if (announced.current.has(id)) continue;
+        announced.current.add(id);
+        if (item.phase !== "unknown") continue;
+        if (item.outcome === "confirmed")
+          notifySuccess("Перенос подтверждён: время события изменено.");
+        else if (item.outcome === "reverted")
+          notifyInfo(
+            "Перенос не применён: на сервере прежнее время. Повторное изменение этой встречи может быть заблокировано до проверки.",
+          );
+        else
+          notifyInfo(
+            "Событие изменилось на сервере. Показаны актуальные данные.",
+          );
+      }
+    };
+    settle();
+    const timer = window.setInterval(settle, 1000);
+    return () => window.clearInterval(timer);
+  }, [moves, calendar.events, calendar.fetchedAt]);
+  const pendingCards: Record<string, "saving" | "unknown"> = {};
+  for (const [id, event] of byId) {
+    const badge = moves[event.key] && moveBadge(moves[event.key]!);
+    if (badge) pendingCards[id] = badge;
   }
   const revealed = meetings.find((meeting) => {
     const event = byId.get(meeting.id);
@@ -162,6 +271,38 @@ export function DesktopWorkspace() {
     const timer = window.setTimeout(() => setCreatedId(null), 2000);
     return () => window.clearTimeout(timer);
   }, [revealed]);
+  const [marks, setMarks] = useState<Record<string, CalendarChangeKind>>({});
+  const seenChanges = useRef<{ key: string; revision: number } | null>(null);
+  useEffect(() => {
+    const previous = seenChanges.current;
+    seenChanges.current = {
+      key: calendar.queryKey,
+      revision: calendar.changes.revision,
+    };
+    const diff = calendar.changes.diff;
+    // Moving to another stored range replays nothing; only a new change of the same range counts.
+    if (
+      !diff ||
+      !previous ||
+      previous.key !== calendar.queryKey ||
+      calendar.changes.revision <= previous.revision
+    ) {
+      setMarks((current) => (Object.keys(current).length ? {} : current));
+      return;
+    }
+    const cardsOf = (eventKey: string) =>
+      [...byId].filter(([, event]) => event.key === eventKey).map(([id]) => id);
+    setMarks(calendarChangeMarks(diff, cardsOf, revealed));
+    // The open card shows a banner about it, unless it is the echo of our own refresh or write.
+    if (selected && !calendar.justRefreshed()) {
+      const { key } = selected.event;
+      if (diff.removed.includes(key)) setRemote("missing");
+      else if (diff.changed.includes(key) || diff.moved.includes(key))
+        setRemote((current) => current ?? "changed");
+    }
+    const timer = window.setTimeout(() => setMarks({}), 2000);
+    return () => window.clearTimeout(timer);
+  }, [calendar.queryKey, calendar.changes.revision]);
   const unavailable =
     !accountId ||
     calendar.loading ||
@@ -244,6 +385,13 @@ export function DesktopWorkspace() {
           closeSettings={() => setSettingsOpen(false)}
           calendar={(swap) => (
             <div className="calendar-container live-calendar">
+              <CalendarFreshnessBar
+                fetchedAt={calendar.fetchedAt}
+                offline={calendar.offline}
+                refreshError={calendar.refreshError}
+                refreshing={calendar.refreshing}
+                refresh={calendar.refresh}
+              />
               {calendar.issues.length > 0 && (
                 <div className="calendar-warning" role="alert">
                   <strong>
@@ -281,6 +429,8 @@ export function DesktopWorkspace() {
                 setView={setView}
                 events={meetings}
                 revealEventId={revealed}
+                changes={marks}
+                pending={pendingCards}
                 select={(meeting) => {
                   const event = byId.get(meeting.id);
                   if (event && accountId) setSelected({ accountId, event });
@@ -301,7 +451,7 @@ export function DesktopWorkspace() {
                 retry={calendar.refresh}
                 swap={swap}
                 today={calendarToday()}
-                footerLabel="Данные Small"
+                hideFooter
                 statusContent={
                   unavailable ? (
                     <div className="state-screen" role="status">
@@ -332,7 +482,6 @@ export function DesktopWorkspace() {
           )}
         />
         <footer className="workspace-footer">
-          <span>Small Calendar</span>
           <span>Team API · Asia/Almaty</span>
         </footer>
       </main>
@@ -352,12 +501,7 @@ export function DesktopWorkspace() {
           initialSlot={initialSlot ?? undefined}
           close={() => setCreating(false)}
           expired={expired}
-          created={(result) => {
-            setCreatedId(result.eventId ?? null);
-            setDate(calendarDateAt(result.draft.startsAt));
-            calendar.setMy(true);
-            calendar.refresh();
-          }}
+          created={showCreated}
         />
       )}
       {selected && selected.accountId === accountId && (
@@ -365,7 +509,11 @@ export function DesktopWorkspace() {
           key={`${selected.accountId}:${selected.event.key}`}
           accountId={selected.accountId}
           lookup={selected.event.lookup}
-          changed={calendar.refresh}
+          changed={(write, removed) =>
+            calendar.refreshAfterWrite(write, removed)
+          }
+          remote={remote}
+          acknowledgeRemote={() => setRemote(null)}
           createWithPeople={(event) => {
             setInitialPeople(event.participants ?? []);
             setInitialSlot(null);

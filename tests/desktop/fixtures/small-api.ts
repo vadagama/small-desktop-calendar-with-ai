@@ -8,6 +8,25 @@ export async function mockSmall(app: ElectronApplication, date: string) {
     const inspection = globalThis as typeof globalThis & {
       syntheticMeetingWrites: number;
       syntheticCreateRejection?: number;
+      /**
+       * reject: 409 without applying; lose: 503 without applying; lose-applied: 503, and
+       * only the event list (not the card) shows the new time, as with replica lag.
+       */
+      syntheticUpdateOutcome?: "reject" | "lose" | "lose-applied";
+      syntheticUpdateDelayMs?: number;
+      syntheticListDelayMs?: number;
+      /** Requests for event lists, to see which ranges were served from the cache. */
+      syntheticListRequests?: number;
+      /** Answers every event list with this status, as an unreachable or unauthorised Small would. */
+      syntheticListStatus?: number;
+      /** Requests for the calendar list and for people search, to see what the cache saved. */
+      syntheticCalendarRequests?: number;
+      syntheticPeopleRequests?: number;
+      /** Slows the read of the event card, as a real round trip to Small would. */
+      syntheticDetailDelayMs?: number;
+      /** Someone else removed the event: the card is 404 and the list omits it. */
+      syntheticEventRemoved?: boolean;
+      syntheticListApplied?: { starts_at: string; ends_at: string };
       syntheticAvailableSlots?: { start: string; end: string }[];
       syntheticEventExtra?: Record<string, unknown>;
       syntheticEventOwner?: string;
@@ -178,6 +197,21 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         if (url.searchParams.get("force") !== "false")
           return new Response(null, { status: 400 });
         const body = await request.json();
+        if (inspection.syntheticUpdateDelayMs)
+          await new Promise((resolve) =>
+            setTimeout(resolve, inspection.syntheticUpdateDelayMs),
+          );
+        if (inspection.syntheticUpdateOutcome === "reject")
+          return new Response(null, { status: 409 });
+        if (inspection.syntheticUpdateOutcome === "lose")
+          return new Response(null, { status: 503 });
+        if (inspection.syntheticUpdateOutcome === "lose-applied") {
+          inspection.syntheticListApplied = {
+            starts_at: body.starts_at,
+            ends_at: body.ends_at,
+          };
+          return new Response(null, { status: 503 });
+        }
         movedTime = { starts_at: body.starts_at, ends_at: body.ends_at };
         inspection.syntheticEventExtra = {
           ...inspection.syntheticEventExtra,
@@ -212,6 +246,8 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       }
       if (request.method !== "GET") return new Response(null, { status: 405 });
       if (path === "/gate/employee/api/search/persons") {
+        inspection.syntheticPeopleRequests =
+          (inspection.syntheticPeopleRequests ?? 0) + 1;
         const q = url.searchParams.get("q");
         const current = Number(url.searchParams.get("page"));
         const people =
@@ -266,7 +302,9 @@ export async function mockSmall(app: ElectronApplication, date: string) {
 
       if (path.endsWith("/info"))
         return Response.json({ data: { avatar: null } });
-      if (path.endsWith("/calendars/public"))
+      if (path.endsWith("/calendars/public")) {
+        inspection.syntheticCalendarRequests =
+          (inspection.syntheticCalendarRequests ?? 0) + 1;
         return Response.json({
           data: [
             { id: 7, name: "Тестовая переговорная" },
@@ -276,6 +314,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
             { id: 11, name: "Пустой календарь" },
           ],
         });
+      }
       const suffix = employee === "employee-a" ? "A" : "B";
       const event = {
         id: 42,
@@ -312,13 +351,26 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         starts_at: `${date}T11:00:00+05:00`,
         ends_at: `${date}T11:30:00+05:00`,
       };
-      if (path.endsWith("/calendar/events/42"))
-        return deletedFor.has(employee)
+      if (path.endsWith("/calendar/events/42")) {
+        if (inspection.syntheticDetailDelayMs)
+          await new Promise((resolve) =>
+            setTimeout(resolve, inspection.syntheticDetailDelayMs),
+          );
+        return deletedFor.has(employee) || inspection.syntheticEventRemoved
           ? new Response(null, { status: 404 })
           : Response.json({ data: event });
+      }
       if (path.endsWith("/calendar/events/generated"))
         return Response.json({ data: recurring });
       if (path.endsWith("/events")) {
+        inspection.syntheticListRequests =
+          (inspection.syntheticListRequests ?? 0) + 1;
+        if (inspection.syntheticListStatus)
+          return new Response(null, { status: inspection.syntheticListStatus });
+        if (inspection.syntheticListDelayMs)
+          await new Promise((resolve) =>
+            setTimeout(resolve, inspection.syntheticListDelayMs),
+          );
         if (path.includes("/8/")) return new Response(null, { status: 403 });
         if (path.includes("/9/")) return new Response(null, { status: 503 });
         if (path.includes("/10/"))
@@ -331,9 +383,15 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         if (!start || !end) return new Response(null, { status: 400 });
         return Response.json({
           data: [
-            ...(deletedFor.has(employee)
+            ...(deletedFor.has(employee) || inspection.syntheticEventRemoved
               ? []
-              : [{ ...event, is_recurring: undefined }]),
+              : [
+                  {
+                    ...event,
+                    is_recurring: undefined,
+                    ...inspection.syntheticListApplied,
+                  },
+                ]),
             recurring,
             ...created,
           ].filter(

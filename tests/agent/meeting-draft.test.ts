@@ -192,7 +192,11 @@ test("draft tool enforces the directory-verified complete participant selection 
     },
     {
       find: async (query: unknown) => {
-        const { includeWeekends, ...rest } = query as Record<string, unknown>;
+        const { includeWeekends, exactInterval, ...rest } = query as Record<
+          string,
+          unknown
+        >;
+        assert.ok(exactInterval);
         assert.equal(includeWeekends, true);
         return availability.find(rest);
       },
