@@ -1279,3 +1279,13 @@
 .reminder-item .primary {
   justify-self: start;
 }
+.notification-check {
+  display: grid;
+  gap: 10px;
+}
+.notification-check h3 {
+  margin: 0;
+}
+.notification-check p {
+  line-height: 1.45;
+}

@@ -25,3 +25,18 @@ export const reminderChannels = {
   save: "reminders:save",
   join: "reminders:join",
 } as const;
+
+export interface NativeNotificationState {
+  status: "untested" | "waiting" | "delivered" | "opened" | "failed";
+  message: string;
+}
+export interface NativeNotificationBridge {
+  read(): Promise<NativeNotificationState>;
+  test(): Promise<NativeNotificationState>;
+  settings(): Promise<NativeNotificationState>;
+}
+export const nativeNotificationChannels = {
+  read: "notifications:read",
+  test: "notifications:test",
+  settings: "notifications:settings",
+} as const;
