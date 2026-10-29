@@ -1,3 +1,7 @@
+import { MeetingOperations } from "./meeting-operations.js";
+import { MeetingJournal } from "./meeting-journal.js";
+import { SmallMeetingWriter } from "./meeting-writer.js";
+import { registerMeetingHandlers } from "./meeting-ipc.js";
 import { createCalendarToolExecutor } from "./calendar-tools.js";
 import { app, BrowserWindow, net, protocol, session } from "electron";
 import { dirname, resolve, sep } from "node:path";
@@ -93,6 +97,10 @@ app.whenReady().then(async () => {
   );
   const calendar = new CalendarService(smallAuth);
   const availability = new AvailabilityService(smallAuth);
+  const meetings = new MeetingOperations(
+    new MeetingJournal(resolve(app.getPath("userData"), "meeting-operations")),
+    new SmallMeetingWriter(smallAuth, calendar, availability),
+  );
   const assistant = registerAssistantHandlers(
     devUrl || localUrl,
     resolve(here, "agent-worker.js"),
@@ -108,11 +116,13 @@ app.whenReady().then(async () => {
             calendar,
             availability,
             state.profile.name,
+            (draft) => meetings.register(draft),
           )
         : null;
     },
   );
   registerProfileHandlers(profiles, assistant.trusted, assistant.cancelActive);
+  registerMeetingHandlers(meetings, smallAuth, assistant.trusted);
 
   registerCalendarHandlers(calendar, assistant.trusted, availability);
   registerSmallAuthHandlers(

@@ -1,3 +1,4 @@
+import { meetingChannels } from "../shared/meeting-operations.js";
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import {
   assistantChannels,
@@ -22,6 +23,12 @@ const bridge: DesktopBridge = {
       ipcRenderer.on(assistantChannels.event, handler);
       return () => ipcRenderer.removeListener(assistantChannels.event, handler);
     },
+  },
+  meetings: {
+    read: (input) => ipcRenderer.invoke(meetingChannels.read, input),
+    edit: (input) => ipcRenderer.invoke(meetingChannels.edit, input),
+    confirm: (input) => ipcRenderer.invoke(meetingChannels.confirm, input),
+    reconcile: (input) => ipcRenderer.invoke(meetingChannels.reconcile, input),
   },
   calendar: {
     people: (input) => ipcRenderer.invoke(calendarChannels.people, input),

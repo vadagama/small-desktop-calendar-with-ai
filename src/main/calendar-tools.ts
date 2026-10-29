@@ -1,3 +1,4 @@
+import type { MeetingDraft } from "../shared/meeting-draft.js";
 import { meetingDraftInput } from "../shared/meeting-draft.js";
 import { prepareMeetingDraft } from "./meeting-draft.js";
 import {
@@ -17,6 +18,7 @@ export function createCalendarToolExecutor(
   calendar: Pick<CalendarService, "searchPeople">,
   availability: Pick<AvailabilityService, "find">,
   organizerName: string = accountId,
+  registerDraft: (draft: MeetingDraft) => MeetingDraft = (draft) => draft,
 ): CalendarToolExecutor {
   const selection = prompt.match(/Участники:\s*\[([A-Za-z0-9_,\s-]+)\]/giu);
   const explicitIds =
@@ -74,6 +76,8 @@ export function createCalendarToolExecutor(
               );
       } else throw new CalendarError("denied", "Инструмент недоступен.");
       signal.throwIfAborted();
+      if ("kind" in data && data.kind === "meeting-draft")
+        data = registerDraft(data);
       return { ok: true, data };
     } catch (error) {
       signal.throwIfAborted();
