@@ -673,3 +673,64 @@
     outline-offset: -2px;
   }
 }
+
+.reminders-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  overflow: auto;
+}
+.reminders-dialog form {
+  display: grid;
+  gap: 16px;
+}
+.reminder-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.reminder-minutes {
+  display: grid;
+  gap: 6px;
+}
+.reminder-minutes input {
+  width: 100px;
+  padding: 8px;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 8px;
+  font: inherit;
+}
+.reminder-help {
+  color: #616875;
+  line-height: 1.5;
+  font-size: 0.9rem;
+}
+.reminder-heading {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.reminder-item {
+  padding: 16px 0;
+  border-top: 1px solid #ddd;
+  overflow-wrap: anywhere;
+}
+.reminder-item h3 {
+  margin: 0;
+}
+.reminders-dialog[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.reminders-dialog .modal-header {
+  margin-bottom: 4px;
+}
+.reminder-item {
+  display: grid;
+  gap: 8px;
+}
+.reminder-item .primary {
+  justify-self: start;
+}
