@@ -223,6 +223,126 @@ test("a materialized instance keeps its own stable ID when its start changes", a
   assert.deepEqual(result.events[0]?.lookup, { id: "99" });
 });
 
+const virtualRaw = {
+  ...event,
+  id: null,
+  original_event_id: 43,
+  is_recurring: true,
+};
+const keysOf = (events: { key: string }[]) => events.map((e) => e.key);
+
+test("primary keys do not change; aliases link the views of a series occurrence", async () => {
+  const f = setup(() =>
+    Response.json({
+      data: [
+        { ...event, id: 5 },
+        {
+          ...virtualRaw,
+          starts_at: "2026-10-30T04:00:00Z",
+          ends_at: "2026-10-30T05:00:00Z",
+        },
+        {
+          ...event,
+          id: 99,
+          original_event_id: 42,
+          starts_at: "2026-10-31T04:00:00Z",
+          ends_at: "2026-10-31T05:00:00Z",
+        },
+      ],
+    }),
+  );
+  const [plain, virtual, own] = (await f.service.events(query)).events;
+  assert.deepEqual([plain?.key, plain?.aliases], ["event:5", undefined]);
+  assert.equal(virtual?.key, `series:43:${Date.parse("2026-10-30T04:00:00Z")}`);
+  assert.deepEqual(virtual?.aliases, ["series:43:2026-10-30"]);
+  assert.equal(own?.key, "event:99");
+  assert.deepEqual(own?.aliases, [
+    "series:42:2026-10-31",
+    `series:42:${Date.parse("2026-10-31T04:00:00Z")}`,
+  ]);
+});
+
+test("a virtual and a materialized view of one occurrence collapse into the materialized one", async () => {
+  for (const order of [0, 1]) {
+    const views = [virtualRaw, { ...virtualRaw, id: 900 }];
+    const f = setup(() =>
+      Response.json({ data: order ? views.reverse() : views }),
+    );
+    const { events, issues } = await f.service.events(query);
+    assert.deepEqual(issues, []);
+    assert.deepEqual(keysOf(events), ["event:900"]);
+    assert.deepEqual(events[0]?.lookup, { id: "900" });
+  }
+});
+
+test("a materialized view moved within the day still replaces the virtual one; another day does not", async () => {
+  const moved = {
+    ...virtualRaw,
+    id: 900,
+    starts_at: "2026-10-29T09:00:00Z",
+    ends_at: "2026-10-29T10:00:00Z",
+  };
+  const sameDay = setup(() => Response.json({ data: [virtualRaw, moved] }));
+  assert.deepEqual(keysOf((await sameDay.service.events(query)).events), [
+    "event:900",
+  ]);
+  const otherDay = setup(() =>
+    Response.json({
+      data: [
+        virtualRaw,
+        {
+          ...moved,
+          starts_at: "2026-10-30T09:00:00Z",
+          ends_at: "2026-10-30T10:00:00Z",
+        },
+      ],
+    }),
+  );
+  assert.equal((await otherDay.service.events(query)).events.length, 2);
+});
+
+test("two different events of a series on one day stay visible; sources repeating an event add nothing", async () => {
+  const f = setup(() =>
+    Response.json({
+      data: [
+        { ...virtualRaw, id: 900 },
+        { ...virtualRaw, id: 901 },
+      ],
+    }),
+  );
+  assert.deepEqual(keysOf((await f.service.events(query)).events), [
+    "event:900",
+    "event:901",
+  ]);
+  const twoSources = setup(() =>
+    Response.json({ data: [{ ...virtualRaw, id: 900 }] }),
+  );
+  const result = await twoSources.service.events({
+    ...query,
+    myCalendar: false,
+    calendarIds: ["7", "8"],
+  });
+  assert.deepEqual(keysOf(result.events), ["event:900"]);
+});
+
+test("detail carries the same keys and aliases as the list", async () => {
+  const virtualDetail = setup(() => Response.json({ data: virtualRaw }));
+  const v = await virtualDetail.service.detail({
+    accountId: "account-a",
+    lookup: { originalEventId: "43", date: "2026-10-29" },
+  });
+  assert.deepEqual(v.aliases, ["series:43:2026-10-29"]);
+  const ownDetail = setup(() =>
+    Response.json({ data: { ...virtualRaw, id: 900 } }),
+  );
+  const own = await ownDetail.service.detail({
+    accountId: "account-a",
+    lookup: { id: "900" },
+  });
+  assert.equal(own.key, "event:900");
+  assert.equal(own.aliases?.length, 2);
+});
+
 test("oversized responses become an explicit incomplete-data error", async () => {
   const f = setup(() => new Response("x".repeat(8 * 1024 * 1024 + 1)));
   const result = await f.service.events(query);
