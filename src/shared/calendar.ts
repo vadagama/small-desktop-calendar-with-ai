@@ -3,6 +3,13 @@ export type CalendarView = "day" | "week" | "month";
 export type EventLookup =
   { id: string } | { originalEventId: string; date: string };
 export interface CalendarEvent {
+  participants?: {
+    id: string;
+    name: string;
+    status: string;
+    organizer: boolean;
+  }[];
+  recurring?: boolean;
   key: string;
   lookup: EventLookup;
   title: string;
@@ -45,7 +52,12 @@ export const calendarChannels = {
   calendars: "calendar:list",
   events: "calendar:events",
   detail: "calendar:detail",
+  applyChange: "calendar:apply-change",
   previewChange: "calendar:preview-change",
+  reschedule: "calendar:reschedule",
+  respond: "calendar:respond",
+  openLink: "calendar:open-link",
+  copyLink: "calendar:copy-link",
 } as const;
 export interface CalendarPerson {
   participantId: string;
@@ -72,6 +84,22 @@ export interface SlotsResult {
   timezone: "Asia/Almaty";
 }
 export interface CalendarBridge {
+  respond(input: {
+    accountId: string;
+    eventId: string;
+    status: "accepted" | "declined";
+  }): Promise<CalendarReply<void>>;
+  openLink(url: string): Promise<CalendarReply<void>>;
+  copyLink(url: string): Promise<CalendarReply<void>>;
+  reschedule(input: {
+    accountId: string;
+    eventId: string;
+    beforeStart: string;
+    beforeEnd: string;
+    startsAt: string;
+    endsAt: string;
+  }): Promise<CalendarReply<void>>;
+  applyChange(input: EventChangeQuery): Promise<CalendarReply<void>>;
   previewChange(
     input: EventChangeQuery,
   ): Promise<CalendarReply<EventChangePreview>>;

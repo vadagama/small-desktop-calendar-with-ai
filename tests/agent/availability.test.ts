@@ -259,3 +259,45 @@ test("incomplete slot results and non-success envelopes never establish availabi
     setup(undefined, { status: "error", data: coverage }).service.find(query),
   );
 });
+
+test("afternoon bounds filter complete slots and reject reversed bounds", async () => {
+  const afternoon = {
+    start: "2026-10-29T14:00:00+05:00",
+    end: "2026-10-29T14:30:00+05:00",
+  };
+  const late = {
+    start: "2026-10-29T17:45:00+05:00",
+    end: "2026-10-29T18:15:00+05:00",
+  };
+  const { service } = setup({
+    data: { available_slots: [slot, afternoon, late] },
+  });
+  assert.deepEqual(
+    (await service.find({ ...query, timeFrom: "14:00", timeTo: "18:00" }))
+      .slots,
+    [afternoon],
+  );
+  await assert.rejects(
+    service.find({ ...query, timeFrom: "18:00", timeTo: "14:00" }),
+  );
+});
+test("explicit weekend request reaches the API and preserves day boundaries", async () => {
+  const saturday = {
+    start: "2026-10-31T14:00:00+05:00",
+    end: "2026-10-31T14:30:00+05:00",
+  };
+  const { service, calls } = setup({
+    data: { available_slots: [slot, saturday] },
+  });
+  const result = await service.find({
+    ...query,
+    date: "2026-10-31",
+    includeWeekends: true,
+    timeFrom: "14:00",
+  });
+  assert.deepEqual(result.slots, [saturday]);
+  assert.equal(
+    (calls[0]?.body as { include_weekends: boolean }).include_weekends,
+    true,
+  );
+});

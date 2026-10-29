@@ -1,3 +1,4 @@
+import { CalendarSlots } from "./CalendarSlots";
 import { layoutEvents } from "./event-layout";
 import { useEventTooltip } from "./useEventTooltip";
 import {
@@ -20,7 +21,7 @@ import {
   TODAY,
   weekStart,
 } from "./calendar";
-import type { DataState, Meeting, View } from "./types";
+import type { DataState, Meeting, View, Slot } from "./types";
 import { useEffect, useRef, useState } from "react";
 interface Props {
   date: string;
@@ -34,6 +35,8 @@ interface Props {
   retry: () => void;
   swap: () => void;
   readOnly?: boolean;
+  create?: (slot: Slot) => void;
+  canChange?: (meeting: Meeting) => boolean;
   revealEventId?: string;
   today?: string;
   footerLabel?: string;
@@ -258,7 +261,7 @@ export function Calendar(p: Props) {
                   .filter((e) => e.date === day)
                   .map((e) => (
                     <button
-                      {...(p.readOnly ? {} : tooltip.bind(e))}
+                      {...tooltip.bind(e)}
                       aria-description={
                         e.participation === "organizer"
                           ? "Моя встреча"
@@ -330,14 +333,22 @@ export function Calendar(p: Props) {
                   className={`day-column ${day === today ? "current" : ""}`}
                   key={day}
                 >
-                  {Array.from({ length: 24 }, (_, i) => (
-                    <div className="hour-cell" key={i} />
-                  ))}
+                  {p.create && !p.readOnly ? (
+                    <CalendarSlots
+                      date={day}
+                      create={p.create}
+                      disabled={day < today}
+                    />
+                  ) : (
+                    Array.from({ length: 24 }, (_, i) => (
+                      <div className="hour-cell" key={i} />
+                    ))
+                  )}
                   {layoutEvents(filtered.filter((e) => e.date === day)).map(
                     ({ event: e, column, columns }) => (
                       <button
                         key={e.id}
-                        {...(p.readOnly ? {} : tooltip.bind(e))}
+                        {...tooltip.bind(e)}
                         aria-description={
                           e.participation === "organizer"
                             ? "Моя встреча"
@@ -370,7 +381,13 @@ export function Calendar(p: Props) {
                         }}
                         onPointerDown={(event) => {
                           tooltip.hide();
-                          if (p.readOnly || event.button !== 0) return;
+                          suppressClick.current = false;
+                          if (
+                            p.readOnly ||
+                            p.canChange?.(e) === false ||
+                            event.button !== 0
+                          )
+                            return;
                           const mode =
                             (event.target as HTMLElement).dataset.resize ||
                             "move";
@@ -416,7 +433,12 @@ export function Calendar(p: Props) {
                               event.clientX,
                               event.clientY,
                             );
-                            p.change(updated);
+                            if (
+                              updated.start !== e.start ||
+                              updated.duration !== e.duration ||
+                              updated.date !== e.date
+                            )
+                              p.change(updated);
                             suppressClick.current = true;
                           }
                           gesture.current = null;
@@ -424,6 +446,10 @@ export function Calendar(p: Props) {
                           event.currentTarget.releasePointerCapture(
                             event.pointerId,
                           );
+                        }}
+                        onLostPointerCapture={() => {
+                          gesture.current = null;
+                          setPreview(null);
                         }}
                         onPointerCancel={() => {
                           gesture.current = null;
@@ -438,7 +464,7 @@ export function Calendar(p: Props) {
                           p.select(e);
                         }}
                       >
-                        {!p.readOnly && (
+                        {!p.readOnly && p.canChange?.(e) !== false && (
                           <>
                             <span
                               className="event-resize start"
@@ -492,7 +518,7 @@ export function Calendar(p: Props) {
           )}
         </div>
       )}
-      {!p.readOnly && tooltip.tooltip}
+      {tooltip.tooltip}
       <div className="calendar-footer">
         <span>
           <span className="status-dot" />

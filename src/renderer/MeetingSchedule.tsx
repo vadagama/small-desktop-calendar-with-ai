@@ -1,3 +1,4 @@
+import { calendarToday } from "../shared/calendar-time.js";
 import { Clock } from "lucide-react";
 import { addDateDays, validCalendarDate } from "../shared/calendar-time.js";
 import type { useNewMeeting } from "./useNewMeeting";
@@ -10,10 +11,6 @@ const weekdays = [
   ["SA", "Сб"],
   ["SU", "Вс"],
 ] as const;
-const minutes = (time: string) => {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
-};
 export function MeetingSchedule({
   data,
 }: {
@@ -42,6 +39,7 @@ export function MeetingSchedule({
         </span>
         <div className="new-meeting-time">
           <input
+            min={calendarToday()}
             aria-label="Дата"
             type="date"
             required
@@ -72,17 +70,15 @@ export function MeetingSchedule({
             aria-label="Подобрать время встречи"
             disabled={!people.selected.length || people.loading}
             onClick={() =>
-              void people.find(
-                date,
-                Math.max(1, minutes(end) - minutes(start)),
-                true,
-              )
+              void people.find(date, Math.max(1, data.durationMinutes), true)
             }
           >
             <Clock size={20} />
           </button>
         </div>
-        <small>Asia/Almaty</small>
+        <small>
+          Asia/Almaty{data.endsNextDay ? " · Окончание на следующий день" : ""}
+        </small>
       </div>
       {people.error && (
         <p role="alert" className="form-error">

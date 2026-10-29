@@ -13,7 +13,7 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
   const app = await _electron.launch({
     ...(executablePath ? { executablePath } : {}),
     args: [
-      ...(executablePath ? [] : ["."]),
+      ...(executablePath ? [] : [process.env.SMALL_TEST_APP_ROOT ?? "."]),
       `--user-data-dir=${userData}`,
       "--host-resolver-rules=MAP team.small.kz ~NOTFOUND",
     ],
@@ -93,7 +93,24 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
     await expect(page.locator(".calendar-event").first()).toContainText(
       "09:00 – 10:00",
     );
-    await expect(page.locator(".event-resize")).toHaveCount(0);
+    await expect(page.locator(".event-resize")).toHaveCount(2);
+    const block = page
+      .locator(".calendar-event")
+      .filter({ hasText: "Синтетическая встреча A" });
+    await block.scrollIntoViewIfNeeded();
+    await expect(async () => {
+      await page.mouse.move(10, 10);
+      await block.hover();
+      await expect(page.getByRole("tooltip")).toContainText(
+        "Синтетический организатор",
+        { timeout: 1000 },
+      );
+    }).toPass({ timeout: 5000 });
+    await expect(page.getByRole("tooltip")).toHaveText(
+      "Синтетическая встреча A09:00–10:00 · 60 минОрганизатор: Синтетический организатор",
+    );
+    await expect(page.locator(".event-tooltip:popover-open")).toBeVisible();
+    await page.screenshot({ path: "test-results/desktop/event-tooltip.png" });
     await page
       .locator(".calendar-event")
       .filter({ hasText: "Синтетическая встреча A" })
@@ -101,44 +118,222 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
     const details = page.getByRole("dialog", {
       name: "Синтетическая встреча A",
     });
-    await expect(details).toContainText("09:00:00");
+    await expect(details).toContainText("09:00 – 10:00");
     await expect(details).toContainText("Синтетическая повестка");
-    await expect(details).toContainText("Asia/Almaty");
-    await details.getByLabel("Новое название").fill("Новый синтетический план");
-    await details
-      .getByRole("button", { name: "Предпросмотр названия", exact: true })
-      .click();
-    const preview = details.getByRole("region", {
-      name: "Предпросмотр изменения",
-    });
-    await expect(preview).toContainText("Синтетическая встреча A");
-    await expect(preview).toContainText("Новый синтетический план");
-    await expect(preview).toContainText("Синтетическая повестка");
-    await expect(preview).toContainText("employee-a, synthetic-b");
-    await expect(preview).toContainText("Ничего не применено");
-    await page.setViewportSize({ width: 900, height: 640 });
+    await details.getByLabel("Действия со встречей").click();
+    await expect(
+      details.locator(".event-menu-items:popover-open"),
+    ).toBeVisible();
+    await expect(details.locator(".event-menu-items button").first()).toHaveCSS(
+      "font-size",
+      "12px",
+    );
+    const checkMenuPosition = async () => {
+      const anchor = (await details
+        .getByLabel("Действия со встречей")
+        .boundingBox())!;
+      const menu = (await details.locator(".event-menu-items").boundingBox())!;
+      expect(Math.abs(menu.x - anchor.x)).toBeLessThan(1);
+      expect(Math.abs(menu.y - anchor.y - anchor.height - 8)).toBeLessThan(1);
+    };
+    await checkMenuPosition();
+    await page.setViewportSize({ width: 1200, height: 900 });
+    await expect(checkMenuPosition).toPass();
+    await page.setViewportSize({ width: 1440, height: 960 });
+    await expect(checkMenuPosition).toPass();
     await page.screenshot({
-      path: "test-results/desktop/event-change-preview.png",
+      path: "test-results/desktop/event-details-menu.png",
     });
-    await details.getByLabel("Новое название").fill("Другой план");
-    await expect(preview).toHaveCount(0);
     await details
-      .getByRole("button", { name: "Предпросмотр отмены", exact: true })
+      .getByRole("button", { name: "Редактировать", exact: true })
       .click();
-    await expect(preview).toContainText("Отменить всю разовую встречу");
-    await expect(preview).toContainText("Ничего не применено");
+    await details.getByLabel("Новое название").fill("Новый синтетический план");
     await app.evaluate(() => {
       (
         globalThis as typeof globalThis & { syntheticEventOwner: string }
-      ).syntheticEventOwner = "other";
+      ).syntheticEventOwner = "another-person";
     });
     await details
-      .getByRole("button", { name: "Предпросмотр отмены", exact: true })
+      .getByRole("button", { name: "Сохранить", exact: true })
       .click();
-    await expect(details.getByRole("alert")).toContainText(
-      "только организатор",
+    const failureNotice = page.locator(".notification-error");
+    await expect(failureNotice).toContainText("недостаточно прав");
+    await page.screenshot({
+      path: "test-results/desktop/notification-error.png",
+      animations: "disabled",
+    });
+    await failureNotice
+      .getByRole("button", { name: "Закрыть уведомление" })
+      .click();
+    await expect(failureNotice).toHaveCount(0);
+    await app.evaluate(() => {
+      (
+        globalThis as typeof globalThis & { syntheticEventOwner: string }
+      ).syntheticEventOwner = "synthetic-organizer";
+    });
+
+    await details
+      .getByRole("button", { name: "Сохранить", exact: true })
+      .click();
+    await expect(
+      page.getByRole("dialog", { name: "Новый синтетический план" }),
+    ).toBeVisible();
+    const renamed = page.getByRole("dialog", {
+      name: "Новый синтетический план",
+    });
+    await renamed.getByLabel("Действия со встречей").click();
+    await renamed
+      .getByRole("button", { name: "Редактировать", exact: true })
+      .click();
+    await renamed.getByLabel("Новое название").fill("Синтетическая встреча A");
+    await renamed
+      .getByRole("button", { name: "Сохранить", exact: true })
+      .click();
+    await expect(details).toBeVisible();
+    await expect(details.getByText("Синтетическая повестка")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(details).toHaveCount(0);
+    await block.scrollIntoViewIfNeeded();
+    const endHandle = block.locator(".event-resize.end");
+    await endHandle.hover();
+    const endBox = (await endHandle.boundingBox())!;
+    await page.mouse.move(
+      endBox.x + endBox.width / 2,
+      endBox.y + endBox.height / 2,
     );
-    await expect(preview).toHaveCount(0);
+    await page.mouse.down();
+    await page.waitForTimeout(400);
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+    await page.mouse.move(
+      endBox.x + endBox.width / 2,
+      endBox.y + endBox.height / 2 + 32,
+      { steps: 8 },
+    );
+    await page.mouse.up();
+    await expect(block).toContainText("09:00 – 10:30");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    const startBox = (await block
+      .locator(".event-resize.start")
+      .boundingBox())!;
+    await page.mouse.move(
+      startBox.x + startBox.width / 2,
+      startBox.y + startBox.height / 2,
+    );
+    await page.mouse.down();
+    await page.waitForTimeout(400);
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+    await page.mouse.move(
+      startBox.x + startBox.width / 2,
+      startBox.y + startBox.height / 2 + 16,
+      { steps: 8 },
+    );
+    await page.mouse.up();
+    await expect(block).toContainText("09:15 – 10:30");
+    const moveBox = (await block.boundingBox())!;
+    await page.mouse.move(moveBox.x + 40, moveBox.y + 22);
+    await page.mouse.down();
+    await page.waitForTimeout(400);
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+    await page.mouse.move(moveBox.x + 40, moveBox.y + 38, { steps: 8 });
+    await page.mouse.up();
+    await expect(block).toContainText("09:30 – 10:45");
+    await app.evaluate(() => {
+      (
+        globalThis as typeof globalThis & {
+          syntheticEventExtra: Record<string, unknown>;
+        }
+      ).syntheticEventExtra = {
+        creator_id: "another-organizer",
+        is_informed: false,
+        participants: Array.from({ length: 7 }, (_, i) => ({
+          id: i === 0 ? "synthetic-organizer" : `person-${i}`,
+          name: `Тестовый участник ${i + 1}`,
+          status: "pending",
+        })),
+        description: "meet.small.kz/synthetic",
+      };
+    });
+    await block.click();
+    await expect(
+      details.getByRole("button", { name: "Показать всех (7)" }),
+    ).toBeVisible();
+    await details.getByRole("button", { name: "Показать всех (7)" }).click();
+    await expect(
+      details.getByText("Тестовый участник 7", { exact: true }),
+    ).toBeVisible();
+    await expect(details.locator(".event-link-text")).toHaveAttribute(
+      "href",
+      "https://meet.small.kz/synthetic",
+    );
+    await expect(details.locator(".event-card-description")).toHaveCount(0);
+    await details
+      .getByRole("button", { name: "Скопировать ссылку подключения" })
+      .click();
+    await expect(
+      details.getByText("Ссылка скопирована", { exact: true }),
+    ).toBeVisible();
+    await page.screenshot({
+      path: "test-results/desktop/event-details-invitation.png",
+    });
+    await details.getByRole("button", { name: "Да", exact: true }).click();
+    await expect(
+      details.getByRole("button", { name: "Да", exact: true }),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      page.getByText("Ответ на приглашение сохранён", { exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await app.evaluate(() => {
+      delete (
+        globalThis as typeof globalThis & {
+          syntheticEventExtra?: Record<string, unknown>;
+        }
+      ).syntheticEventExtra;
+    });
+
+    await app.evaluate(() => {
+      (
+        globalThis as typeof globalThis & {
+          syntheticEventExtra: Record<string, unknown>;
+        }
+      ).syntheticEventExtra = {
+        description:
+          "1. Обсудить варианты размещения сервисов.\n2. Согласовать ответственных участников.\n3. Определить сроки и следующие шаги.",
+      };
+    });
+    await block.click();
+    const agenda = details.getByRole("region", { name: "Повестка" });
+    const collapsedHeight = (await agenda.locator("p").boundingBox())!.height;
+    await agenda.getByRole("button", { name: "Показать полностью" }).click();
+    await expect(
+      agenda.getByRole("button", { name: "Свернуть" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    expect((await agenda.locator("p").boundingBox())!.height).toBeGreaterThan(
+      collapsedHeight,
+    );
+    await agenda.getByRole("button", { name: "Свернуть" }).click();
+    expect((await agenda.boundingBox())!.y).toBeLessThan(
+      (await details.locator(".event-card-date").boundingBox())!.y,
+    );
+    await page.screenshot({
+      path: "test-results/desktop/event-agenda.png",
+      animations: "disabled",
+    });
+    await details.getByLabel("Действия со встречей").click();
+    const writesBeforeDelete = await app.evaluate(
+      () =>
+        (globalThis as typeof globalThis & { syntheticEventMutations: number })
+          .syntheticEventMutations,
+    );
+    await details.getByRole("button", { name: "Удалить", exact: true }).click();
+    await expect(details).toHaveCount(0);
+    await expect(
+      page.getByText("Событие успешно удалено", { exact: true }),
+    ).toBeVisible();
+    await page.screenshot({
+      path: "test-results/desktop/notification-success.png",
+      animations: "disabled",
+    });
     expect(
       await app.evaluate(
         () =>
@@ -148,17 +343,15 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
             }
           ).syntheticEventMutations,
       ),
-    ).toBe(0);
-    await page.setViewportSize({ width: 1440, height: 960 });
-    await page.screenshot({ path: "test-results/desktop/calendar-detail.png" });
-    await page.keyboard.press("Escape");
+    ).toBe(writesBeforeDelete + 1);
+
     await page
       .locator(".calendar-event")
       .filter({ hasText: "Синтетическая серия A" })
       .click();
     await expect(
       page.getByRole("dialog", { name: "Синтетическая серия A" }),
-    ).toContainText("11:00:00");
+    ).toContainText("11:00");
     await expect(
       page.getByRole("button", { name: "Предпросмотр отмены", exact: true }),
     ).toHaveCount(0);
@@ -166,25 +359,29 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
     await page.getByRole("button", { name: "Месяц", exact: true }).click();
     await expect(page.locator(".month-day")).toHaveCount(35);
     await expect(page.locator(".month-event")).toHaveCount(2);
+    const room = page.getByRole("checkbox", {
+      name: "Тестовая переговорная",
+      exact: true,
+    });
+    const personal = page.getByRole("checkbox", {
+      name: "Мой календарь",
+      exact: true,
+    });
+    await expect(room).toHaveCount(0);
+    await expect(personal).toBeVisible();
     await page
       .getByRole("button", { name: "Переговорные", exact: true })
       .click();
-    await page
-      .getByRole("checkbox", { name: "Тестовая переговорная", exact: true })
-      .check();
+    await expect(personal).toHaveCount(0);
+    await room.check();
     await expect(page.locator(".month-event")).toHaveCount(2);
+    await page.getByRole("button", { name: "Календарь", exact: true }).click();
+    await expect(room).toHaveCount(0);
+    await expect(personal).toBeChecked();
     await page
-      .getByRole("checkbox", { name: "Мой календарь", exact: true })
-      .check();
-    await expect(
-      page.getByRole("checkbox", {
-        name: "Тестовая переговорная",
-        exact: true,
-      }),
-    ).not.toBeChecked();
-    await page
-      .getByRole("checkbox", { name: "Тестовая переговорная", exact: true })
-      .check();
+      .getByRole("button", { name: "Переговорные", exact: true })
+      .click();
+    await expect(room).toBeChecked();
     await expect(page.locator(".month-event")).toHaveCount(2);
     await page.getByRole("checkbox", { name: "Нет прав", exact: true }).check();
     await expect(page.locator(".calendar-warning")).toContainText(

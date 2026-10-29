@@ -1,9 +1,10 @@
+import type { AgentSettingsState } from "../shared/agent-settings.js";
 import { streamCalendarTurn } from "../agent/calendar-runtime.js";
 import type {
   CalendarToolCall,
   CalendarToolResult,
 } from "../shared/calendar-tools.js";
-import { toUIMessageStream, type ToolSet } from "ai";
+import { toUIMessageStream, type ToolSet, type ModelMessage } from "ai";
 import { streamSyntheticTurn } from "../agent/runtime.js";
 import { createSyntheticModel } from "../agent/synthetic-model.js";
 import { createProfileModel } from "../agent/provider.js";
@@ -24,9 +25,11 @@ async function run(
   { requestId, prompt }: AgentRequest,
   profile: ModelConnection | null,
   calendar: boolean,
+  configuration: AgentSettingsState,
+  history: ModelMessage[],
 ) {
   try {
-    const options = { prompt, abortSignal: controller.signal };
+    const options = { prompt, history, abortSignal: controller.signal };
     const result =
       calendar && profile
         ? await streamCalendarTurn(
@@ -56,6 +59,7 @@ async function run(
                 } satisfies CalendarToolCall);
               });
             },
+            configuration,
           )
         : await streamSyntheticTurn(
             profile
@@ -69,7 +73,15 @@ async function run(
       sendReasoning: false,
       onError: () => "Не удалось получить ответ. Попробуйте ещё раз.",
     });
-    for await (const chunk of stream) send({ requestId, type: "chunk", chunk });
+    let failed = false;
+    for await (const chunk of stream) {
+      if (chunk.type === "error" || chunk.type === "abort") failed = true;
+      send({ requestId, type: "chunk", chunk });
+    }
+    if (!failed && !controller.signal.aborted) {
+      const messages = await result.responseMessages;
+      port.postMessage({ type: "history", requestId, messages });
+    }
   } catch {
     send({
       requestId,
@@ -91,5 +103,12 @@ port.on("message", ({ data }: { data: AgentControl }) => {
     const resolve = pending.get(data.callId);
     pending.delete(data.callId);
     resolve?.(data.result);
-  } else void run(data.request, data.profile, data.calendar);
+  } else
+    void run(
+      data.request,
+      data.profile,
+      data.calendar,
+      data.configuration,
+      data.history,
+    );
 });

@@ -315,3 +315,45 @@ test("calendar creation checks the account and never refreshes/replays a rejecte
   );
   assert.equal(writes, 1);
 });
+
+test("calendar updates and replies send JSON bodies once without replaying an unauthorized write", async () => {
+  const f = setup();
+  await f.auth.login(login);
+  const received: {
+    path: string;
+    method: string | undefined;
+    body: unknown;
+  }[] = [];
+  const original = f.transport.request;
+  f.transport.request = async (path, init) => {
+    if (init.method === "PUT" || init.method === "PATCH") {
+      received.push({
+        path,
+        method: init.method,
+        body: JSON.parse(String(init.body)),
+      });
+      return new Response(null, { status: 401 });
+    }
+    return original(path, init);
+  };
+  const body = {
+    title: "Synthetic",
+    description: "",
+    location: "",
+    starts_at: "2099-10-29T09:00:00+05:00",
+    ends_at: "2099-10-29T10:00:00+05:00",
+    timezone: "Asia/Almaty",
+    is_recurring: false as const,
+    is_public: false,
+    calendar_ids: [],
+    participant_ids: ["employee-a"],
+    notification_recipient_ids: [],
+    attachments: [],
+  };
+  await f.auth.updateCalendarEvent("employee-a", "42", body);
+  await f.auth.respondCalendarEvent("employee-a", "42", "accepted");
+  assert.equal(received.length, 2);
+  assert.deepEqual(received[0]?.body, body);
+  assert.deepEqual(received[1]?.body, { status: "accepted" });
+  assert.equal(f.refreshes(), 0);
+});

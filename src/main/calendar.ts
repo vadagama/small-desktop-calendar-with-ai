@@ -62,7 +62,8 @@ const eventSchema = z
     creator_name: text,
     creator_id: id.nullish(),
     is_informed: z.boolean().nullish(),
-    participants: z.array(z.object({ id, status: text })).nullish(),
+    participants: z.array(z.object({ id, name: text, status: text })).nullish(),
+    is_recurring: z.boolean().nullish(),
     description: text,
     location: text,
   })
@@ -107,6 +108,18 @@ function normalize(value: unknown, participantId?: string): CalendarEvent {
           : e.is_informed === false
             ? "invited"
             : "unknown",
+    ...(e.original_event_id
+      ? { recurring: true }
+      : typeof e.is_recurring === "boolean"
+        ? { recurring: e.is_recurring }
+        : {}),
+    participants:
+      e.participants?.map((p) => ({
+        id: p.id,
+        name: p.name ?? "",
+        status: p.status ?? "unknown",
+        organizer: p.id === e.creator_id,
+      })) ?? [],
     organizer: e.creator_name ?? "",
     description: e.description ?? "",
     location: e.location ?? "",

@@ -1,3 +1,7 @@
+import {
+  isEventUpdateRequest,
+  isParticipantStatusRequest,
+} from "./event-reschedule.js";
 import { isAttachmentUpload } from "./attachment-request.js";
 import { isMeetingCreateRequest } from "./meeting-request.js";
 import { session } from "electron";
@@ -45,6 +49,23 @@ export function createSmallSession(): AuthTransport {
     async request(path, init) {
       if (
         !paths.has(path) &&
+        !(
+          init.method === "DELETE" &&
+          init.body == null &&
+          /^\/gate\/team\/api\/calendar\/events\/[A-Za-z0-9_-]{1,128}$/.test(
+            path,
+          )
+        ) &&
+        !(
+          init.method === "PATCH" &&
+          typeof init.body === "string" &&
+          isParticipantStatusRequest(path, JSON.parse(init.body))
+        ) &&
+        !(
+          init.method === "PUT" &&
+          typeof init.body === "string" &&
+          isEventUpdateRequest(path, JSON.parse(init.body))
+        ) &&
         !(init.method === "POST" && isAttachmentUpload(path, init.body)) &&
         !(init.method === "GET" && isCalendarReadPath(path)) &&
         !(

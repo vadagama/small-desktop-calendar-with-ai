@@ -1,16 +1,32 @@
+import {
+  TemplateMarkdown,
+  useAssistantPresentation,
+} from "./AssistantPresentation";
+import { CalendarPlus, CheckCheck } from "lucide-react";
 import { useEffect, useState } from "react";
+import { events } from "./notification-events.js";
 import type {
   MeetingReply,
   MeetingView,
 } from "../shared/meeting-operations.js";
 import type { MeetingDraft } from "../shared/meeting-draft.js";
-const dateTime = (value: string) =>
+
+const date = (value: string) =>
   new Intl.DateTimeFormat("ru-RU", {
     timeZone: "Asia/Almaty",
-    dateStyle: "medium",
-    timeStyle: "short",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
   }).format(new Date(value));
+const time = (value: string) =>
+  new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Asia/Almaty",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+
 export function MeetingDraftCard({ draft: initial }: { draft: MeetingDraft }) {
+  const presentation = useAssistantPresentation();
   const [view, setView] = useState<MeetingView>({
     draft: initial,
     phase: "preview",
@@ -18,17 +34,14 @@ export function MeetingDraftCard({ draft: initial }: { draft: MeetingDraft }) {
   });
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
-  const [editing, setEditing] = useState(false);
-  const [title, setTitle] = useState(initial.title);
-  const [agenda, setAgenda] = useState(initial.agenda);
   const draft = view.draft;
-  const reference = { id: draft.id, revision: draft.revision };
+  const participants =
+    draft.participants?.map((p) => p.name).join(", ") ??
+    draft.participantIds.join(", ");
+  const interval = `${date(draft.startsAt)}, ${time(draft.startsAt)}–${date(draft.startsAt) === date(draft.endsAt) ? "" : `${date(draft.endsAt)}, `}${time(draft.endsAt)}`;
   const accept = (reply: MeetingReply) => {
-    if (reply.ok) {
-      setView(reply.data);
-      setTitle(reply.data.draft.title);
-      setAgenda(reply.data.draft.agenda);
-    } else setError(reply.error);
+    if (reply.ok) setView(reply.data);
+    else setError(reply.error);
   };
   useEffect(() => {
     let active = true;
@@ -50,20 +63,21 @@ export function MeetingDraftCard({ draft: initial }: { draft: MeetingDraft }) {
       active = false;
     };
   }, [initial.id, initial.revision]);
-  const act = async (action: "read" | "edit" | "confirm" | "reconcile") => {
+  const act = async (action: "read" | "confirm" | "reconcile") => {
+    if (busy) return;
     setBusy(true);
     setError("");
     try {
-      const reply =
-        action === "edit"
-          ? await window.smallDesktop.meetings.edit({
-              ...reference,
-              title,
-              agenda,
-            })
-          : await window.smallDesktop.meetings[action](reference);
+      const reply = await window.smallDesktop.meetings[action]({
+        id: draft.id,
+        revision: draft.revision,
+      });
       accept(reply);
-      if (reply.ok) setEditing(false);
+      if (reply.ok && reply.data.phase === "succeeded") {
+        events.dispatchEvent(
+          new CustomEvent("assistant-meeting-created", { detail: reply.data }),
+        );
+      }
     } catch {
       setError(
         "Связь прервана. Проверьте состояние перед дальнейшими действиями.",
@@ -73,115 +87,83 @@ export function MeetingDraftCard({ draft: initial }: { draft: MeetingDraft }) {
     }
   };
   return (
-    <section aria-label="Черновик встречи">
-      <strong>{draft.title}</strong>
-      <p>
-        {dateTime(draft.startsAt)} — {dateTime(draft.endsAt)} ·{" "}
-        {draft.durationMinutes} мин · {draft.timezone}
-      </p>
-      <p>Организатор: {draft.organizer.name}</p>
-      <p>Участники: {draft.participantIds.join(", ")}</p>
-      <p>Разовая · личный календарь</p>
-      <p>Адженда: {draft.agenda || "Не указана"}</p>
-      <p>Место: {draft.location || "Не указано"}</p>
-      {draft.conferenceUrl ? (
-        <p>
-          Ссылка:{" "}
-          <span className="meeting-draft-url">{draft.conferenceUrl}</span>
-        </p>
-      ) : (
-        <p>Без видеоконференции</p>
-      )}
-      <p>
-        Занятость участников проверена {dateTime(draft.availabilityCheckedAt)}.
-        Перед созданием занятость и похожие события проверяются повторно.
-        Помещение не проверяется.
-      </p>
-      {view.phase === "preview" && (
-        <p>
-          Встреча не создана. Проверьте все параметры перед отправкой
-          приглашений.
-        </p>
-      )}
-      <p role="status">{busy ? "Проверяю состояние…" : view.message}</p>
-      {error && <p role="alert">{error}</p>}
-      {editing ? (
-        <form
-          className="meeting-draft-edit"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void act("edit");
+    <section aria-label="Черновик встречи" className="assistant-meeting">
+      <div className="assistant-meeting-card">
+        <header>
+          <CalendarPlus size={17} aria-hidden="true" />
+          {view.phase === "succeeded" ? "Встреча создана" : "Черновик встречи"}
+        </header>
+        <TemplateMarkdown
+          name="draft"
+          values={{
+            title: draft.title,
+            time: interval,
+            duration: String(draft.durationMinutes),
+            organizer: draft.organizer.name,
+            participants,
+            location:
+              draft.location || (draft.conferenceUrl ? "Онлайн" : "Не указано"),
+            agenda: draft.agenda || "",
           }}
-        >
-          <label>
-            Название встречи
-            <input
-              required
-              maxLength={200}
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-            />
-          </label>
-          <label>
-            Адженда
-            <textarea
-              maxLength={5000}
-              value={agenda}
-              onChange={(event) => setAgenda(event.target.value)}
-            />
-          </label>
-          <button type="submit" disabled={busy}>
-            Сохранить изменения
+        />
+        {draft.conferenceUrl && (
+          <p className="meeting-draft-url">
+            Ссылка на конференцию
+            <br />
+            {draft.conferenceUrl}
+          </p>
+        )}
+        {view.phase === "preview" && !error && !view.message && (
+          <p className="assistant-meeting-checked">
+            <CheckCheck size={16} aria-hidden="true" />
+            Нет пересечений у участников
+          </p>
+        )}
+        {view.phase !== "succeeded" && !!view.message && (
+          <p role="status">{view.message}</p>
+        )}
+        {error && <p role="alert">{error}</p>}
+        {view.phase !== "succeeded" && (
+          <button
+            className="assistant-meeting-create"
+            type="button"
+            disabled={busy || !!error || view.phase !== "preview"}
+            onClick={() => void act("confirm")}
+          >
+            {busy ? "Проверяю…" : "Создать встречу"}
           </button>
+        )}
+        {(view.phase === "unknown" || view.phase === "blocked") && (
+          <button
+            type="button"
+            disabled={busy || presentation.disabled}
+            onClick={() =>
+              presentation.choose(
+                "Подбери другое свободное время для этой встречи с теми же участниками и длительностью. Предыдущую отправку не повторяй.",
+              )
+            }
+          >
+            Выбрать другое время
+          </button>
+        )}
+        {(view.phase === "unknown" || !!error) && (
           <button
             type="button"
             disabled={busy}
-            onClick={() => {
-              setEditing(false);
-              setTitle(draft.title);
-              setAgenda(draft.agenda);
-            }}
+            onClick={() =>
+              void act(view.phase === "unknown" ? "reconcile" : "read")
+            }
           >
-            Отмена
+            Проверить результат
           </button>
-        </form>
-      ) : (
-        <div className="meeting-draft-actions">
-          {view.phase === "preview" && (
-            <>
-              <button
-                type="button"
-                disabled={busy || !!error}
-                onClick={() => setEditing(true)}
-              >
-                Изменить черновик
-              </button>
-              <button
-                type="button"
-                disabled={busy || !!error}
-                onClick={() => void act("confirm")}
-              >
-                Создать встречу и отправить приглашения
-              </button>
-            </>
-          )}
-          {view.phase === "unknown" && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void act("reconcile")}
-            >
-              Проверить результат
-            </button>
-          )}
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void act("read")}
-          >
-            Обновить состояние
-          </button>
-        </div>
+        )}
+      </div>
+      {view.phase === "succeeded" && (
+        <p role="status" className="assistant-meeting-confirmation">
+          Встреча создана: <strong>«{draft.title}»</strong>. {interval}{" "}
+          (Asia/Almaty). Участники: {participants}.{" "}
+          {draft.conferenceUrl ? "Онлайн-конференция." : draft.location}
+        </p>
       )}
     </section>
   );

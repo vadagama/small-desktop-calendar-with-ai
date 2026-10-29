@@ -8,6 +8,7 @@ export class DesktopTransport implements ChatTransport<UIMessage> {
 
   async sendMessages({
     messages,
+    chatId,
     abortSignal,
   }: Parameters<ChatTransport<UIMessage>["sendMessages"]>[0]) {
     abortSignal?.throwIfAborted();
@@ -53,7 +54,7 @@ export class DesktopTransport implements ChatTransport<UIMessage> {
           return;
         }
         void this.bridge
-          .start({ requestId, prompt })
+          .start({ requestId, prompt, conversationId: chatId })
           .then((result) => {
             if (!result.ok) fail(new Error(result.error));
           })

@@ -145,7 +145,7 @@ test("drops draft preparation after cancellation, including a late availability 
   );
 });
 
-test("draft tool enforces the explicit complete participant list before any read", async () => {
+test("draft tool enforces the directory-verified complete participant selection before any read", async () => {
   const { createCalendarToolExecutor } =
     await import("../../src/main/calendar-tools.js");
   for (const prompt of [
@@ -176,17 +176,62 @@ test("draft tool enforces the explicit complete participant list before any read
     "Участники: [person-a]",
     signal,
     {
-      searchPeople: async () => {
-        throw new Error("unused");
+      searchPeople: async () => ({
+        people: [
+          {
+            participantId: "person-a",
+            name: "Тестовый участник",
+            position: "",
+          },
+        ],
+        page: 1,
+        nextPage: null,
+      }),
+    },
+    {
+      find: async (query: unknown) => {
+        const { includeWeekends, ...rest } = query as Record<string, unknown>;
+        assert.equal(includeWeekends, true);
+        return availability.find(rest);
       },
     },
-    availability,
     organizer.name,
   );
+  await execute("searchPeople", { query: "Тестовый", page: 1 });
+  await execute("selectParticipants", { participantIds: ["person-a"] });
   const result = await execute("prepareMeetingDraft", input);
   assert.ok(
     result.ok &&
       "kind" in result.data &&
+      result.data.kind === "meeting-draft" &&
       result.data.organizer.name === organizer.name,
   );
+});
+
+test("includes the session participant GUID, not the account ID, in draft and availability", async () => {
+  for (const ids of [["person-a"], ["person-a", "organizer-guid"]]) {
+    const result = await prepareMeetingDraft(
+      { ...organizer, participantId: "organizer-guid" },
+      { ...input, participantIds: ids },
+      {
+        find: async (value: unknown) => {
+          assert.deepEqual(
+            (value as { participantIds: string[] }).participantIds,
+            ["person-a", "organizer-guid"],
+          );
+          return {
+            slots: [
+              { start: input.startsAt, end: "2099-10-29T10:00:00+05:00" },
+            ],
+            participantIds: ["person-a", "organizer-guid"],
+            date: "2099-10-29",
+            durationMinutes: 30,
+            timezone: "Asia/Almaty" as const,
+          };
+        },
+      },
+      signal,
+    );
+    assert.deepEqual(result.participantIds, ["person-a", "organizer-guid"]);
+  }
 });

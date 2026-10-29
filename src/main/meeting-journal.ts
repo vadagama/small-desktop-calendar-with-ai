@@ -69,6 +69,17 @@ export class MeetingJournal {
     }
     return { ...stored, ...result };
   }
+  /** Only the caller holding a claim may release it after an explicit HTTP refusal. */
+  async releaseRejected(key: string) {
+    const stored = await this.read(key);
+    if (!stored || stored.eventId || stored.phase === "succeeded")
+      throw new Error("Cannot release a potentially created event");
+    await unlink(this.path(key, ".result")).catch((error) => {
+      if (!missing(error)) throw error;
+    });
+    await unlink(this.path(key, ".intent"));
+    await this.syncDirectory();
+  }
   async finish(key: string, result: MeetingReceipt) {
     if (!(await this.read(key))) throw new Error("Missing operation intent");
     const path = this.path(key, ".result");

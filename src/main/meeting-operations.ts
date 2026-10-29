@@ -1,3 +1,4 @@
+import { MeetingCreateRejected } from "./meeting-create-error.js";
 import { CalendarError } from "./calendar.js";
 import { createHash } from "node:crypto";
 import {
@@ -69,7 +70,9 @@ export class MeetingOperations {
       entry.message =
         entry.phase === "succeeded"
           ? "Встреча создана и проверена."
-          : uncertain;
+          : entry.phase === "blocked"
+            ? "На это время уже отправлялся другой черновик с теми же участниками. Создание заблокировано, чтобы не продублировать встречу. Проверьте прежнюю карточку или выберите другое время."
+            : uncertain;
       if (stored.eventId) entry.eventId = stored.eventId;
     }
     return structuredClone(entry);
@@ -142,6 +145,16 @@ export class MeetingOperations {
       entry.phase = "succeeded";
       entry.message = "Встреча создана и проверена.";
     } catch (error) {
+      if (claimed && !entry.eventId && error instanceof MeetingCreateRejected) {
+        try {
+          await this.journal.releaseRejected(keyFor(entry.draft));
+          entry.phase = "preview";
+          entry.message = error.message;
+          return structuredClone(entry);
+        } catch {
+          // Keep the retry blocked if durable cleanup could not be confirmed.
+        }
+      }
       // Even a failed durable claim can have left a file. Never proceed without certainty.
       if (claimed || journalAccess) {
         entry.phase = "unknown";

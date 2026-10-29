@@ -30,6 +30,15 @@ export const meetingDraftSchema = z.strictObject({
   title: z.string(),
   agenda: z.string(),
   participantIds: z.array(z.string()),
+  participants: z
+    .array(
+      z.object({
+        participantId: z.string(),
+        name: z.string(),
+        position: z.string(),
+      }),
+    )
+    .optional(),
   organizer: z.object({ id: z.string(), name: z.string() }),
   startsAt: z.iso.datetime({ offset: true }),
   endsAt: z.iso.datetime({ offset: true }),

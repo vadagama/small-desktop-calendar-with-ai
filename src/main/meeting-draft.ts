@@ -9,7 +9,7 @@ import type { AvailabilityService } from "./availability.js";
 
 /** Preview only. This module has no event-write capability or confirmation state. */
 export async function prepareMeetingDraft(
-  organizer: { id: string; name: string },
+  organizer: { id: string; name: string; participantId?: string },
   input: unknown,
   availability: Pick<AvailabilityService, "find">,
   signal: AbortSignal,
@@ -23,6 +23,10 @@ export async function prepareMeetingDraft(
       "Проверьте название, состав, время и ссылку черновика.",
     );
   const q = parsed.data;
+  if (organizer.participantId)
+    q.participantIds = [
+      ...new Set([...q.participantIds, organizer.participantId]),
+    ];
   const start = Date.parse(q.startsAt);
   const end = start + q.durationMinutes * 60000;
   const result = await availability.find({
@@ -51,7 +55,7 @@ export async function prepareMeetingDraft(
     title: q.title,
     agenda: q.agenda,
     participantIds: q.participantIds,
-    organizer: { ...organizer },
+    organizer: { id: organizer.id, name: organizer.name },
     startsAt: new Date(start).toISOString(),
     endsAt: new Date(end).toISOString(),
     durationMinutes: q.durationMinutes,

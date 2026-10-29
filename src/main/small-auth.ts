@@ -1,3 +1,4 @@
+import { eventUpdateBody, type EventUpdateBody } from "./event-reschedule.js";
 import { attachmentPath, isAttachmentUpload } from "./attachment-request.js";
 import { meetingCreateBody, meetingCreatePath } from "./meeting-request.js";
 import { z } from "zod";
@@ -94,7 +95,9 @@ export class SmallAuth {
         "Content-Type": "application/json",
         ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
       },
-      ...(method === "POST" ? { body: JSON.stringify(body ?? {}) } : {}),
+      ...(["POST", "PUT", "PATCH"].includes(method)
+        ? { body: JSON.stringify(body ?? {}) }
+        : {}),
       redirect: "error",
       signal: AbortSignal.timeout(15000),
     });
@@ -244,6 +247,78 @@ export class SmallAuth {
       )
         throw new SmallAuthError("Изменился аккаунт Small.", "auth");
       return this.request(meetingCreatePath, "POST", body.data);
+    });
+  }
+  respondCalendarEvent(
+    accountId: string,
+    eventId: string,
+    status: "accepted" | "declined",
+  ): Promise<Response> {
+    const version = this.version;
+    if (
+      !/^[A-Za-z0-9_-]{1,128}$/.test(eventId) ||
+      !["accepted", "declined"].includes(status)
+    )
+      return Promise.reject(
+        new SmallAuthError("Некорректный ответ на приглашение."),
+      );
+    return this.run(async () => {
+      const state = await this.current();
+      if (
+        version !== this.version ||
+        state.status !== "signed-in" ||
+        state.profile.id !== accountId
+      )
+        throw new SmallAuthError("Изменился аккаунт Small.", "auth");
+      return this.request(
+        `/gate/team/api/calendar/events/${eventId}/participant-status`,
+        "PATCH",
+        { status },
+      );
+    });
+  }
+  deleteCalendarEvent(accountId: string, eventId: string): Promise<Response> {
+    const version = this.version;
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(eventId))
+      return Promise.reject(new SmallAuthError("Некорректная встреча."));
+    return this.run(async () => {
+      const state = await this.current();
+      if (
+        version !== this.version ||
+        state.status !== "signed-in" ||
+        state.profile.id !== accountId
+      )
+        throw new SmallAuthError("Изменился аккаунт Small.", "auth");
+      return this.request(
+        `/gate/team/api/calendar/events/${eventId}`,
+        "DELETE",
+      );
+    });
+  }
+  updateCalendarEvent(
+    accountId: string,
+    eventId: string,
+    input: EventUpdateBody,
+  ): Promise<Response> {
+    const version = this.version;
+    const body = eventUpdateBody.safeParse(input);
+    if (!body.success || !/^[A-Za-z0-9_-]{1,128}$/.test(eventId))
+      return Promise.reject(
+        new SmallAuthError("Некорректное изменение встречи."),
+      );
+    return this.run(async () => {
+      const state = await this.current();
+      if (
+        version !== this.version ||
+        state.status !== "signed-in" ||
+        state.profile.id !== accountId
+      )
+        throw new SmallAuthError("Изменился аккаунт Small.", "auth");
+      return this.request(
+        `/gate/team/api/calendar/events/${eventId}?force=false`,
+        "PUT",
+        body.data,
+      );
     });
   }
   uploadAttachment(accountId: string, body: FormData): Promise<Response> {

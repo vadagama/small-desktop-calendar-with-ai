@@ -1,3 +1,7 @@
+import { ParticipantMemory } from "./participant-memory.js";
+import { AgentSettingsStore } from "./agent-settings.js";
+import { registerAgentSettingsHandlers } from "./agent-settings-ipc.js";
+import { EventRescheduleService } from "./event-reschedule.js";
 import { EventChangeService } from "./event-change.js";
 import { MeetingOperations } from "./meeting-operations.js";
 import { MeetingJournal } from "./meeting-journal.js";
@@ -88,6 +92,8 @@ async function createWindow() {
 
 app.whenReady().then(async () => {
   app.dock?.setIcon(appIcon);
+  const participantMemory = new ParticipantMemory(app.getPath("userData"));
+  const agentSettings = new AgentSettingsStore(app.getPath("userData"));
   const profiles = new ProfileStore(
     app.getPath("userData"),
     new KeychainSecrets(app.getPath("userData")),
@@ -106,9 +112,12 @@ app.whenReady().then(async () => {
     devUrl || localUrl,
     resolve(here, "agent-worker.js"),
     (signal) => profiles.resolveActive(signal),
-    async (prompt, signal) => {
+    async (prompt, signal, conversation) => {
       const state = await smallAuth.read();
       signal.throwIfAborted();
+      conversation.bindAccount(
+        state.status === "signed-in" ? state.profile.id : null,
+      );
       return state.status === "signed-in"
         ? createCalendarToolExecutor(
             state.profile.id,
@@ -118,10 +127,15 @@ app.whenReady().then(async () => {
             availability,
             state.profile.name,
             (draft) => meetings.register(draft),
+            conversation,
+            participantMemory,
+            state.profile.participantId,
           )
         : null;
     },
+    () => agentSettings.read(),
   );
+  registerAgentSettingsHandlers(agentSettings, assistant.trusted);
   registerProfileHandlers(profiles, assistant.trusted, assistant.cancelActive);
   registerMeetingHandlers(meetings, smallAuth, assistant.trusted, availability);
 
@@ -130,6 +144,7 @@ app.whenReady().then(async () => {
     assistant.trusted,
     availability,
     new EventChangeService(smallAuth),
+    new EventRescheduleService(smallAuth),
   );
   registerSmallAuthHandlers(
     smallAuth,

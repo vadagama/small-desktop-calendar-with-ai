@@ -215,3 +215,28 @@ test("verification accepts empty nullable fields and server-added calendars", as
   d.agenda = "Required description";
   assert.equal(await writer.verify(d, "42"), false);
 });
+
+test("HTTP refusals are distinguished from ambiguous server failures", async () => {
+  const { MeetingCreateRejected } =
+    await import("../../src/main/meeting-create-error.js");
+  for (const status of [400, 401, 403, 404, 409, 422, 500, 503]) {
+    const service = new SmallMeetingWriter(
+      {
+        createCalendarEvent: async () => new Response(null, { status }),
+        readCalendar: async () => {
+          throw Error("unused");
+        },
+      },
+      { events: async () => ({ events: [], issues: [] }) },
+      {
+        find: async () => {
+          throw Error("unused");
+        },
+      },
+    );
+    await assert.rejects(service.create(draft()), (error: unknown) => {
+      assert.equal(error instanceof MeetingCreateRejected, status < 500);
+      return true;
+    });
+  }
+});

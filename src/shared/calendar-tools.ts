@@ -1,7 +1,12 @@
 import type { MeetingDraft } from "./meeting-draft.js";
 import { z } from "zod";
 import { validCalendarDate } from "./calendar-time.js";
-import type { CalendarReply, PeoplePage, SlotsResult } from "./calendar.js";
+import type {
+  CalendarReply,
+  PeoplePage,
+  SlotsResult,
+  CalendarPerson,
+} from "./calendar.js";
 
 export const peopleToolInput = z.strictObject({
   query: z.string().trim().min(1).max(100),
@@ -13,11 +18,33 @@ export const slotsToolInput = z.strictObject({
     .min(1)
     .max(20)
     .refine((ids) => new Set(ids).size === ids.length),
+  includeWeekends: z.boolean().optional(),
+  timeFrom: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .optional(),
+  timeTo: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .optional(),
   date: z.string().refine(validCalendarDate),
   durationMinutes: z.number().int().min(1).max(480),
 });
 export type CalendarToolResult = CalendarReply<
-  PeoplePage | SlotsResult | MeetingDraft
+  | PeoplePage
+  | SlotsResult
+  | MeetingDraft
+  | { kind: "participants"; people: CalendarPerson[] }
+  | {
+      kind: "memory";
+      people: {
+        participantId: string;
+        name: string;
+        position: string;
+        aliases: string[];
+        uses: number;
+      }[];
+    }
 >;
 export type CalendarToolExecutor = (
   name: string,
@@ -35,3 +62,21 @@ export interface CalendarToolReply {
   callId: string;
   result: CalendarToolResult;
 }
+
+export const selectParticipantsInput = z.strictObject({
+  participantIds: slotsToolInput.shape.participantIds,
+  rememberedAliases: z
+    .array(
+      z.strictObject({
+        participantId: z.string().min(1).max(128),
+        alias: z.string().trim().min(1).max(100),
+      }),
+    )
+    .max(20)
+    .optional(),
+});
+export const participantMemoryInput = z.strictObject({
+  action: z.enum(["recall", "remember", "forget", "clear"]),
+  participantId: z.string().min(1).max(128).optional(),
+  alias: z.string().trim().min(1).max(100).optional(),
+});

@@ -7,7 +7,10 @@ const query = {
   date: "2026-11-02",
   durationMinutes: 30,
 };
-function setup(prompt = "Участники: [person-a]") {
+function setup(
+  prompt = "Найди время завтра с Тестовым Участником",
+  organizerParticipantId?: string,
+) {
   const calls: unknown[] = [];
   const controller = new AbortController();
   const execute = createCalendarToolExecutor(
@@ -17,7 +20,17 @@ function setup(prompt = "Участники: [person-a]") {
     {
       searchPeople: async (input: unknown) => {
         calls.push(input);
-        return { people: [], page: 1, nextPage: null };
+        return {
+          people: [
+            {
+              participantId: "person-a",
+              name: "Тестовый Участник",
+              position: "Тестирование",
+            },
+          ],
+          page: 1,
+          nextPage: null,
+        };
       },
     },
     {
@@ -26,25 +39,78 @@ function setup(prompt = "Участники: [person-a]") {
         return { ...query, slots: [], timezone: "Asia/Almaty" as const };
       },
     },
+    "account-a",
+    undefined,
+    undefined,
+    undefined,
+    organizerParticipantId,
   );
   return { execute, calls, controller };
 }
 test("binds calendar tools to the account captured outside model input", async () => {
   const { execute, calls } = setup();
+  assert.equal(
+    (await execute("searchPeople", { query: "Тестовый", page: 1 })).ok,
+    true,
+  );
+  const selected = await execute("selectParticipants", {
+    participantIds: ["person-a"],
+  });
+  assert.deepEqual(selected, {
+    ok: true,
+    data: {
+      kind: "participants",
+      people: [
+        {
+          participantId: "person-a",
+          name: "Тестовый Участник",
+          position: "Тестирование",
+        },
+      ],
+    },
+  });
   const result = await execute("findSlots", query);
   assert.equal(result.ok, true);
-  assert.deepEqual(calls, [{ ...query, accountId: "account-a" }]);
+  assert.deepEqual(calls.at(-1), { ...query, accountId: "account-a" });
 });
-test("rejects invented participants and partial matches before reading availability", async () => {
+test("literal participant IDs cannot bypass directory verification and selection", async () => {
   for (const prompt of [
     "Найди время для команды",
-    "Участники: [person-ab]",
+    "Участники: [person-a]",
     "Участники: [person-a, person-b]",
   ]) {
     const { execute, calls } = setup(prompt);
     assert.equal((await execute("findSlots", query)).ok, false);
     assert.equal(calls.length, 0);
   }
+});
+test("directory results alone do not select participants or authorize unknown IDs", async () => {
+  const { execute, calls } = setup();
+  await execute("searchPeople", { query: "Тестовый", page: 1 });
+  assert.equal((await execute("findSlots", query)).ok, false);
+  assert.equal(
+    (await execute("selectParticipants", { participantIds: ["person-ab"] })).ok,
+    false,
+  );
+  assert.equal(calls.length, 1);
+});
+test("availability cannot omit or add participants from the selected composition", async () => {
+  const { execute, calls } = setup();
+  await execute("searchPeople", { query: "Тестовый", page: 1 });
+  assert.equal(
+    (await execute("selectParticipants", { participantIds: ["person-a"] })).ok,
+    true,
+  );
+  assert.equal(
+    (
+      await execute("findSlots", {
+        ...query,
+        participantIds: ["person-a", "person-b"],
+      })
+    ).ok,
+    false,
+  );
+  assert.equal(calls.length, 1);
 });
 test("rejects account injection, unknown tools and extra parameters", async () => {
   const { execute, calls } = setup();
@@ -109,4 +175,27 @@ test("discards a successful calendar response arriving after cancellation", asyn
   controller.abort();
   release();
   await assert.rejects(result, { name: "AbortError" });
+});
+
+test("slot lookup always includes the organizer while retaining every selected guest", async () => {
+  const { execute, calls } = setup(undefined, "organizer-guid");
+  await execute("searchPeople", { query: "Тестовый", page: 1 });
+  await execute("selectParticipants", { participantIds: ["person-a"] });
+  for (const participantIds of [["person-a"], ["person-a", "organizer-guid"]]) {
+    const result = await execute("findSlots", { ...query, participantIds });
+    assert.equal(result.ok, true);
+    assert.deepEqual(
+      (calls.at(-1) as { participantIds: string[] }).participantIds,
+      ["person-a", "organizer-guid"],
+    );
+  }
+  assert.equal(
+    (
+      await execute("findSlots", {
+        ...query,
+        participantIds: ["organizer-guid"],
+      })
+    ).ok,
+    false,
+  );
 });

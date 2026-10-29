@@ -1,3 +1,4 @@
+import { MeetingCreateRejected } from "./meeting-create-error.js";
 import { meetingOccurrences } from "./meeting-occurrences.js";
 import { recurrenceRule } from "../shared/meeting-options.js";
 import { z } from "zod";
@@ -66,7 +67,7 @@ export class SmallMeetingWriter implements MeetingWriter {
       participantIds: d.participantIds,
       date: calendarDateAt(d.startsAt),
       durationMinutes: d.durationMinutes,
-      ...(d.options ? { includeWeekends: true } : {}),
+      includeWeekends: true,
     });
     if (
       !available.slots.some(
@@ -120,9 +121,13 @@ export class SmallMeetingWriter implements MeetingWriter {
       );
   }
   async create(d: MeetingDraft) {
-    const body = await calendarJson(
-      await this.auth.createCalendarEvent(d.organizer.id, meetingPayload(d)),
+    const response = await this.auth.createCalendarEvent(
+      d.organizer.id,
+      meetingPayload(d),
     );
+    if ([400, 401, 403, 404, 409, 422].includes(response.status))
+      throw new MeetingCreateRejected(response.status);
+    const body = await calendarJson(response);
     return z.object({ data: z.object({ id }) }).parse(body).data.id;
   }
   async verify(d: MeetingDraft, eventId?: string) {

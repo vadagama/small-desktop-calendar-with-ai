@@ -50,52 +50,55 @@ export class EventChangeService {
         "Некорректные параметры изменения встречи.",
       );
     const q = parsed.data;
-    return this.session.readCalendar(q.accountId, async (get) => {
-      const result = detail.safeParse(
-        await calendarJson(
-          await get(`/gate/team/api/calendar/events/${q.eventId}`),
-        ),
-      );
-      if (!result.success)
-        throw new CalendarError(
-          "invalid",
-          "Small не вернул полные данные для проверки организатора и типа встречи.",
+    return this.session.readCalendar(
+      q.accountId,
+      async (get, participantId) => {
+        const result = detail.safeParse(
+          await calendarJson(
+            await get(`/gate/team/api/calendar/events/${q.eventId}`),
+          ),
         );
-      const e = result.data.data;
-      if (e.id !== q.eventId)
-        throw new CalendarError(
-          "invalid",
-          "Карточка не совпадает с выбранной встречей.",
-        );
-      if (e.is_recurring || e.original_event_id || e.recurrence_rule != null)
-        throw new CalendarError(
-          "denied",
-          "Изменение серий и их вхождений пока недоступно.",
-        );
-      if (e.creator_id !== q.accountId)
-        throw new CalendarError(
-          "denied",
-          "Подготовить изменение может только организатор встречи.",
-        );
-      if (q.change.kind === "rename" && q.change.title === e.title)
-        throw new CalendarError(
-          "invalid",
-          "Новое название совпадает с текущим.",
-        );
-      return {
-        eventId: e.id,
-        kind: q.change.kind,
-        before: {
-          title: e.title,
-          description: e.description ?? "",
-          location: e.location ?? "",
-          startsAt: e.starts_at,
-          endsAt: e.ends_at,
-          participantIds: e.participants.map((p) => p.id),
-        },
-        afterTitle: q.change.kind === "rename" ? q.change.title : null,
-        checkedAt: new Date().toISOString(),
-      };
-    });
+        if (!result.success)
+          throw new CalendarError(
+            "invalid",
+            "Small не вернул полные данные для проверки организатора и типа встречи.",
+          );
+        const e = result.data.data;
+        if (e.id !== q.eventId)
+          throw new CalendarError(
+            "invalid",
+            "Карточка не совпадает с выбранной встречей.",
+          );
+        if (e.is_recurring || e.original_event_id || e.recurrence_rule != null)
+          throw new CalendarError(
+            "denied",
+            "Изменение серий и их вхождений пока недоступно.",
+          );
+        if (e.creator_id !== (participantId ?? q.accountId))
+          throw new CalendarError(
+            "denied",
+            "Подготовить изменение может только организатор встречи.",
+          );
+        if (q.change.kind === "rename" && q.change.title === e.title)
+          throw new CalendarError(
+            "invalid",
+            "Новое название совпадает с текущим.",
+          );
+        return {
+          eventId: e.id,
+          kind: q.change.kind,
+          before: {
+            title: e.title,
+            description: e.description ?? "",
+            location: e.location ?? "",
+            startsAt: e.starts_at,
+            endsAt: e.ends_at,
+            participantIds: e.participants.map((p) => p.id),
+          },
+          afterTitle: q.change.kind === "rename" ? q.change.title : null,
+          checkedAt: new Date().toISOString(),
+        };
+      },
+    );
   }
 }

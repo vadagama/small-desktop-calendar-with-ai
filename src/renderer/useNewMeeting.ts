@@ -1,7 +1,9 @@
+import { notifySuccess, notifyError } from "./notification-events.js";
 import { useEffect, useRef, useState } from "react";
 import { useAvailability } from "./useAvailability.js";
 import {
   calendarRange,
+  calendarToday,
   addDateDays,
   defaultMeetingSchedule,
 } from "../shared/calendar-time.js";
@@ -15,12 +17,16 @@ const minutes = (time: string) => {
 export function useNewMeeting({
   account,
   initialDate,
+  initialPeople,
+  initialSlot,
   expired,
   created,
   close,
 }: {
   account: { id: string; name: string; participantId?: string };
   initialDate: string;
+  initialSlot?: import("../../prototype/src/types.js").Slot;
+  initialPeople?: import("../shared/calendar.js").CalendarPerson[];
   close: () => void;
   expired: () => void;
   created: (result: MeetingView) => void;
@@ -31,7 +37,16 @@ export function useNewMeeting({
   const [title, setTitle] = useState(""),
     [agenda, setAgenda] = useState(""),
     [url, setUrl] = useState("");
-  const [initial] = useState(() => defaultMeetingSchedule(initialDate));
+  const [initial] = useState(() => {
+    if (!initialSlot) return defaultMeetingSchedule(initialDate);
+    const clock = (minute: number) =>
+      `${String(Math.floor((minute % 1440) / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
+    return {
+      date: initialSlot.date,
+      start: clock(initialSlot.start),
+      end: clock(initialSlot.start + initialSlot.duration),
+    };
+  });
   const [date, setDate] = useState(initial.date),
     [start, setStart] = useState(initial.start),
     [end, setEnd] = useState(initial.end);
@@ -51,17 +66,39 @@ export function useNewMeeting({
   const people = useAvailability(
       account.id,
       expired,
-      account.participantId
-        ? [
-            {
-              participantId: account.participantId,
-              name: account.name,
-              position: "Организатор",
-            },
-          ]
-        : [],
+      initialPeople?.length
+        ? initialPeople
+        : account.participantId
+          ? [
+              {
+                participantId: account.participantId,
+                name: account.name,
+                position: "Организатор",
+              },
+            ]
+          : [],
     ),
     recipients = useAvailability(account.id, expired);
+  const snapshot = JSON.stringify({
+    title,
+    agenda,
+    url,
+    date,
+    start,
+    end,
+    room,
+    inform,
+    repeat,
+    until,
+    days,
+    people: people.selected.map((p) => p.participantId),
+    recipients: recipients.selected.map((p) => p.participantId),
+    files: files.map((f) => f.id),
+  });
+  const original = useRef(snapshot);
+  const dirty = original.current !== snapshot;
+  const endsNextDay = end === "00:00" && start !== "00:00";
+  const durationMinutes = (endsNextDay ? 1440 : minutes(end)) - minutes(start);
   const locked = !!result && result.phase !== "preview";
   useEffect(() => {
     active.current = true;
@@ -98,13 +135,16 @@ export function useNewMeeting({
     }
   }
   async function create() {
+    let submitted = false;
     if (running.current) return;
     running.current = true;
     setBusy(true);
     setError("");
     setResult(null);
     try {
-      const duration = minutes(end) - minutes(start);
+      if (date < calendarToday())
+        throw new Error("Нельзя создавать события в прошедшие дни.");
+      const duration = durationMinutes;
       if (!people.selected.length)
         throw new Error("Выберите участников встречи.");
       if (duration <= 0 || duration > 480)
@@ -143,6 +183,7 @@ export function useNewMeeting({
         message:
           "Ответ не получен. Проверьте результат перед повторным созданием.",
       });
+      submitted = true;
       const r = await window.smallDesktop.meetings.confirm({
         id: prepared.data.id,
         revision: prepared.data.revision,
@@ -158,15 +199,20 @@ export function useNewMeeting({
         throw new Error(r.error);
       }
       setResult(r.data);
+      if (r.data.phase !== "succeeded") notifyError("создать событие");
       if (r.data.phase === "succeeded") {
+        notifySuccess("Событие успешно создано");
         created(r.data);
         close();
       }
     } catch (e) {
-      if (active.current)
-        setError(
-          e instanceof Error ? e.message : "Не удалось создать встречу.",
-        );
+      if (active.current) {
+        if (submitted) notifyError("создать событие");
+        else
+          setError(
+            e instanceof Error ? e.message : "Не удалось создать встречу.",
+          );
+      }
     } finally {
       running.current = false;
       if (active.current) setBusy(false);
@@ -185,6 +231,7 @@ export function useNewMeeting({
       if (r.ok) {
         setResult(r.data);
         if (r.data.phase === "succeeded") {
+          notifySuccess("Событие успешно создано");
           created(r.data);
           close();
         }
@@ -196,6 +243,9 @@ export function useNewMeeting({
     }
   }
   return {
+    dirty,
+    durationMinutes,
+    endsNextDay,
     dialog,
     title,
     setTitle,

@@ -17,6 +17,14 @@ const query = z.strictObject({
   date: availabilityDate,
   durationMinutes,
   includeWeekends: z.boolean().optional(),
+  timeFrom: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .optional(),
+  timeTo: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+    .optional(),
 });
 const interval = z
   .strictObject({
@@ -72,6 +80,11 @@ export class AvailabilityService {
         "Проверьте участников, дату и длительность встречи.",
       );
     const q = parsed.data;
+    if (q.timeFrom && q.timeTo && q.timeFrom >= q.timeTo)
+      throw new CalendarError(
+        "invalid",
+        "Начало диапазона должно быть раньше окончания.",
+      );
     const weekday = new Date(`${q.date}T12:00:00Z`).getUTCDay();
     if (!q.includeWeekends && (weekday === 0 || weekday === 6))
       throw new CalendarError(
@@ -148,6 +161,9 @@ export class AvailabilityService {
           end = Date.parse(slot.end);
         return (
           start >= now &&
+          (!q.timeFrom ||
+            start >= Date.parse(`${q.date}T${q.timeFrom}:00+05:00`)) &&
+          (!q.timeTo || end <= Date.parse(`${q.date}T${q.timeTo}:00+05:00`)) &&
           start >= Date.parse(range.start) &&
           end <= Date.parse(range.end) &&
           end - start === q.durationMinutes * 60000 &&

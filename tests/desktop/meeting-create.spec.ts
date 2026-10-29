@@ -203,7 +203,7 @@ test("header creates a meeting without a model, preserves fields and blocks unkn
     await dialog.getByLabel("Начало", { exact: true }).fill("09:30");
     await dialog.getByLabel("Окончание", { exact: true }).fill("10:00");
     await dialog.getByRole("button", { name: "Создать", exact: true }).click();
-    await expect(dialog.getByRole("status")).toContainText(
+    await expect(dialog.locator("p[role=status]")).toContainText(
       "Результат отправки неизвестен",
     );
     await expect(
@@ -212,7 +212,7 @@ test("header creates a meeting without a model, preserves fields and blocks unkn
     await dialog
       .getByRole("button", { name: "Проверить результат", exact: true })
       .click();
-    await expect(dialog.getByRole("status")).toContainText(
+    await expect(dialog.locator("p[role=status]")).toContainText(
       "Результат отправки неизвестен",
     );
     expect(

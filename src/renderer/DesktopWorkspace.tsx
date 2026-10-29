@@ -1,11 +1,11 @@
+import { events, notifySuccess, notifyError } from "./notification-events.js";
 import { NewMeeting } from "./NewMeeting";
-import { useCallback, useEffect, useState } from "react";
-import { CalendarDays, Settings2, UsersRound, Plus, Clock } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { CalendarDays, Settings2, UsersRound, Plus } from "lucide-react";
 import { Calendar } from "../../prototype/src/CalendarView";
-import type { Meeting } from "../../prototype/src/types";
+import type { Meeting, Slot } from "../../prototype/src/types";
 import { DesktopAssistant } from "./Assistant";
 import { DockWorkspace } from "./DockWorkspace";
-import { Availability } from "./Availability";
 import { SmallAccount } from "./SmallAccount";
 import { CalendarFilters } from "./CalendarFilters";
 import { EventDetails } from "./EventDetails";
@@ -20,15 +20,19 @@ import type { CalendarEvent, CalendarView } from "../shared/calendar.js";
 import type { SmallAuthState } from "../shared/small-auth.js";
 
 export function DesktopWorkspace() {
+  const [savingTime, setSavingTime] = useState(false);
+  const saving = useRef(false);
+  const currentAccount = useRef<string | null>(null);
+  const [initialPeople, setInitialPeople] = useState<
+    NonNullable<CalendarEvent["participants"]>
+  >([]);
   const [createdId, setCreatedId] = useState<string | null>(null);
+  const [initialSlot, setInitialSlot] = useState<Slot | null>(null);
   const [creating, setCreating] = useState(false);
   const [account, setAccount] = useState<SmallAuthState | null>(null);
   const [revision, setRevision] = useState(0);
   const [date, setDate] = useState(calendarToday);
   const [view, setView] = useState<CalendarView>("week");
-  const [availabilityAccount, setAvailabilityAccount] = useState<string | null>(
-    null,
-  );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selected, setSelected] = useState<{
@@ -36,17 +40,34 @@ export function DesktopWorkspace() {
     event: CalendarEvent;
   } | null>(null);
   const accountId = account?.status === "signed-in" ? account.profile.id : null;
+  currentAccount.current = accountId;
   useEffect(() => {
     setCreating(false);
     setCreatedId(null);
     setSelected(null);
-    setAvailabilityAccount(null);
   }, [accountId]);
   const expired = useCallback(() => {
     setAccount(null);
     setRevision((value) => value + 1);
   }, []);
   const calendar = useSmallCalendar(accountId, date, view, expired);
+  useEffect(() => {
+    const created = (event: Event) => {
+      const result = (
+        event as CustomEvent<
+          import("../shared/meeting-operations.js").MeetingView
+        >
+      ).detail;
+      if (result.draft.organizer.id !== currentAccount.current) return;
+      setCreatedId(result.eventId ?? null);
+      setDate(calendarDateAt(result.draft.startsAt));
+      calendar.setMy(true);
+      calendar.refresh();
+    };
+    events.addEventListener("assistant-meeting-created", created);
+    return () =>
+      events.removeEventListener("assistant-meeting-created", created);
+  }, [calendar.setMy, calendar.refresh]);
   const range = calendarRange(date, view);
   const byId = new Map<string, CalendarEvent>();
   const meetings: Meeting[] = calendar.events.flatMap((event) =>
@@ -63,11 +84,70 @@ export function DesktopWorkspace() {
         agenda: event.description,
         calendar: calendar.my ? "personal" : "team",
         color: "green",
-        people: [],
+        people:
+          event.participants?.map((p) => p.name || "Участник без имени") ?? [],
         location: event.location,
       };
     }),
   );
+  const canChange = (meeting: Meeting) => {
+    const event = byId.get(meeting.id);
+    const original = meetings.find((item) => item.id === meeting.id);
+    if (!original) return false;
+    const day = calendarRange(original.date, "day");
+    return (
+      !!event &&
+      calendarDateAt(event.startsAt) >= calendarToday() &&
+      meeting.date >= calendarToday() &&
+      !savingTime &&
+      event.participation === "organizer" &&
+      "id" in event.lookup &&
+      // Only whole events can be dragged; grid durations round away seconds.
+      Date.parse(event.startsAt) >= Date.parse(day.start) &&
+      Date.parse(event.endsAt) <= Date.parse(day.end)
+    );
+  };
+  async function changeTime(meeting: Meeting) {
+    const event = byId.get(meeting.id);
+    if (
+      !event ||
+      !("id" in event.lookup) ||
+      !accountId ||
+      saving.current ||
+      !canChange(meeting)
+    )
+      return;
+    saving.current = true;
+    setSavingTime(true);
+    const accountAtStart = accountId;
+    const base = Date.parse(calendarRange(meeting.date, "day").start);
+    try {
+      const reply = await window.smallDesktop.calendar.reschedule({
+        accountId,
+        eventId: event.lookup.id,
+        beforeStart: event.startsAt,
+        beforeEnd: event.endsAt,
+        startsAt: new Date(base + meeting.start * 60000).toISOString(),
+        endsAt: new Date(
+          base + (meeting.start + meeting.duration) * 60000,
+        ).toISOString(),
+      });
+      if (currentAccount.current !== accountAtStart) return;
+      if (!reply.ok) {
+        notifyError("перенести событие", reply.kind);
+        if (reply.kind === "auth") expired();
+      } else notifySuccess("Время события изменено");
+      calendar.refresh();
+    } catch {
+      if (currentAccount.current === accountAtStart) {
+        notifyError("перенести событие");
+        calendar.refresh();
+      }
+    } finally {
+      saving.current = false;
+      setSavingTime(false);
+    }
+  }
   const revealed = meetings.find((meeting) => {
     const event = byId.get(meeting.id);
     return (
@@ -120,14 +200,6 @@ export function DesktopWorkspace() {
         >
           <Settings2 size={19} />
         </button>
-        <button
-          aria-label="Подобрать время"
-          title="Подобрать время"
-          disabled={!accountId}
-          onClick={() => setAvailabilityAccount(accountId)}
-        >
-          <Clock size={19} />
-        </button>
         <SmallAccount onChange={setAccount} revision={revision} />
       </nav>
       <CalendarFilters
@@ -158,7 +230,11 @@ export function DesktopWorkspace() {
             title={
               !accountId ? "Войдите в Small для создания встречи" : undefined
             }
-            onClick={() => setCreating(true)}
+            onClick={() => {
+              setInitialPeople([]);
+              setInitialSlot(null);
+              setCreating(true);
+            }}
           >
             Создать <Plus size={16} />
           </button>
@@ -192,6 +268,12 @@ export function DesktopWorkspace() {
                     В этом периоде встреч нет.
                   </p>
                 )}
+              {savingTime && (
+                <p className="calendar-warning" role="status">
+                  Сохраняю время встречи…
+                </p>
+              )}
+
               <Calendar
                 date={date}
                 setDate={setDate}
@@ -203,13 +285,23 @@ export function DesktopWorkspace() {
                   const event = byId.get(meeting.id);
                   if (event && accountId) setSelected({ accountId, event });
                 }}
-                change={() => {}}
+                change={(meeting) => void changeTime(meeting)}
+                canChange={canChange}
+                create={
+                  !unavailable
+                    ? (slot) => {
+                        if (slot.date < calendarToday()) return;
+                        setInitialPeople([]);
+                        setInitialSlot(slot);
+                        setCreating(true);
+                      }
+                    : undefined
+                }
                 state="ready"
                 retry={calendar.refresh}
                 swap={swap}
-                readOnly
                 today={calendarToday()}
-                footerLabel="Данные Small · только чтение"
+                footerLabel="Данные Small"
                 statusContent={
                   unavailable ? (
                     <div className="state-screen" role="status">
@@ -241,14 +333,23 @@ export function DesktopWorkspace() {
         />
         <footer className="workspace-footer">
           <span>Small Calendar</span>
-          <span>Чтение Team API · Asia/Almaty</span>
+          <span>Team API · Asia/Almaty</span>
         </footer>
       </main>
       {creating && account?.status === "signed-in" && (
         <NewMeeting
           key={account.profile.id}
           account={account.profile}
-          initialDate={date}
+          initialPeople={initialPeople.map((p) => ({
+            participantId: p.id,
+            name: p.name,
+            position: "",
+          }))}
+          initialDate={
+            initialSlot?.date ??
+            (date < calendarToday() ? calendarToday() : date)
+          }
+          initialSlot={initialSlot ?? undefined}
           close={() => setCreating(false)}
           expired={expired}
           created={(result) => {
@@ -259,20 +360,18 @@ export function DesktopWorkspace() {
           }}
         />
       )}
-      {availabilityAccount && availabilityAccount === accountId && (
-        <Availability
-          key={accountId}
-          accountId={availabilityAccount}
-          initialDate={date}
-          close={() => setAvailabilityAccount(null)}
-          expired={expired}
-        />
-      )}
       {selected && selected.accountId === accountId && (
         <EventDetails
           key={`${selected.accountId}:${selected.event.key}`}
           accountId={selected.accountId}
           lookup={selected.event.lookup}
+          changed={calendar.refresh}
+          createWithPeople={(event) => {
+            setInitialPeople(event.participants ?? []);
+            setInitialSlot(null);
+            setSelected(null);
+            setCreating(true);
+          }}
           close={() => setSelected(null)}
           expired={expired}
         />

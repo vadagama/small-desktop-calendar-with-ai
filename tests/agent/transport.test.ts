@@ -43,7 +43,7 @@ const messages: UIMessage[] = [
 ];
 const options = {
   trigger: "submit-message" as const,
-  chatId: "test",
+  chatId: "1aff0568-474e-4b9f-8ae0-1065aa10350c",
   messageId: undefined,
   messages,
   abortSignal: undefined,
@@ -71,6 +71,62 @@ test("transports native SDK chunks and ignores events from another turn", async 
   assert.equal((await reader.read()).done, true);
   assert.equal(f.requests[0]!.prompt, "Сложи 2 и 3");
   assert.equal(f.listeners.size, 0);
+});
+
+test("follow-up messages retain the conversation identity without replaying renderer history", async () => {
+  const f = fixture();
+  const first = await f.transport.sendMessages(options);
+  f.emit({ requestId: f.requests[0]!.requestId, type: "end" });
+  assert.equal((await first.getReader().read()).done, true);
+
+  const followup: UIMessage[] = [
+    ...messages,
+    {
+      id: "answer",
+      role: "assistant",
+      parts: [{ type: "text", text: "Какого участника выбрать?" }],
+    },
+    {
+      id: "followup",
+      role: "user",
+      parts: [{ type: "text", text: "Второго" }],
+    },
+  ];
+  const second = await f.transport.sendMessages({
+    ...options,
+    messages: followup,
+  });
+  f.emit({ requestId: f.requests[1]!.requestId, type: "end" });
+  assert.equal((await second.getReader().read()).done, true);
+
+  for (const request of f.requests) {
+    assert.equal(request.conversationId, options.chatId);
+    assert.deepEqual(Object.keys(request).sort(), [
+      "conversationId",
+      "prompt",
+      "requestId",
+    ]);
+  }
+  assert.equal(f.requests[1]!.prompt, "Второго");
+  assert.notEqual(f.requests[0]!.requestId, f.requests[1]!.requestId);
+  assert.equal(f.listeners.size, 0);
+});
+
+test("starting another chat uses its own conversation identity", async () => {
+  const f = fixture();
+  for (const chatId of [
+    options.chatId,
+    "30fd7070-6467-4d00-8664-502fc775649b",
+  ]) {
+    const stream = await f.transport.sendMessages({ ...options, chatId });
+    f.emit({ requestId: f.requests.at(-1)!.requestId, type: "end" });
+    assert.equal((await stream.getReader().read()).done, true);
+  }
+  assert.equal(f.requests[0]!.conversationId, options.chatId);
+  assert.equal(
+    f.requests[1]!.conversationId,
+    "30fd7070-6467-4d00-8664-502fc775649b",
+  );
 });
 
 test("abort cancels only the current request and removes its subscription", async () => {

@@ -286,3 +286,12 @@ test("accepted fill belongs to the current participant, independently of organiz
     assert.equal(result.events[0]?.participation, "invited");
   }
 });
+
+test("missing recurrence metadata stays unknown rather than blocking single-event gestures", async () => {
+  const f = setup(() =>
+    Response.json({ data: [{ ...event, creator_id: "person-a" }] }),
+  );
+  const result = await f.service.events(query);
+  assert.equal(result.events[0]?.participation, "organizer");
+  assert.equal(result.events[0]?.recurring, undefined);
+});

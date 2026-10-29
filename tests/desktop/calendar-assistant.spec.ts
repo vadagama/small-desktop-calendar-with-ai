@@ -11,43 +11,64 @@ import { calendarToday } from "../../src/shared/calendar-time.js";
 
 test("calendar tools cross utility/main boundary and render trusted results", async () => {
   const userData = await mkdtemp(join(tmpdir(), "small-chat-calendar-"));
-  let toolName = "searchPeople";
-  let toolInput: unknown = { query: "Тест", page: 1 };
+  type ModelMessage = {
+    role: string;
+    content: string;
+    tool_call_id?: string;
+  };
+  type Step = { name: string; input: unknown };
+  let plan: Step[] = [
+    { name: "loadSkill", input: { name: "people-search" } },
+    { name: "loadReference", input: { name: "people" } },
+    { name: "searchPeople", input: { query: "Тест", page: 1 } },
+  ];
+  let answer =
+    "**Уточните участников.** Нужен Тестовый сотрудник (Отдел A) или Тестовый сотрудник (Отдел B)?";
+  let turn = 0;
   const outputs: unknown[] = [];
+  const requests: ModelMessage[][] = [];
+  const seenOutputs = new Set<string>();
   const api = createServer(async (request, response) => {
     let body = "";
     for await (const chunk of request) body += chunk;
-    const input = JSON.parse(body);
-    const result = input.messages.find(
-      (m: { role: string }) => m.role === "tool",
+    const input = JSON.parse(body) as { messages: ModelMessage[] };
+    requests.push(input.messages);
+    // Old tool results belong to history, not to this turn's execution plan.
+    const lastUser = input.messages.findLastIndex(
+      (message) => message.role === "user",
     );
-    if (result) outputs.push(JSON.parse(result.content));
+    const currentTools = input.messages
+      .slice(lastUser + 1)
+      .filter((message) => message.role === "tool");
+    for (const result of currentTools) {
+      if (!seenOutputs.has(result.tool_call_id!)) {
+        outputs.push(JSON.parse(result.content));
+        seenOutputs.add(result.tool_call_id!);
+      }
+    }
+    const step = plan[currentTools.length];
     response.writeHead(200, { "Content-Type": "text/event-stream" });
-    const delta = result
-      ? { content: "Проверка завершена." }
-      : {
+    const delta = step
+      ? {
           tool_calls: [
             {
               index: 0,
-              id: "calendar-call",
+              id: `calendar-${turn}-${currentTools.length}`,
               type: "function",
               function: {
-                name: toolName,
-                arguments: JSON.stringify(toolInput),
+                name: step.name,
+                arguments: JSON.stringify(step.input),
               },
             },
           ],
-        };
+        }
+      : { content: answer };
     for (const chunk of [
       { id: "test", choices: [{ index: 0, delta, finish_reason: null }] },
       {
         id: "test",
         choices: [
-          {
-            index: 0,
-            delta: {},
-            finish_reason: result ? "stop" : "tool_calls",
-          },
+          { index: 0, delta: {}, finish_reason: step ? "tool_calls" : "stop" },
         ],
       },
     ])
@@ -115,74 +136,133 @@ test("calendar tools cross utility/main boundary and render trusted results", as
         page.getByRole("button", { name: "Отправить сообщение" }),
       ).toBeVisible();
     };
-    await send("Найди Тест");
-    await expect(page.getByRole("log")).toContainText("Отдел A");
-    await expect(page.getByRole("log")).toContainText("Отдел B");
-    toolName = "findSlots";
-    toolInput = {
-      participantIds: ["synthetic-a", "synthetic-b"],
-      date: "2099-10-29",
-      durationMinutes: 30,
-    };
-    await send(
-      "Участники: [synthetic-a, synthetic-b]. Дата 2099-10-29, 30 минут",
-    );
-    await expect(page.getByRole("log")).toContainText("09:30–10:00");
-    await expect(page.getByRole("log")).not.toContainText("09:00–09:30");
-    await send("Найди время для команды");
-    await expect(page.getByRole("log")).toContainText("Укажите полный состав");
-    toolInput = {
-      participantIds: ["unknown"],
-      date: "2099-10-29",
-      durationMinutes: 30,
-    };
-    await send("Участники: [unknown]. Дата 2099-10-29, 30 минут");
-    await expect(page.getByRole("log")).toContainText(
-      "Нет полной занятости каждого участника",
-    );
-    toolName = "prepareMeetingDraft";
-    toolInput = {
+    const setSlots = (day: string) =>
+      app.evaluate((_electron, day) => {
+        (
+          globalThis as typeof globalThis & {
+            syntheticAvailableSlots: { start: string; end: string }[];
+          }
+        ).syntheticAvailableSlots = [
+          { start: `${day}T09:00:00+05:00`, end: `${day}T09:30:00+05:00` },
+          { start: `${day}T14:00:00+05:00`, end: `${day}T14:30:00+05:00` },
+          { start: `${day}T16:00:00+05:00`, end: `${day}T16:30:00+05:00` },
+        ];
+      }, day);
+    await setSlots("2099-10-29");
+    const initialPrompt =
+      "Создай встречу 29 октября 2099 после обеда с Тестовым сотрудником";
+    await send(initialPrompt);
+    const log = page.getByRole("log");
+    await expect(log).toContainText("Отдел A");
+    await expect(log).toContainText("Отдел B");
+    await expect(
+      log.locator("strong").filter({ hasText: "Уточните участников." }),
+    ).toBeVisible();
+    const prose = log
+      .locator(".assistant-markdown p")
+      .filter({ hasText: "Уточните участников." });
+    await expect(prose).toHaveCSS("font-size", "14px");
+    await expect(log).not.toContainText("Поиск сотрудников");
+    await expect(log).not.toContainText("Страница 1");
+    await expect(log.locator(".assistant-choices")).toHaveCount(0);
+    await page.screenshot({
+      path: "test-results/desktop/people-search-dialogue.png",
+    });
+    await expect(log).not.toContainText("Сложение чисел");
+
+    turn++;
+    plan = [
+      { name: "loadSkill", input: { name: "availability" } },
+      { name: "loadReference", input: { name: "scheduling" } },
+      {
+        name: "selectParticipants",
+        input: { participantIds: ["synthetic-a", "synthetic-b"] },
+      },
+      {
+        name: "findSlots",
+        input: {
+          participantIds: ["synthetic-a", "synthetic-b"],
+          date: "2099-10-29",
+          durationMinutes: 30,
+          timeFrom: "14:00",
+          timeTo: "18:00",
+          includeWeekends: true,
+        },
+      },
+    ];
+    answer = "**Нашёл время.** Выберите удобный вариант.";
+    const clarification = "Пригласи обоих, на полчаса. Обсудим план.";
+    await send(clarification);
+    await expect(log).toContainText("14:00–14:30");
+    await expect(log).not.toContainText("09:00–09:30");
+    const followupRequest = requests.find(
+      (messages) =>
+        messages.at(-1)?.role === "user" &&
+        messages.at(-1)?.content === clarification,
+    )!;
+    expect(
+      followupRequest.some(
+        (message) =>
+          message.role === "user" && message.content === initialPrompt,
+      ),
+    ).toBe(true);
+    expect(
+      followupRequest.some(
+        (message) =>
+          message.role === "assistant" &&
+          message.content?.includes("Уточните участников"),
+      ),
+    ).toBe(true);
+
+    turn++;
+    let draftInput = {
       title: "Обсуждение синтетического плана",
       agenda: "Цели и следующие шаги",
       participantIds: ["synthetic-a", "synthetic-b"],
-      startsAt: "2099-10-29T09:30:00+05:00",
+      startsAt: "2099-10-29T14:00:00+05:00",
       location: "",
       conference: { mode: "automatic" },
     };
-    await send(
-      "Подготовь черновик. Участники: [synthetic-a, synthetic-b]. 2099-10-29 в 09:30, 30 минут. Обсудим план.",
-    );
+    plan = [
+      { name: "loadSkill", input: { name: "meeting-draft" } },
+      { name: "loadReference", input: { name: "response-templates" } },
+      { name: "prepareMeetingDraft", input: draftInput },
+    ];
+    answer = "**Черновик готов.** Проверьте параметры встречи.";
+    await log.getByRole("button", { name: /29 октября.*14:00–14:30/ }).click();
+    await expect(
+      page.getByRole("button", { name: "Отправить сообщение" }),
+    ).toBeVisible();
     const draft = page.getByRole("region", {
       name: "Черновик встречи",
       exact: true,
     });
     await expect(draft).toContainText("Обсуждение синтетического плана");
-    await expect(draft).toContainText("Организатор: employee-a");
+    await expect(draft).toContainText("employee-a");
     await expect(draft).toContainText("30 мин");
     await expect(draft).toContainText("Цели и следующие шаги");
     await expect(draft).toContainText("https://meet.small.kz/");
-    await expect(draft).toContainText("Встреча не создана");
-    await expect(draft).toContainText("synthetic-a, synthetic-b");
+    await expect(draft).not.toContainText("Встреча не создана");
+    await expect(log).not.toContainText("Черновик готов.");
+    await expect(log).not.toContainText("Проверьте параметры встречи.");
+    await expect(draft.getByRole("button")).toHaveCount(1);
+    await expect(draft.locator(".assistant-meeting-create")).toHaveCSS(
+      "font-size",
+      "14px",
+    );
+    await expect(draft).toContainText("Тестовый сотрудник, Тестовый сотрудник");
+    await expect(draft).not.toContainText("synthetic-a");
     await draft.scrollIntoViewIfNeeded();
     await page.screenshot({ path: "test-results/desktop/meeting-draft.png" });
-    const originalLink = await draft.locator(".meeting-draft-url").innerText();
-    await draft
-      .getByRole("button", { name: "Изменить черновик", exact: true })
-      .click();
-    await draft.getByLabel("Название встречи").fill("Уточнённый план");
-    await draft
-      .getByRole("button", { name: "Сохранить изменения", exact: true })
-      .click();
-    await expect(draft).toContainText("Изменения сохранены");
-    await expect(draft.locator(".meeting-draft-url")).toHaveText(originalLink);
     const originalDraft = (
-      outputs[4] as { data: { id: string; revision: number } }
+      outputs.find(
+        (output) =>
+          typeof output === "object" &&
+          output !== null &&
+          "data" in output &&
+          (output.data as { kind?: string })?.kind === "meeting-draft",
+      ) as { data: { id: string; revision: number } }
     ).data;
-    const stale = await page.evaluate(
-      (ref) => window.smallDesktop.meetings.confirm(ref),
-      { id: originalDraft.id, revision: originalDraft.revision },
-    );
-    expect(stale.ok).toBe(false);
     const writes = () =>
       app.evaluate(
         () =>
@@ -190,52 +270,92 @@ test("calendar tools cross utility/main boundary and render trusted results", as
             .syntheticMeetingWrites,
       );
     expect(await writes()).toBe(0);
+    await app.evaluate(() => {
+      (
+        globalThis as typeof globalThis & { syntheticAvailableSlots: unknown[] }
+      ).syntheticAvailableSlots = [];
+    });
     await draft
       .getByRole("button", {
-        name: "Создать встречу и отправить приглашения",
+        name: "Создать встречу",
         exact: true,
       })
       .click();
     await expect(draft.getByRole("status")).toContainText(
-      "Встреча создана и проверена",
+      "Время больше не свободно",
     );
-    expect(await writes()).toBe(1);
+    await expect(draft).not.toContainText("Нет пересечений у участников");
+    expect(await writes()).toBe(0);
+    await setSlots("2099-10-29");
+    await app.evaluate(() => {
+      (
+        globalThis as typeof globalThis & { syntheticCreateRejection: number }
+      ).syntheticCreateRejection = 409;
+    });
     await draft
-      .getByRole("button", { name: "Обновить состояние", exact: true })
+      .getByRole("button", { name: "Создать встречу", exact: true })
       .click();
-    expect(await writes()).toBe(1);
     await expect(draft.getByRole("status")).toContainText(
-      "Встреча создана и проверена",
+      "Small отклонил создание: обнаружен конфликт времени",
     );
+    expect(await writes()).toBe(0);
+    await expect(draft).not.toContainText("Результат отправки неизвестен");
+    await app.evaluate(() => {
+      delete (
+        globalThis as typeof globalThis & { syntheticCreateRejection?: number }
+      ).syntheticCreateRejection;
+    });
+    await draft
+      .getByRole("button", {
+        name: "Создать встречу",
+        exact: true,
+      })
+      .click();
+    await expect(draft.getByRole("status")).toContainText("Встреча создана:");
+    expect(await writes()).toBe(1);
+    await expect(
+      page.getByRole("button", {
+        name: /Обсуждение синтетического плана 14:00/,
+      }),
+    ).toBeVisible();
+    const repeated = await page.evaluate(
+      (ref) => window.smallDesktop.meetings.confirm(ref),
+      { id: originalDraft.id, revision: originalDraft.revision },
+    );
+    expect(repeated.ok).toBe(true);
+    expect(await writes()).toBe(1);
+    await expect(draft.getByRole("status")).toContainText("Встреча создана:");
     await page.screenshot({ path: "test-results/desktop/meeting-created.png" });
-    toolInput = {
-      ...(toolInput as object),
-      startsAt: "2099-10-29T09:00:00+05:00",
-    };
-    await send(
-      "Подготовь черновик. Участники: [synthetic-a, synthetic-b]. 2099-10-29 в 09:00, 30 минут.",
-    );
-    await expect(page.getByRole("log")).toContainText(
-      "Выбранный интервал не подтверждён",
-    );
+    turn++;
+    plan = [
+      {
+        name: "prepareMeetingDraft",
+        input: { ...draftInput, startsAt: "2099-10-29T09:00:00+05:00" },
+      },
+    ];
+    answer = "Выбранный интервал не подтверждён. Выберите другое время.";
+    await send("А подготовь ещё встречу в девять утра");
+    await expect(log).toContainText("Выбранный интервал не подтверждён");
     await expect(draft).toHaveCount(1);
-    toolInput = {
+    turn++;
+    draftInput = {
+      ...draftInput,
       title: "Неизвестный результат",
       agenda: "Тест",
-      participantIds: ["synthetic-a", "synthetic-b"],
-      startsAt: "2099-10-30T09:30:00+05:00",
-      location: "",
-      conference: { mode: "automatic" },
+      startsAt: "2099-10-30T14:00:00+05:00",
     };
+    await setSlots("2099-10-30");
+    plan = [{ name: "prepareMeetingDraft", input: draftInput }];
+    answer = "Подготовлен ещё один черновик.";
     await send(
-      "Подготовь черновик. Участники: [synthetic-a, synthetic-b]. 2099-10-30 в 09:30.",
+      "Подготовь ещё одну встречу с теми же участниками на следующий день в два часа дня",
     );
     const uncertain = page
       .getByRole("region", { name: "Черновик встречи", exact: true })
       .last();
     await uncertain
       .getByRole("button", {
-        name: "Создать встречу и отправить приглашения",
+        name: "Создать встречу",
         exact: true,
       })
       .click();
@@ -252,14 +372,53 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     expect(await writes()).toBe(2);
     await expect(
       uncertain.getByRole("button", {
-        name: "Создать встречу и отправить приглашения",
+        name: "Создать встречу",
         exact: true,
       }),
-    ).toHaveCount(0);
-    expect(outputs).toHaveLength(7);
+    ).toBeDisabled();
+    await expect(
+      uncertain.getByRole("button", {
+        name: "Выбрать другое время",
+        exact: true,
+      }),
+    ).toBeVisible();
+    expect(outputs).toHaveLength(12);
+    expect(
+      outputs.some(
+        (output) =>
+          typeof output === "object" &&
+          output !== null &&
+          "ok" in output &&
+          output.ok === false,
+      ),
+    ).toBe(true);
     expect(JSON.stringify(outputs)).not.toMatch(
       /access_token|synthetic-calendar-key|signature/,
     );
+    turn++;
+    plan = [
+      {
+        name: "prepareMeetingDraft",
+        input: { ...draftInput, title: "Изменённый черновик" },
+      },
+    ];
+    await send("Подготовь изменённый черновик на то же время");
+    const blocked = page
+      .getByRole("region", { name: "Черновик встречи", exact: true })
+      .last();
+    await expect(blocked.getByRole("status")).toContainText(
+      "уже отправлялся другой черновик",
+    );
+    await expect(
+      blocked.getByRole("button", { name: "Создать встречу", exact: true }),
+    ).toBeDisabled();
+    await expect(
+      blocked.getByRole("button", {
+        name: "Выбрать другое время",
+        exact: true,
+      }),
+    ).toBeEnabled();
+    expect(await writes()).toBe(2);
     await page.setViewportSize({ width: 900, height: 640 });
     await expect
       .poll(async () => {
@@ -272,6 +431,15 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     await page.screenshot({
       path: "test-results/desktop/calendar-assistant.png",
     });
+    expect(
+      followupRequest.filter((message) => message.role === "tool"),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          content: expect.stringContaining("Отдел B"),
+        }),
+      ]),
+    );
     expect(errors).toEqual([]);
   } finally {
     const cleanupPage = await app.firstWindow();

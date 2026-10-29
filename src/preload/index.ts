@@ -1,3 +1,4 @@
+import { agentSettingsChannels } from "../shared/agent-settings.js";
 import { meetingChannels } from "../shared/meeting-operations.js";
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron";
 import {
@@ -34,6 +35,13 @@ const bridge: DesktopBridge = {
     reconcile: (input) => ipcRenderer.invoke(meetingChannels.reconcile, input),
   },
   calendar: {
+    respond: (input) => ipcRenderer.invoke(calendarChannels.respond, input),
+    openLink: (url) => ipcRenderer.invoke(calendarChannels.openLink, url),
+    copyLink: (url) => ipcRenderer.invoke(calendarChannels.copyLink, url),
+    reschedule: (input) =>
+      ipcRenderer.invoke(calendarChannels.reschedule, input),
+    applyChange: (input) =>
+      ipcRenderer.invoke(calendarChannels.applyChange, input),
     previewChange: (input) =>
       ipcRenderer.invoke(calendarChannels.previewChange, input),
     people: (input) => ipcRenderer.invoke(calendarChannels.people, input),
@@ -46,6 +54,11 @@ const bridge: DesktopBridge = {
     read: () => ipcRenderer.invoke(smallAuthChannels.read),
     login: (input) => ipcRenderer.invoke(smallAuthChannels.login, input),
     logout: () => ipcRenderer.invoke(smallAuthChannels.logout),
+  },
+  agentSettings: {
+    read: () => ipcRenderer.invoke(agentSettingsChannels.read),
+    save: (input) => ipcRenderer.invoke(agentSettingsChannels.save, input),
+    reset: () => ipcRenderer.invoke(agentSettingsChannels.reset),
   },
   profiles: {
     read: () => ipcRenderer.invoke(profileChannels.read),

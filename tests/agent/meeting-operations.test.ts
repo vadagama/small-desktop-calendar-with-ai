@@ -159,3 +159,26 @@ test("conflict, account change and journal failure prevent network writes", asyn
     });
     assert.equal(calls, 0);
   }));
+
+test("a definitive rejection releases the claim, but never retries automatically", async () =>
+  fixture(async (dir) => {
+    const { MeetingCreateRejected } =
+      await import("../../src/main/meeting-create-error.js");
+    let calls = 0;
+    const service = new MeetingOperations(
+      new MeetingJournal(dir),
+      writer(async () => {
+        calls++;
+        if (calls === 1) throw new MeetingCreateRejected(409);
+        return "42";
+      }),
+    );
+    const d = service.register(draft());
+    const rejected = await service.confirm("a", d.id, 1);
+    assert.equal(rejected.phase, "preview");
+    assert.match(rejected.message, /конфликт/);
+    assert.equal(calls, 1);
+    assert.equal((await service.read("a", d.id, 1)).phase, "preview");
+    assert.equal((await service.confirm("a", d.id, 1)).phase, "succeeded");
+    assert.equal(calls, 2);
+  }));

@@ -1,8 +1,12 @@
+import type {
+  AgentSettingsBridge,
+  AgentSettingsState,
+} from "./agent-settings.js";
 import type { MeetingBridge } from "./meeting-operations.js";
 import type { CalendarToolReply } from "./calendar-tools.js";
 import type { CalendarBridge } from "./calendar.js";
 import type { SmallAuthBridge } from "./small-auth.js";
-import type { UIMessageChunk } from "ai";
+import type { ModelMessage, UIMessageChunk } from "ai";
 import type { ModelConnection, ProfileBridge } from "./profiles.js";
 
 export const assistantChannels = {
@@ -12,6 +16,7 @@ export const assistantChannels = {
 } as const;
 export interface AgentRequest {
   requestId: string;
+  conversationId?: string | undefined;
   prompt: string;
 }
 export type StartResult = { ok: true } | { ok: false; error: string };
@@ -24,6 +29,8 @@ export type AgentControl =
       request: AgentRequest;
       profile: ModelConnection | null;
       calendar: boolean;
+      configuration: AgentSettingsState;
+      history: ModelMessage[];
     }
   | { type: "cancel" }
   | CalendarToolReply;
@@ -38,6 +45,7 @@ export interface DesktopBridge {
   contextIsolated: boolean;
   assistant: AssistantBridge;
   profiles: ProfileBridge;
+  agentSettings: AgentSettingsBridge;
   smallAuth: SmallAuthBridge;
   calendar: CalendarBridge;
   meetings: MeetingBridge;
@@ -46,4 +54,10 @@ declare global {
   interface Window {
     smallDesktop: DesktopBridge;
   }
+}
+
+export interface AgentHistoryEvent {
+  type: "history";
+  requestId: string;
+  messages: ModelMessage[];
 }

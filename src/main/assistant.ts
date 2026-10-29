@@ -1,3 +1,6 @@
+import { CalendarConversation } from "./calendar-conversation.js";
+import type { AgentHistoryEvent } from "../shared/assistant.js";
+import type { AgentSettingsState } from "../shared/agent-settings.js";
 import type {
   CalendarToolExecutor,
   CalendarToolCall,
@@ -22,6 +25,7 @@ import type { ModelConnection } from "../shared/profiles.js";
 
 const requestSchema = z.strictObject({
   requestId: z.uuid(),
+  conversationId: z.string().min(1).max(100).optional(),
   prompt: z.string().trim().min(1).max(2000),
 });
 interface Job {
@@ -41,8 +45,14 @@ export function registerAssistantHandlers(
   resolveCalendar: (
     prompt: string,
     signal: AbortSignal,
+    conversation: CalendarConversation,
   ) => Promise<CalendarToolExecutor | null>,
+  resolveSettings: () => Promise<AgentSettingsState>,
 ) {
+  const conversations = new Map<
+    number,
+    { id: string; state: CalendarConversation }
+  >();
   const jobs = new Map<number, Job>();
   const workers = new Set<UtilityProcess>();
   const trusted = (event: IpcMainInvokeEvent) =>
@@ -89,6 +99,17 @@ export function registerAssistantHandlers(
       const ownerId = owner.id;
       if (jobs.has(ownerId))
         return { ok: false, error: "Дождитесь ответа или остановите запрос" };
+      let conversation = conversations.get(ownerId);
+      const conversationId =
+        parsed.data.conversationId ?? parsed.data.requestId;
+      if (!conversation || conversation.id !== conversationId) {
+        conversation = {
+          id: conversationId,
+          state: new CalendarConversation(),
+        };
+        conversations.set(ownerId, conversation);
+      }
+      const state = conversation.state;
       const job: Job = {
         ownerId,
         requestId: parsed.data.requestId,
@@ -104,7 +125,7 @@ export function registerAssistantHandlers(
             },
           });
           finish(job, true);
-        }, 30_000),
+        }, 120_000),
         stop: () => finish(job, true),
       };
       jobs.set(ownerId, job);
@@ -113,13 +134,17 @@ export function registerAssistantHandlers(
       let worker: UtilityProcess;
       let profile: ModelConnection | null;
       let calendar: CalendarToolExecutor | null = null;
+      let configuration: AgentSettingsState;
       try {
+        configuration = await resolveSettings();
         profile = await resolveProfile(job.controller.signal);
         if (profile)
           calendar = await resolveCalendar(
             parsed.data.prompt,
             job.controller.signal,
+            state,
           );
+        if (!calendar) state.bindAccount(null);
         if (jobs.get(ownerId) !== job) return { ok: true };
         if (!trusted(event)) {
           finish(job, true);
@@ -155,29 +180,59 @@ export function registerAssistantHandlers(
             request: parsed.data,
             profile,
             calendar: calendar !== null,
+            configuration,
+            history: state.messages,
           } satisfies AgentControl);
         else worker.kill();
       });
-      worker.on("message", (message: AgentEvent | CalendarToolCall) => {
-        if (jobs.get(ownerId) !== job || message.requestId !== job.requestId)
-          return;
-        if (message.type === "calendar-tool") {
-          if (!calendar || !z.uuid().safeParse(message.callId).success) return;
-          void calendar(message.name, message.input)
-            .then((result) => {
-              if (jobs.get(ownerId) === job)
-                worker.postMessage({
-                  type: "calendar-result",
-                  callId: message.callId,
-                  result,
-                } satisfies AgentControl);
-            })
-            .catch(() => {
-              if (jobs.get(ownerId) === job) finish(job, true);
-            });
-        } else if (message.type === "end") finish(job);
-        else send(job, message);
-      });
+      worker.on(
+        "message",
+        (message: AgentEvent | CalendarToolCall | AgentHistoryEvent) => {
+          if (jobs.get(ownerId) !== job || message.requestId !== job.requestId)
+            return;
+          if (message.type === "history") {
+            state.commit(parsed.data.prompt, message.messages);
+            return;
+          }
+          if (message.type === "calendar-tool") {
+            if (!calendar || !z.uuid().safeParse(message.callId).success)
+              return;
+            const skillForTool: Record<string, string> = {
+              searchPeople: "people-search",
+              selectParticipants: "people-search",
+              participantMemory: "people-search",
+              findSlots: "availability",
+              prepareMeetingDraft: "meeting-draft",
+            } as const;
+            const skillId = skillForTool[message.name];
+            if (
+              !configuration.settings.skills.some(
+                (skill) => skill.id === skillId && skill.enabled,
+              )
+            ) {
+              worker.postMessage({
+                type: "calendar-result",
+                callId: message.callId,
+                result: { ok: false, kind: "denied", error: "Навык отключён" },
+              } satisfies AgentControl);
+              return;
+            }
+            void calendar(message.name, message.input)
+              .then((result) => {
+                if (jobs.get(ownerId) === job)
+                  worker.postMessage({
+                    type: "calendar-result",
+                    callId: message.callId,
+                    result,
+                  } satisfies AgentControl);
+              })
+              .catch(() => {
+                if (jobs.get(ownerId) === job) finish(job, true);
+              });
+          } else if (message.type === "end") finish(job);
+          else send(job, message);
+        },
+      );
       worker.once("exit", () => {
         workers.delete(worker);
         if (jobs.get(ownerId) !== job) return;
@@ -202,6 +257,7 @@ export function registerAssistantHandlers(
   return {
     trusted,
     cancelActive: () => {
+      conversations.clear();
       for (const job of [...jobs.values()]) finish(job, true);
     },
   };

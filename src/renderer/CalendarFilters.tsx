@@ -36,7 +36,7 @@ export function CalendarFilters({
           className={!calendar.my ? "selected" : ""}
           aria-pressed={!calendar.my}
           onClick={() => calendar.setMy(false)}
-          title="Доступные публичные календари Small"
+          title="Фильтр переговорных"
         >
           Переговорные
         </button>
@@ -92,51 +92,55 @@ export function CalendarFilters({
           </div>
         </section>
         <section className="calendar-filters" aria-label="Выбор календарей">
-          <h2>{calendar.my ? "Мои календари" : "Публичные календари"}</h2>
-          <label>
-            <input
-              type="checkbox"
-              checked={calendar.my}
-              onChange={(event) => calendar.setMy(event.target.checked)}
-            />
-            <span
-              className={`custom-check calendar-personal ${calendar.my ? "checked" : ""}`}
-              aria-hidden="true"
-            >
-              <Check size={11} />
-            </span>
-            Мой календарь
-          </label>
-          {calendar.calendars.map((entry) => {
-            const checked = !calendar.my && calendar.ids.includes(entry.id);
-            return (
-              <label key={entry.id}>
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  disabled={
-                    !calendar.ids.includes(entry.id) && calendar.ids.length >= 8
-                  }
-                  onChange={() => {
-                    if (calendar.my && calendar.ids.includes(entry.id))
-                      calendar.setMy(false);
-                    else calendar.toggle(entry.id);
-                  }}
-                />
-                <span
-                  className={`custom-check calendar-team ${checked ? "checked" : ""}`}
-                  aria-hidden="true"
-                >
-                  <Check size={11} />
-                </span>
-                {entry.name}
-              </label>
-            );
-          })}
-          {!calendar.my && (
-            <p className="form-note">Выберите до 8 публичных календарей.</p>
+          <h2>{calendar.my ? "Мои календари" : "Переговорные"}</h2>
+          {calendar.my && (
+            <label>
+              <input
+                type="checkbox"
+                checked={calendar.my}
+                onChange={(event) => calendar.setMy(event.target.checked)}
+              />
+              <span
+                className={`custom-check calendar-personal ${calendar.my ? "checked" : ""}`}
+                aria-hidden="true"
+              >
+                <Check size={11} />
+              </span>
+              Мой календарь
+            </label>
           )}
-          {calendar.catalogError && (
+          {!calendar.my &&
+            calendar.calendars.map((entry) => {
+              const checked = !calendar.my && calendar.ids.includes(entry.id);
+              return (
+                <label key={entry.id}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={
+                      !calendar.ids.includes(entry.id) &&
+                      calendar.ids.length >= 8
+                    }
+                    onChange={() => {
+                      if (calendar.my && calendar.ids.includes(entry.id))
+                        calendar.setMy(false);
+                      else calendar.toggle(entry.id);
+                    }}
+                  />
+                  <span
+                    className={`custom-check calendar-team ${checked ? "checked" : ""}`}
+                    aria-hidden="true"
+                  >
+                    <Check size={11} />
+                  </span>
+                  {entry.name}
+                </label>
+              );
+            })}
+          {!calendar.my && (
+            <p className="form-note">Выберите до 8 переговорных.</p>
+          )}
+          {!calendar.my && calendar.catalogError && (
             <p className="form-error" role="alert">
               {calendar.catalogError}
             </p>
@@ -152,7 +156,6 @@ export function CalendarFilters({
           <RefreshCw size={14} />
           Обновить
         </button>
-        <p className="form-note">Asia/Almaty · только чтение</p>
       </div>
     </aside>
   );
