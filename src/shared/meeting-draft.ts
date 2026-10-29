@@ -1,3 +1,4 @@
+import { meetingOptions } from "./meeting-options.js";
 import { z } from "zod";
 import { slotsToolInput } from "./calendar-tools.js";
 
@@ -36,8 +37,13 @@ export const meetingDraftSchema = z.strictObject({
   timezone: z.literal("Asia/Almaty"),
   location: z.string(),
   conferenceUrl: conferenceUrl.nullable(),
-  recurrence: z.literal("none"),
+  recurrence: z.enum(["none", "weekly"]),
+  options: meetingOptions.optional(),
   visibility: z.literal("private"),
   availabilityCheckedAt: z.iso.datetime(),
 });
 export type MeetingDraft = z.infer<typeof meetingDraftSchema>;
+
+export const manualMeetingInput = meetingDraftInput.extend({
+  options: meetingOptions,
+});
