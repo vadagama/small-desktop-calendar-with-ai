@@ -1,3 +1,4 @@
+import { NotificationCheck } from "./NotificationCheck";
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import type { ReminderReply, ReminderState } from "../shared/reminders.js";
@@ -79,6 +80,7 @@ export function Reminders({ close }: { close: () => void }) {
           <X size={20} />
         </button>
       </div>
+      <NotificationCheck />
       {error && (
         <p role="alert" className="form-error">
           {error}
@@ -130,11 +132,6 @@ export function Reminders({ close }: { close: () => void }) {
           <p className="reminder-help">
             После пробуждения напомним об ещё идущих встречах. Закрытие окна не
             отключает напоминания; полный выход из приложения останавливает их.
-          </p>
-          <p className="reminder-help">
-            Системные уведомления требуют подписанной сборки и разрешения в
-            настройках macOS → Уведомления → Small Calendar. Режим фокусирования
-            может скрывать баннеры.
           </p>
           {state.warning && <p role="status">{state.warning}</p>}
           <div className="reminder-heading">
