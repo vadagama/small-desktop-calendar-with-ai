@@ -17,12 +17,13 @@ export function useNewMeeting({
   initialDate,
   expired,
   created,
+  close,
 }: {
   account: { id: string; name: string; participantId?: string };
   initialDate: string;
   close: () => void;
   expired: () => void;
-  created: () => void;
+  created: (result: MeetingView) => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null),
     active = useRef(true),
@@ -157,7 +158,10 @@ export function useNewMeeting({
         throw new Error(r.error);
       }
       setResult(r.data);
-      if (r.data.phase === "succeeded") created();
+      if (r.data.phase === "succeeded") {
+        created(r.data);
+        close();
+      }
     } catch (e) {
       if (active.current)
         setError(
@@ -180,7 +184,10 @@ export function useNewMeeting({
       if (!active.current) return;
       if (r.ok) {
         setResult(r.data);
-        if (r.data.phase === "succeeded") created();
+        if (r.data.phase === "succeeded") {
+          created(r.data);
+          close();
+        }
       } else setError(r.error);
     } catch {
       if (active.current) setError("Не удалось проверить результат.");

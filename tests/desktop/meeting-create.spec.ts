@@ -156,9 +156,12 @@ test("header creates a meeting without a model, preserves fields and blocks unkn
       path: "test-results/desktop/manual-meeting-form.png",
     });
     await dialog.getByRole("button", { name: "Создать", exact: true }).click();
-    await expect(dialog.getByRole("status")).toContainText(
-      "Встреча создана и проверена",
-    );
+    await expect(dialog).toHaveCount(0);
+    const newEvent = page.locator('[data-new-event="true"]');
+    await expect(newEvent).toContainText("Синтетическая ручная встреча");
+    await expect(newEvent).toHaveCSS("animation-name", "meeting-created");
+    await expect(newEvent).toBeInViewport();
+    await page.screenshot({ path: "test-results/desktop/meeting-created.png" });
     expect(
       await app.evaluate(
         () =>
@@ -184,7 +187,7 @@ test("header creates a meeting without a model, preserves fields and blocks unkn
       UNTIL: "2099-11-05",
     });
     expect(payload.description).toBe(`План обсуждения\n\n${url}`);
-    await dialog.getByRole("button", { name: "Готово", exact: true }).click();
+
     await page
       .getByRole("button", { name: "Создать событие", exact: true })
       .click();

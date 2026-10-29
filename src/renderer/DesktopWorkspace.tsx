@@ -11,6 +11,7 @@ import { CalendarFilters } from "./CalendarFilters";
 import { EventDetails } from "./EventDetails";
 import { useSmallCalendar } from "./useSmallCalendar";
 import {
+  calendarDateAt,
   calendarRange,
   calendarToday,
   splitEventDays,
@@ -19,6 +20,7 @@ import type { CalendarEvent, CalendarView } from "../shared/calendar.js";
 import type { SmallAuthState } from "../shared/small-auth.js";
 
 export function DesktopWorkspace() {
+  const [createdId, setCreatedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [account, setAccount] = useState<SmallAuthState | null>(null);
   const [revision, setRevision] = useState(0);
@@ -36,6 +38,7 @@ export function DesktopWorkspace() {
   const accountId = account?.status === "signed-in" ? account.profile.id : null;
   useEffect(() => {
     setCreating(false);
+    setCreatedId(null);
     setSelected(null);
     setAvailabilityAccount(null);
   }, [accountId]);
@@ -55,6 +58,7 @@ export function DesktopWorkspace() {
         id,
         title: event.title,
         organizer: event.organizer,
+        participation: event.participation,
         agenda: event.description,
         calendar: calendar.my ? "personal" : "team",
         color: "green",
@@ -63,6 +67,20 @@ export function DesktopWorkspace() {
       };
     }),
   );
+  const revealed = meetings.find((meeting) => {
+    const event = byId.get(meeting.id);
+    return (
+      event &&
+      ("id" in event.lookup
+        ? event.lookup.id
+        : event.lookup.originalEventId) === createdId
+    );
+  })?.id;
+  useEffect(() => {
+    if (!revealed) return;
+    const timer = window.setTimeout(() => setCreatedId(null), 2000);
+    return () => window.clearTimeout(timer);
+  }, [revealed]);
   const unavailable =
     !accountId ||
     calendar.loading ||
@@ -179,6 +197,7 @@ export function DesktopWorkspace() {
                 view={view}
                 setView={setView}
                 events={meetings}
+                revealEventId={revealed}
                 select={(meeting) => {
                   const event = byId.get(meeting.id);
                   if (event && accountId) setSelected({ accountId, event });
@@ -231,7 +250,12 @@ export function DesktopWorkspace() {
           initialDate={date}
           close={() => setCreating(false)}
           expired={expired}
-          created={calendar.refresh}
+          created={(result) => {
+            setCreatedId(result.eventId ?? null);
+            setDate(calendarDateAt(result.draft.startsAt));
+            calendar.setMy(true);
+            calendar.refresh();
+          }}
         />
       )}
       {availabilityAccount && availabilityAccount === accountId && (
