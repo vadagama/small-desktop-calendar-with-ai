@@ -1,3 +1,4 @@
+import { readSchedule } from "./schedule.js";
 import { z } from "zod";
 import { CalendarConversation } from "./calendar-conversation.js";
 import type { CalendarPerson } from "../shared/calendar.js";
@@ -21,7 +22,7 @@ export function createCalendarToolExecutor(
   accountId: string,
   prompt: string,
   signal: AbortSignal,
-  calendar: Pick<CalendarService, "searchPeople">,
+  calendar: Pick<CalendarService, "searchPeople" | "events">,
   availability: Pick<AvailabilityService, "find">,
   organizerName: string = accountId,
   registerDraft: (draft: MeetingDraft) => MeetingDraft = (draft) => draft,
@@ -43,7 +44,9 @@ export function createCalendarToolExecutor(
         );
       let data;
       let checkedPeople: CalendarPerson[] = [];
-      if (name === "searchPeople") {
+      if (name === "listMeetings") {
+        data = await readSchedule(accountId, input, calendar, signal);
+      } else if (name === "searchPeople") {
         const parsed = peopleToolInput.safeParse(input);
         if (!parsed.success)
           throw new CalendarError(

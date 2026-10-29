@@ -31,6 +31,7 @@ export const slotsToolInput = z.strictObject({
   durationMinutes: z.number().int().min(1).max(480),
 });
 export type CalendarToolResult = CalendarReply<
+  | import("./schedule.js").ScheduleResult
   | PeoplePage
   | SlotsResult
   | MeetingDraft

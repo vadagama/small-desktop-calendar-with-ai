@@ -1,7 +1,9 @@
+import { scheduleToolInput } from "../shared/schedule.js";
 import { calendarClock } from "./calendar-context.js";
 import { z } from "zod";
 import { loadAgentDefaults } from "./agent-content.js";
 import {
+  skillIds,
   skillLabels,
   referenceIds,
   type AgentSettingsState,
@@ -38,6 +40,7 @@ export async function streamCalendarTurn(
   const enabled = content.settings.skills.filter((skill) => skill.enabled);
   const runTool: CalendarToolExecutor = async (name, input) => {
     const skills: Record<string, string> = {
+      listMeetings: "schedule",
       searchPeople: "people-search",
       selectParticipants: "people-search",
       participantMemory: "people-search",
@@ -62,6 +65,9 @@ export async function streamCalendarTurn(
     activeTools: [
       "loadSkill",
       "loadReference",
+      ...(enabled.some((s) => s.id === "schedule")
+        ? ["listMeetings" as const]
+        : []),
       ...(enabled.some((s) => s.id === "people-search")
         ? [
             "searchPeople" as const,
@@ -80,6 +86,12 @@ export async function streamCalendarTurn(
     maxRetries: 0,
     onError: () => {},
     tools: {
+      listMeetings: tool({
+        description:
+          "Прочитать мои встречи за весь сегодняшний/завтрашний день, текущую/следующую неделю или период до 31 дня (custom, from/to включительно). Включает прошедшие часы дня и выходные. Результат изложи кратко по дням в Markdown; при complete=false явно сообщи о неполноте.",
+        inputSchema: scheduleToolInput,
+        execute: (input) => runTool("listMeetings", input),
+      }),
       loadReference: tool({
         description:
           "Прочитать справочник навыков: people, scheduling или response-templates.",
@@ -101,7 +113,7 @@ export async function streamCalendarTurn(
       loadSkill: tool({
         description: "Прочитать инструкции включённого календарного навыка.",
         inputSchema: z.strictObject({
-          name: z.enum(["people-search", "availability", "meeting-draft"]),
+          name: z.enum(skillIds),
         }),
         execute: async ({ name }) => {
           const skill = enabled.find((skill) => skill.id === name);

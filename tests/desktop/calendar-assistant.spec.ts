@@ -440,6 +440,32 @@ test("calendar tools cross utility/main boundary and render trusted results", as
         }),
       ]),
     );
+    turn++;
+    plan = [
+      { name: "loadSkill", input: { name: "schedule" } },
+      { name: "listMeetings", input: { period: "today" } },
+    ];
+    answer = "### Сегодня\n- 09:00–09:30 — Проверка расписания";
+    await send("Какие встречи сегодня за весь день?");
+    await expect(
+      page.getByRole("heading", { name: "Сегодня", exact: true }),
+    ).toBeVisible();
+    expect(outputs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ok: true,
+          data: expect.objectContaining({
+            kind: "schedule",
+            timezone: "Asia/Almaty",
+            complete: true,
+          }),
+        }),
+      ]),
+    );
+    await expect(page.getByText("Сложение чисел", { exact: true })).toHaveCount(
+      0,
+    );
+    expect(await writes()).toBe(2);
     expect(errors).toEqual([]);
   } finally {
     const cleanupPage = await app.firstWindow();

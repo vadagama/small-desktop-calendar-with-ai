@@ -198,6 +198,7 @@ export function registerAssistantHandlers(
             if (!calendar || !z.uuid().safeParse(message.callId).success)
               return;
             const skillForTool: Record<string, string> = {
+              listMeetings: "schedule",
               searchPeople: "people-search",
               selectParticipants: "people-search",
               participantMemory: "people-search",

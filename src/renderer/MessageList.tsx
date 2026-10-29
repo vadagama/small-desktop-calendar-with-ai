@@ -55,7 +55,11 @@ export function MessageList({
                   <AssistantMarkdown key={index}>{part.text}</AssistantMarkdown>
                 );
               if (isToolUIPart(part)) {
-                if (part.type === "tool-searchPeople") return null;
+                if (
+                  part.type === "tool-searchPeople" ||
+                  part.type === "tool-listMeetings"
+                )
+                  return null;
                 if (
                   [
                     "tool-loadSkill",

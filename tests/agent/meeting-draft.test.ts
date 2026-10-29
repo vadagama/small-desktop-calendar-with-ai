@@ -157,6 +157,7 @@ test("draft tool enforces the directory-verified complete participant selection 
       prompt,
       signal,
       {
+        events: async () => ({ events: [], issues: [] }),
         searchPeople: async () => {
           throw new Error("unused");
         },
@@ -176,6 +177,7 @@ test("draft tool enforces the directory-verified complete participant selection 
     "Участники: [person-a]",
     signal,
     {
+      events: async () => ({ events: [], issues: [] }),
       searchPeople: async () => ({
         people: [
           {

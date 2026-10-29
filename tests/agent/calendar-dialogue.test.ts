@@ -37,7 +37,10 @@ function fixture(memory?: ParticipantMemory) {
       account,
       prompt,
       new AbortController().signal,
-      { searchPeople: async () => directory },
+      {
+        events: async () => ({ events: [], issues: [] }),
+        searchPeople: async () => directory,
+      },
       {
         find: async (input) => {
           availabilityReads.push(input);
@@ -259,6 +262,7 @@ test("parallel participant selection cannot relabel a pending availability resul
       "Подбери время",
       new AbortController().signal,
       {
+        events: async () => ({ events: [], issues: [] }),
         searchPeople: async ({ query }) => ({
           people: [query === "first" ? first : second],
           page: 1,
