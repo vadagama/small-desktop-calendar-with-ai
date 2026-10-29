@@ -1,4 +1,9 @@
-import { toUIMessageStream } from "ai";
+import { streamCalendarTurn } from "../agent/calendar-runtime.js";
+import type {
+  CalendarToolCall,
+  CalendarToolResult,
+} from "../shared/calendar-tools.js";
+import { toUIMessageStream, type ToolSet } from "ai";
 import { streamSyntheticTurn } from "../agent/runtime.js";
 import { createSyntheticModel } from "../agent/synthetic-model.js";
 import { createProfileModel } from "../agent/provider.js";
@@ -14,20 +19,52 @@ if (!port) throw new Error("Assistant requires an Electron utility process");
 const controller = new AbortController();
 const send = (event: AgentEvent) => port.postMessage(event);
 
+const pending = new Map<string, (result: CalendarToolResult) => void>();
 async function run(
   { requestId, prompt }: AgentRequest,
   profile: ModelConnection | null,
+  calendar: boolean,
 ) {
   try {
-    const result = await streamSyntheticTurn(
-      profile ? createProfileModel(profile) : createSyntheticModel(prompt),
-      {
-        prompt,
-        abortSignal: controller.signal,
-      },
-    );
+    const options = { prompt, abortSignal: controller.signal };
+    const result =
+      calendar && profile
+        ? await streamCalendarTurn(
+            createProfileModel(profile),
+            options,
+            (name, input) => {
+              controller.signal.throwIfAborted();
+              const callId = crypto.randomUUID();
+              return new Promise<CalendarToolResult>((resolve, reject) => {
+                const abort = () => {
+                  pending.delete(callId);
+                  reject(controller.signal.reason);
+                };
+                controller.signal.addEventListener("abort", abort, {
+                  once: true,
+                });
+                pending.set(callId, (result) => {
+                  controller.signal.removeEventListener("abort", abort);
+                  resolve(result);
+                });
+                port.postMessage({
+                  type: "calendar-tool",
+                  requestId,
+                  callId,
+                  name,
+                  input,
+                } satisfies CalendarToolCall);
+              });
+            },
+          )
+        : await streamSyntheticTurn(
+            profile
+              ? createProfileModel(profile)
+              : createSyntheticModel(prompt),
+            options,
+          );
     // https://ai-sdk.dev/docs/reference/ai-sdk-core/stream-text
-    const stream = toUIMessageStream({
+    const stream = toUIMessageStream<ToolSet>({
       stream: result.stream,
       sendReasoning: false,
       onError: () => "Не удалось получить ответ. Попробуйте ещё раз.",
@@ -50,5 +87,9 @@ async function run(
 }
 port.on("message", ({ data }: { data: AgentControl }) => {
   if (data.type === "cancel") controller.abort();
-  else void run(data.request, data.profile);
+  else if (data.type === "calendar-result") {
+    const resolve = pending.get(data.callId);
+    pending.delete(data.callId);
+    resolve?.(data.result);
+  } else void run(data.request, data.profile, data.calendar);
 });

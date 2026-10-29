@@ -1,3 +1,4 @@
+import type { CalendarToolReply } from "./calendar-tools.js";
 import type { CalendarBridge } from "./calendar.js";
 import type { SmallAuthBridge } from "./small-auth.js";
 import type { UIMessageChunk } from "ai";
@@ -17,8 +18,14 @@ export type AgentEvent =
   | { requestId: string; type: "chunk"; chunk: UIMessageChunk }
   | { requestId: string; type: "end" };
 export type AgentControl =
-  | { type: "start"; request: AgentRequest; profile: ModelConnection | null }
-  | { type: "cancel" };
+  | {
+      type: "start";
+      request: AgentRequest;
+      profile: ModelConnection | null;
+      calendar: boolean;
+    }
+  | { type: "cancel" }
+  | CalendarToolReply;
 export interface AssistantBridge {
   start(request: AgentRequest): Promise<StartResult>;
   cancel(requestId: string): Promise<void>;
