@@ -29,7 +29,7 @@ function setup(respond: (path: string) => Response | Promise<Response>) {
       return action(async (path) => {
         calls.push(path);
         return respond(path);
-      });
+      }, "person-a");
     },
   });
   return { service, calls };
@@ -245,4 +245,44 @@ test("detail rejects a response for another event or another occurrence date", a
     }),
     /совпадает/,
   );
+});
+
+test("calendar roles distinguish organizer, informed, invited and missing metadata", async () => {
+  for (const [metadata, role] of [
+    [{ creator_id: "person-a", is_informed: true }, "organizer"],
+    [{ creator_id: "other", is_informed: true }, "informed"],
+    [{ creator_id: "other", is_informed: false }, "invited"],
+    [{}, "unknown"],
+  ] as const) {
+    const { service } = setup(() =>
+      Response.json({ data: [{ ...event, ...metadata }] }),
+    );
+    const result = await service.events(query);
+    assert.equal(result.events[0]?.participation, role);
+  }
+});
+
+test("accepted fill belongs to the current participant, independently of organizer", async () => {
+  for (const [participants, accepted] of [
+    [[{ id: "person-a", status: "accepted" }], true],
+    [
+      [
+        { id: "other", status: "accepted" },
+        { id: "person-a", status: "pending" },
+      ],
+      false,
+    ],
+    [[], false],
+  ] as const) {
+    const { service } = setup(() =>
+      Response.json({
+        data: [
+          { ...event, creator_id: "other", is_informed: false, participants },
+        ],
+      }),
+    );
+    const result = await service.events(query);
+    assert.equal(result.events[0]?.accepted, accepted);
+    assert.equal(result.events[0]?.participation, "invited");
+  }
 });

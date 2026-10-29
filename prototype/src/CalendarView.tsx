@@ -1,3 +1,4 @@
+import { layoutEvents } from "./event-layout";
 import { useEventTooltip } from "./useEventTooltip";
 import {
   CalendarDays,
@@ -258,8 +259,17 @@ export function Calendar(p: Props) {
                   .map((e) => (
                     <button
                       {...(p.readOnly ? {} : tooltip.bind(e))}
+                      aria-description={
+                        e.participation === "organizer"
+                          ? "Моя встреча"
+                          : e.participation === "informed"
+                            ? "Я информируемый"
+                            : e.participation === "invited"
+                              ? "Я приглашён"
+                              : "Роль не указана"
+                      }
                       data-new-event={e.id === p.revealEventId || undefined}
-                      className={`month-event calendar-${e.calendar}`}
+                      className={`month-event calendar-${e.calendar} participation-${e.participation ?? "unknown"} ${e.accepted && e.participation !== "informed" ? "accepted" : ""}`}
                       key={e.id}
                       onClick={() => {
                         tooltip.hide();
@@ -323,15 +333,26 @@ export function Calendar(p: Props) {
                   {Array.from({ length: 24 }, (_, i) => (
                     <div className="hour-cell" key={i} />
                   ))}
-                  {filtered
-                    .filter((e) => e.date === day)
-                    .map((e) => (
+                  {layoutEvents(filtered.filter((e) => e.date === day)).map(
+                    ({ event: e, column, columns }) => (
                       <button
                         key={e.id}
                         {...(p.readOnly ? {} : tooltip.bind(e))}
+                        aria-description={
+                          e.participation === "organizer"
+                            ? "Моя встреча"
+                            : e.participation === "informed"
+                              ? "Я информируемый"
+                              : e.participation === "invited"
+                                ? "Я приглашён"
+                                : "Роль не указана"
+                        }
                         data-new-event={e.id === p.revealEventId || undefined}
-                        className={`calendar-event calendar-${e.calendar} ${e.duration <= 30 ? "compact" : ""}`}
+                        className={`calendar-event calendar-${e.calendar} participation-${e.participation ?? "unknown"} ${e.accepted && e.participation !== "informed" ? "accepted" : ""} ${e.duration <= 30 ? "compact" : ""}`}
                         style={{
+                          left: `calc(${(column * 100) / columns}% + 3px)`,
+                          right: "auto",
+                          width: `calc(${100 / columns}% - 6px)`,
                           top:
                             (preview?.id === e.id ? preview.start : e.start) *
                             (64 / 60),
@@ -433,11 +454,19 @@ export function Calendar(p: Props) {
                             />
                           </>
                         )}
-                        <strong>{e.title}</strong>
-                        <span>
+                        <strong>
+                          {e.title}
+                          {e.duration <= 30 && (
+                            <>
+                              {" "}
+                              {time(e.start)} - {time(e.start + e.duration)}
+                            </>
+                          )}
+                        </strong>
+                        <span className="event-time">
                           {time(e.start)} – {time(e.start + e.duration)}
                         </span>
-                        {e.duration >= 60 && (
+                        {!p.readOnly && e.duration >= 60 && (
                           <small>
                             {!p.readOnly && e.location === "Онлайн"
                               ? `${e.people.length} участника · Онлайн`
@@ -445,7 +474,8 @@ export function Calendar(p: Props) {
                           </small>
                         )}
                       </button>
-                    ))}
+                    ),
+                  )}
                 </div>
               ))}
             </div>

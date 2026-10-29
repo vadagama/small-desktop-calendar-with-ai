@@ -9,8 +9,9 @@ const agenda =
   "Сверить приоритеты, обсудить открытые вопросы и договориться о следующих шагах.";
 export const DEMO_EVENTS: Meeting[] = [
   {
-    organizer: "Алексей",
+    organizer: "Анна",
     id: "m1",
+    participation: "invited",
     title: "Планы на неделю",
     date: "2026-10-26",
     start: 570,
@@ -24,6 +25,7 @@ export const DEMO_EVENTS: Meeting[] = [
   {
     organizer: "Алексей",
     id: "m2",
+    participation: "organizer",
     title: "Время для фокуса",
     date: "2026-10-26",
     start: 690,
@@ -35,8 +37,9 @@ export const DEMO_EVENTS: Meeting[] = [
     agenda: "Работа над задачами без встреч.",
   },
   {
-    organizer: "Алексей",
+    organizer: "Анна",
     id: "m3",
+    participation: "informed",
     title: "Обсуждение исследований",
     date: "2026-10-26",
     start: 900,
@@ -48,8 +51,9 @@ export const DEMO_EVENTS: Meeting[] = [
     agenda,
   },
   {
-    organizer: "Алексей",
+    organizer: "Анна",
     id: "t1",
+    participation: "invited",
     title: "Синхронизация команды",
     date: "2026-10-27",
     start: 600,
@@ -63,6 +67,7 @@ export const DEMO_EVENTS: Meeting[] = [
   {
     organizer: "Алексей",
     id: "t2",
+    participation: "organizer",
     title: "Дизайн-ревью",
     date: "2026-10-27",
     start: 690,
@@ -74,8 +79,9 @@ export const DEMO_EVENTS: Meeting[] = [
     agenda,
   },
   {
-    organizer: "Алексей",
+    organizer: "Анна",
     id: "t3",
+    participation: "informed",
     title: "Время для фокуса",
     date: "2026-10-27",
     start: 840,
@@ -87,8 +93,9 @@ export const DEMO_EVENTS: Meeting[] = [
     agenda,
   },
   {
-    organizer: "Алексей",
+    organizer: "Анна",
     id: "w1",
+    participation: "invited",
     title: "Синхронизация команды",
     date: "2026-10-28",
     start: 600,
@@ -102,6 +109,7 @@ export const DEMO_EVENTS: Meeting[] = [
   {
     organizer: "Алексей",
     id: "w2",
+    participation: "organizer",
     title: "Развитие календаря",
     date: "2026-10-28",
     start: 690,
@@ -114,8 +122,9 @@ export const DEMO_EVENTS: Meeting[] = [
       "Посмотреть прототип календаря. Обсудить компоновку рабочего пространства и сценарий создания встречи.",
   },
   {
-    organizer: "Алексей",
+    organizer: "Анна",
     id: "w3",
+    participation: "informed",
     title: "Продуктовая встреча",
     date: "2026-10-28",
     start: 870,
@@ -127,8 +136,9 @@ export const DEMO_EVENTS: Meeting[] = [
     agenda,
   },
   {
-    organizer: "Алексей",
+    organizer: "Анна",
     id: "w4",
+    participation: "invited",
     title: "Обратная связь",
     date: "2026-10-28",
     start: 990,
@@ -142,6 +152,7 @@ export const DEMO_EVENTS: Meeting[] = [
   {
     organizer: "Алексей",
     id: "th1",
+    participation: "organizer",
     title: "Синхронизация команды",
     date: "2026-10-29",
     start: 600,
@@ -153,8 +164,9 @@ export const DEMO_EVENTS: Meeting[] = [
     agenda,
   },
   {
-    organizer: "Алексей",
+    organizer: "Анна",
     id: "th2",
+    participation: "informed",
     title: "Время для фокуса",
     date: "2026-10-29",
     start: 690,
@@ -166,8 +178,9 @@ export const DEMO_EVENTS: Meeting[] = [
     agenda,
   },
   {
-    organizer: "Алексей",
+    organizer: "Анна",
     id: "th3",
+    participation: "invited",
     title: "Ревью решения",
     date: "2026-10-29",
     start: 900,
@@ -181,6 +194,7 @@ export const DEMO_EVENTS: Meeting[] = [
   {
     organizer: "Алексей",
     id: "f1",
+    participation: "organizer",
     title: "Демо команды",
     date: "2026-10-30",
     start: 660,
@@ -192,8 +206,9 @@ export const DEMO_EVENTS: Meeting[] = [
     agenda,
   },
   {
-    organizer: "Алексей",
+    organizer: "Анна",
     id: "f2",
+    participation: "informed",
     title: "Итоги недели",
     date: "2026-10-30",
     start: 900,
