@@ -1,3 +1,7 @@
+import type {
+  EventMutationReference,
+  EventMutationResult,
+} from "./event-mutation.js";
 import type { EventChangeQuery, EventChangePreview } from "./event-change.js";
 export type CalendarView = "day" | "week" | "month";
 export type EventLookup =
@@ -44,6 +48,8 @@ export const calendarChannels = {
   events: "calendar:events",
   detail: "calendar:detail",
   previewChange: "calendar:preview-change",
+  confirmChange: "calendar:confirm-change",
+  reconcileChange: "calendar:reconcile-change",
 } as const;
 export interface CalendarPerson {
   participantId: string;
@@ -70,6 +76,12 @@ export interface SlotsResult {
   timezone: "Asia/Almaty";
 }
 export interface CalendarBridge {
+  confirmChange(
+    input: EventMutationReference,
+  ): Promise<CalendarReply<EventMutationResult>>;
+  reconcileChange(
+    input: EventMutationReference,
+  ): Promise<CalendarReply<EventMutationResult>>;
   previewChange(
     input: EventChangeQuery,
   ): Promise<CalendarReply<EventChangePreview>>;
