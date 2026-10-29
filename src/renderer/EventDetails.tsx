@@ -9,11 +9,13 @@ export function EventDetails({
   lookup,
   close,
   expired,
+  changed,
 }: {
   accountId: string;
   lookup: EventLookup;
   close: () => void;
   expired: () => void;
+  changed: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [event, setEvent] = useState<CalendarEvent | null>(null);
@@ -103,6 +105,10 @@ export function EventDetails({
           accountId={accountId}
           event={event}
           expired={expired}
+          changed={() => {
+            changed();
+            close();
+          }}
         />
       )}
     </dialog>

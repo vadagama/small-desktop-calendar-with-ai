@@ -1,3 +1,4 @@
+import type { EventMutationResult } from "../shared/event-mutation.js";
 import { useEffect, useRef, useState } from "react";
 import type { CalendarEvent } from "../shared/calendar.js";
 import type {
@@ -10,11 +11,16 @@ export function EventChangeForm({
   accountId,
   event,
   expired,
+  changed,
 }: {
   accountId: string;
   event: CalendarEvent;
   expired: () => void;
+  changed: () => void;
 }) {
+  const [result, setResult] = useState<EventMutationResult | null>(null);
+  const locked = !!result && result.phase !== "preview";
+  const sending = useRef(false);
   const [title, setTitle] = useState(event.title);
   const [preview, setPreview] = useState<EventChangePreview | null>(null);
   const [error, setError] = useState("");
@@ -27,10 +33,11 @@ export function EventChangeForm({
     [],
   );
   const prepare = async (change: EventChange) => {
-    if (!("id" in event.lookup)) return;
+    if (!("id" in event.lookup) || sending.current || locked) return;
     const current = ++request.current;
     setBusy(true);
     setPreview(null);
+    setResult(null);
     setError("");
     try {
       const reply = await window.smallDesktop.calendar.previewChange({
@@ -51,6 +58,46 @@ export function EventChangeForm({
       if (current === request.current) setBusy(false);
     }
   };
+  const apply = async (reconcile = false) => {
+    if (!preview?.operationId || sending.current) return;
+    sending.current = true;
+    const current = ++request.current;
+    setBusy(true);
+    setError("");
+    setResult({ phase: "unknown", message: "Проверяем результат изменения…" });
+    try {
+      const action = reconcile
+        ? window.smallDesktop.calendar.reconcileChange
+        : window.smallDesktop.calendar.confirmChange;
+      const reply = await action({
+        accountId,
+        operationId: preview.operationId,
+      });
+      if (current !== request.current) return;
+      if (reply.ok) {
+        setResult(reply.data);
+        if (reply.data.phase === "succeeded") changed();
+      } else {
+        setResult({
+          phase: "unknown",
+          message:
+            "Ответ не получен. Проверьте результат перед дальнейшими действиями.",
+        });
+        setError(reply.error);
+        if (reply.kind === "auth") expired();
+      }
+    } catch {
+      if (current === request.current)
+        setResult({
+          phase: "unknown",
+          message:
+            "Ответ не получен. Проверьте результат перед дальнейшими действиями.",
+        });
+    } finally {
+      sending.current = false;
+      if (current === request.current) setBusy(false);
+    }
+  };
   if (!("id" in event.lookup))
     return (
       <p className="form-note">
@@ -67,7 +114,7 @@ export function EventChangeForm({
     <section aria-label="Подготовка изменения встречи" className="event-change">
       <h3>Подготовить изменение</h3>
       <p className="form-note">
-        Только предпросмотр. Встреча не изменяется, приглашения не отправляются.
+        Сначала проверьте предложение, затем подтвердите применение.
       </p>
       <form
         className="meeting-form"
@@ -82,7 +129,7 @@ export function EventChangeForm({
             value={title}
             maxLength={200}
             required
-            disabled={busy}
+            disabled={busy || locked}
             onChange={(e) => {
               setTitle(e.target.value);
               setPreview(null);
@@ -94,14 +141,14 @@ export function EventChangeForm({
           <button
             className="primary"
             type="submit"
-            disabled={busy || !title.trim()}
+            disabled={busy || locked || !title.trim()}
           >
             Предпросмотр названия
           </button>
           <button
             className="secondary"
             type="button"
-            disabled={busy}
+            disabled={busy || locked}
             onClick={() => void prepare({ kind: "cancel" })}
           >
             Предпросмотр отмены
@@ -143,11 +190,33 @@ export function EventChangeForm({
           <p>
             {preview.kind === "rename"
               ? "В предложении меняется только название; время, состав, описание и место сохраняются."
-              : "Это предложение отмены встречи для всего состава, а не отказ одного участника."}
+              : "После подтверждения разовая встреча будет удалена из календаря для всех участников."}
           </p>
           <p role="status">
-            Ничего не применено. Отправка изменений пока недоступна.
+            {result?.message ?? "Ничего не применено. Подтвердите изменение."}
           </p>
+          {preview.operationId && !locked && (
+            <button
+              type="button"
+              className="primary"
+              disabled={busy}
+              onClick={() => void apply()}
+            >
+              {preview.kind === "rename"
+                ? "Применить название"
+                : "Подтвердить отмену встречи"}
+            </button>
+          )}
+          {result?.phase === "unknown" && (
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              onClick={() => void apply(true)}
+            >
+              Проверить результат изменения
+            </button>
+          )}
         </section>
       )}
     </section>

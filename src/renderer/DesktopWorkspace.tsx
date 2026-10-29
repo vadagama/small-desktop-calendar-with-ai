@@ -271,6 +271,7 @@ export function DesktopWorkspace() {
           key={`${selected.accountId}:${selected.event.key}`}
           accountId={selected.accountId}
           lookup={selected.event.lookup}
+          changed={calendar.refresh}
           close={() => setSelected(null)}
           expired={expired}
         />
