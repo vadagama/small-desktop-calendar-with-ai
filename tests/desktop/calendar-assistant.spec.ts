@@ -535,6 +535,35 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     expect((await readEvent()).ok).toBe(false);
     await expect(deletion.getByRole("button")).toHaveCount(0);
     expect(errors).toEqual([]);
+    // An unavailable Small session must retain its actionable error, and a failed
+    // start must release the job so the same conversation can recover.
+    const beforeFailure = requests.length;
+    await app.evaluate(async ({ session }) => {
+      const isolated = session.fromPartition("small-auth", { cache: false });
+      await isolated.protocol.unhandle("https");
+      isolated.protocol.handle("https", () => Response.error());
+    });
+    await send("Проверь связь");
+    await expect(
+      page.getByText(
+        "Не удалось связаться с Small. Проверьте сеть и повторите.",
+        {
+          exact: true,
+        },
+      ),
+    ).toBeVisible();
+    expect(requests.length).toBe(beforeFailure);
+    await app.evaluate(async ({ session }) => {
+      await session
+        .fromPartition("small-auth", { cache: false })
+        .protocol.unhandle("https");
+    });
+    await mockSmall(app, calendarToday());
+    turn++;
+    plan = [];
+    answer = "Связь восстановлена";
+    await send("Проверь снова");
+    await expect(page.getByText(answer, { exact: true })).toBeVisible();
   } finally {
     const cleanupPage = await app.firstWindow();
     const removed = await cleanupPage.evaluate(() =>

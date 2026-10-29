@@ -21,6 +21,7 @@ import {
   type StartResult,
 } from "../shared/assistant.js";
 import { ProfileError } from "./profiles.js";
+import { SmallAuthError } from "./small-auth.js";
 import type { ModelConnection } from "../shared/profiles.js";
 
 const requestSchema = z.strictObject({
@@ -169,7 +170,7 @@ export function registerAssistantHandlers(
           chunk: {
             type: "error",
             errorText:
-              error instanceof ProfileError
+              error instanceof ProfileError || error instanceof SmallAuthError
                 ? error.message
                 : "Не удалось запустить ассистента",
           },
