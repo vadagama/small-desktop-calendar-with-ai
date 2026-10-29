@@ -25,6 +25,7 @@ export const meetingDraftSchema = z.strictObject({
   kind: z.literal("meeting-draft"),
   status: z.literal("preview"),
   id: z.uuid(),
+  revision: z.number().int().positive().default(1),
   title: z.string(),
   agenda: z.string(),
   participantIds: z.array(z.string()),
