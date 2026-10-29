@@ -109,3 +109,22 @@ test("missing or denied events and unchanged titles are not valid previews", asy
     }),
   );
 });
+
+test("preview resolves organizer GUID independently from session account ID", async () => {
+  const session: CalendarSession = {
+    readCalendar: async (_account, run) =>
+      run(async () =>
+        Response.json({ data: { ...event, creator_id: "guid-a" } }),
+      ),
+  };
+  const service = new EventChangeService(session, async (account) => {
+    assert.equal(account, "a");
+    return "guid-a";
+  });
+  const result = await service.preview({
+    accountId: "a",
+    eventId: "42",
+    change: { kind: "cancel" },
+  });
+  assert.equal(result.kind, "cancel");
+});

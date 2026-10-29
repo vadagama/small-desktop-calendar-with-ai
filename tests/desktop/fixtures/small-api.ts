@@ -5,9 +5,12 @@ export async function mockSmall(app: ElectronApplication, date: string) {
   await app.evaluate(({ session }, date) => {
     const isolated = session.fromPartition("small-auth", { cache: false });
     let employee = "employee-a";
+    let renamedTitle: string | null = null,
+      deleted = false;
     const inspection = globalThis as typeof globalThis & {
       syntheticMeetingWrites: number;
       syntheticEventOwner?: string;
+      syntheticLostDelete?: boolean;
       syntheticEventMutations: number;
       syntheticCreatedPayload?: Record<string, unknown>;
     };
@@ -161,7 +164,14 @@ export async function mockSmall(app: ElectronApplication, date: string) {
             })),
         });
       }
-      if (request.method !== "GET") return new Response(null, { status: 405 });
+      if (
+        request.method !== "GET" &&
+        !(
+          path.endsWith("/calendar/events/42") &&
+          ["PUT", "DELETE"].includes(request.method)
+        )
+      )
+        return new Response(null, { status: 405 });
       if (path === "/gate/employee/api/search/persons") {
         const q = url.searchParams.get("q");
         const current = Number(url.searchParams.get("page"));
@@ -230,12 +240,16 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       const suffix = employee === "employee-a" ? "A" : "B";
       const event = {
         id: 42,
-        title: `Синтетическая встреча ${suffix}`,
+        title: renamedTitle ?? `Синтетическая встреча ${suffix}`,
         starts_at: `${date}T09:00:00+05:00`,
         ends_at: `${date}T10:00:00+05:00`,
         calendar_ids: [7],
         creator_name: "Синтетический организатор",
-        creator_id: inspection.syntheticEventOwner ?? employee,
+        creator_id: inspection.syntheticEventOwner ?? "synthetic-organizer",
+        timezone: "Asia/Almaty",
+        is_public: false,
+        notification_recipients: [],
+        attachments: [],
         is_recurring: false,
         participants: [{ id: employee }, { id: "synthetic-b" }],
         description: "Синтетическая повестка",
@@ -250,8 +264,33 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         starts_at: `${date}T11:00:00+05:00`,
         ends_at: `${date}T11:30:00+05:00`,
       };
-      if (path.endsWith("/calendar/events/42"))
-        return Response.json({ data: event });
+      if (path.endsWith("/calendar/events/42")) {
+        if (request.method === "PUT") {
+          if (url.searchParams.get("force") !== "false")
+            return new Response(null, { status: 400 });
+          const body = await request.json();
+          if (
+            body.description !== event.description ||
+            body.location !== event.location ||
+            body.timezone !== event.timezone
+          )
+            return new Response(null, { status: 422 });
+          renamedTitle = body.title;
+          return Response.json({
+            status: "success",
+            data: { ...event, title: renamedTitle },
+          });
+        }
+        if (request.method === "DELETE") {
+          deleted = true;
+          return new Response(null, {
+            status: inspection.syntheticLostDelete ? 503 : 204,
+          });
+        }
+        return deleted
+          ? new Response(null, { status: 404 })
+          : Response.json({ data: event });
+      }
       if (path.endsWith("/calendar/events/generated"))
         return Response.json({ data: recurring });
       if (path.endsWith("/events")) {
@@ -266,7 +305,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
           end = url.searchParams.get("end_date");
         if (!start || !end) return new Response(null, { status: 400 });
         return Response.json({
-          data: [event, recurring, ...created].filter(
+          data: [...(deleted ? [] : [event]), recurring, ...created].filter(
             (entry) =>
               Date.parse(entry.starts_at) < Date.parse(end) &&
               Date.parse(entry.ends_at) > Date.parse(start),

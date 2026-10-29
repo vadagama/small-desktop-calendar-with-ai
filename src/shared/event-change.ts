@@ -6,6 +6,7 @@ export interface EventChangeQuery {
   change: EventChange;
 }
 export interface EventChangePreview {
+  operationId?: string;
   eventId: string;
   kind: EventChange["kind"];
   before: {

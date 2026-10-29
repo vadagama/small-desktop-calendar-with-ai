@@ -1,3 +1,6 @@
+import { z } from "zod";
+import type { EventMutations } from "./event-mutations.js";
+import type { SmallAuth } from "./small-auth.js";
 import type { EventChangeService } from "./event-change.js";
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
 import { calendarChannels, type CalendarReply } from "../shared/calendar.js";
@@ -10,6 +13,8 @@ export function registerCalendarHandlers(
   trusted: (event: IpcMainInvokeEvent) => boolean,
   availability: AvailabilityService,
   changes: EventChangeService,
+  mutations: EventMutations,
+  auth: SmallAuth,
 ) {
   const handle = <T>(
     channel: string,
@@ -44,6 +49,28 @@ export function registerCalendarHandlers(
       },
     );
   };
+  const guarded = async <T>(
+    input: unknown,
+    action: (assertCurrent: () => void) => Promise<T>,
+  ) => {
+    const revision = auth.sessionRevision;
+    const check = () => {
+      if (revision !== auth.sessionRevision)
+        throw new SmallAuthError("Изменился аккаунт Small.", "auth");
+    };
+    const q = z.object({ accountId: z.string() }).parse(input);
+    const state = await auth.read();
+    check();
+    if (state.status !== "signed-in" || state.profile.id !== q.accountId)
+      throw new SmallAuthError("Войдите в нужный аккаунт Small.", "auth");
+    return action(check);
+  };
+  handle(calendarChannels.confirmChange, (input) =>
+    guarded(input, (check) => mutations.confirm(input, check)),
+  );
+  handle(calendarChannels.reconcileChange, (input) =>
+    guarded(input, (check) => mutations.reconcile(input, check)),
+  );
   handle(calendarChannels.previewChange, (input) => changes.preview(input));
   handle(calendarChannels.calendars, (input) => service.calendars(input));
   handle(calendarChannels.events, (input) => service.events(input));
