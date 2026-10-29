@@ -75,6 +75,8 @@ for (const scenario of ["00", "30", "recurring", "past"]) {
         await page.mouse.down();
         await page.mouse.move(x, y + delta, { steps: 8 });
         await page.mouse.up();
+        // The next gesture must wait until Small has answered for this one.
+        await expect(event).not.toHaveAttribute("data-pending", /.+/);
       };
 
       if (scenario === "past") {

@@ -25,6 +25,14 @@ import { KeychainSecrets } from "./keychain.js";
 import { registerProfileHandlers } from "./profile-ipc.js";
 
 import { CalendarService } from "./calendar.js";
+import { CalendarSync } from "./calendar-sync.js";
+import { CachedCatalog, assistantCalendarSource } from "./calendar-catalog.js";
+import { EventCache } from "./event-cache.js";
+import { safeStorageCipher } from "./event-cache-cipher.js";
+import { calendarChannels, type CalendarChange } from "../shared/calendar.js";
+import type { MeetingWriter } from "./meeting-operations.js";
+import { meetingTarget } from "./write-target.js";
+import { invalidatingSeries } from "./series-invalidation.js";
 import { AvailabilityService } from "./availability.js";
 import { registerCalendarHandlers } from "./calendar-ipc.js";
 import { SmallAuth } from "./small-auth.js";
@@ -124,9 +132,54 @@ app.whenReady().then(async () => {
   );
   const calendar = new CalendarService(smallAuth);
   const availability = new AvailabilityService(smallAuth);
+  // One cache for events and catalogs, so sign-in and sign-out clear both.
+  const eventCache = new EventCache(
+    resolve(app.getPath("userData"), "event-cache"),
+    safeStorageCipher,
+  );
+  const catalog = new CachedCatalog(calendar, eventCache);
+  const calendarSync = new CalendarSync(
+    calendar,
+    eventCache,
+    (change: CalendarChange) => {
+      for (const window of BrowserWindow.getAllWindows())
+        if (!window.isDestroyed())
+          window.webContents.send(calendarChannels.changed, change);
+    },
+    {
+      // Desktop tests shorten the poll period; a packaged app always uses 60 s.
+      ...(!app.isPackaged && Number(process.env.SMALL_TEST_SYNC_INTERVAL_MS) > 0
+        ? { intervalMs: Number(process.env.SMALL_TEST_SYNC_INTERVAL_MS) }
+        : {}),
+      online: () => net.isOnline(),
+      visible: () =>
+        BrowserWindow.getAllWindows().some(
+          (window) => window.isVisible() && !window.isMinimized(),
+        ),
+    },
+  );
+  app.on("browser-window-focus", () => calendarSync.wake());
+  app.on("before-quit", () => calendarSync.stop());
+  const meetingWriter = new SmallMeetingWriter(
+    smallAuth,
+    calendar,
+    availability,
+  );
+  // Creating a meeting changes Small's calendar, so the cached copy is dropped.
+  const writer: MeetingWriter = {
+    preflight: (draft) => meetingWriter.preflight(draft),
+    verify: (draft, eventId) => meetingWriter.verify(draft, eventId),
+    create: async (draft) => {
+      try {
+        return await meetingWriter.create(draft);
+      } finally {
+        await calendarSync.invalidate(meetingTarget(draft));
+      }
+    },
+  };
   const meetings = new MeetingOperations(
     new MeetingJournal(resolve(app.getPath("userData"), "meeting-operations")),
-    new SmallMeetingWriter(smallAuth, calendar, availability),
+    writer,
   );
   const assistant = registerAssistantHandlers(
     devUrl || localUrl,
@@ -143,7 +196,7 @@ app.whenReady().then(async () => {
             state.profile.id,
             prompt,
             signal,
-            calendar,
+            assistantCalendarSource(calendar, catalog),
             availability,
             state.profile.name,
             (draft) => meetings.register(draft),
@@ -172,17 +225,20 @@ app.whenReady().then(async () => {
         resolve(app.getPath("userData"), "event-mutations"),
       ),
     ),
+    calendarSync,
+    catalog,
   );
-  registerSeriesHandlers(
-    new SeriesController(
-      smallAuth,
-      new SeriesMutationService(
-        new SmallSeriesBackend(smallAuth, calendar),
-        new EventMutationJournal(
-          resolve(app.getPath("userData"), "series-mutations"),
-        ),
+  const series = new SeriesController(
+    smallAuth,
+    new SeriesMutationService(
+      new SmallSeriesBackend(smallAuth, calendar),
+      new EventMutationJournal(
+        resolve(app.getPath("userData"), "series-mutations"),
       ),
     ),
+  );
+  registerSeriesHandlers(
+    invalidatingSeries(series, calendarSync),
     assistant.trusted,
   );
   const reminders = registerReminders(
@@ -200,10 +256,15 @@ app.whenReady().then(async () => {
     },
   );
   app.on("before-quit", () => reminders.stop());
-  registerSmallAuthHandlers(smallAuth, assistant.trusted, () => {
-    assistant.cancelActive();
-    reminders.invalidate();
-  });
+  registerSmallAuthHandlers(
+    smallAuth,
+    assistant.trusted,
+    () => {
+      assistant.cancelActive();
+      reminders.invalidate();
+    },
+    () => calendarSync.reset().catch(() => {}),
+  );
   session.defaultSession.setPermissionRequestHandler(
     (_contents, _permission, callback) => callback(false),
   );

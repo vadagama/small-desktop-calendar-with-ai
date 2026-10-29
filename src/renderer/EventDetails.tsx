@@ -22,6 +22,10 @@ import {
 } from "lucide-react";
 import type { CalendarEvent, EventLookup } from "../shared/calendar.js";
 import {
+  seriesInvalidation,
+  type EventInvalidation,
+} from "../shared/calendar-invalidation.js";
+import {
   calendarDateAt,
   calendarToday,
   calendarTimeZone,
@@ -34,12 +38,17 @@ export function EventDetails({
   expired,
   createWithPeople,
   changed,
+  remote = null,
+  acknowledgeRemote,
 }: {
   accountId: string;
   lookup: EventLookup;
   close: () => void;
   expired: () => void;
-  changed?: () => void;
+  changed?: (write: EventInvalidation) => void;
+  /** What happened to this event on the server while the card was open. */
+  remote?: "changed" | "missing" | null;
+  acknowledgeRemote?: () => void;
   createWithPeople?: (event: CalendarEvent) => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -47,6 +56,8 @@ export function EventDetails({
   const menuPopup = useRef<HTMLDivElement>(null);
   const [event, setEvent] = useState<CalendarEvent | null>(null);
   const [error, setError] = useState("");
+  // Small answered "not found": the event is gone and nothing can be changed.
+  const [gone, setGone] = useState(false);
   const [responding, setResponding] = useState(false);
   const [response, setResponse] = useState<"accepted" | "declined" | null>(
     null,
@@ -96,15 +107,18 @@ export function EventDetails({
   }, []);
   useEffect(() => {
     let active = true;
-    setEvent(null);
+    // A reload keeps what is on screen, so a form being filled in is not discarded.
     setError("");
     void window.smallDesktop.calendar
       .detail({ accountId, lookup })
       .then((reply) => {
         if (!active) return;
-        if (reply.ok) setEvent(reply.data);
-        else {
+        if (reply.ok) {
+          setEvent(reply.data);
+          setGone(false);
+        } else {
           setError(reply.error);
+          if (reply.kind === "not-found") setGone(true);
           if (reply.kind === "auth") expired();
         }
       })
@@ -141,7 +155,7 @@ export function EventDetails({
     menu.current?.removeAttribute("open");
   }
   async function respond(status: "accepted" | "declined") {
-    if (!event || !("id" in event.lookup) || responding) return;
+    if (!event || !("id" in event.lookup) || responding || gone) return;
     setResponding(true);
     setNotice("");
     try {
@@ -153,7 +167,7 @@ export function EventDetails({
       if (reply.ok) {
         setResponse(status);
         notifySuccess("Ответ на приглашение сохранён");
-        changed?.();
+        changed?.({ eventIds: [event.lookup.id], windows: [] });
       } else {
         notifyError("сохранить ответ", reply.kind);
         if (reply.kind === "auth") expired();
@@ -165,7 +179,8 @@ export function EventDetails({
     }
   }
   async function deleteEvent() {
-    if (!event || !("id" in event.lookup) || deletePending.current) return;
+    if (!event || !("id" in event.lookup) || deletePending.current || gone)
+      return;
     deletePending.current = true;
     setDeleting(true);
     setNotice("");
@@ -178,7 +193,7 @@ export function EventDetails({
       });
       if (reply.ok) {
         notifySuccess("Событие успешно удалено");
-        changed?.();
+        changed?.({ eventIds: [event.lookup.id], windows: [] });
         close();
       } else {
         notifyError("удалить событие", reply.kind);
@@ -262,6 +277,7 @@ export function EventDetails({
                 {event.participation === "organizer" &&
                   calendarDateAt(event.startsAt) >= calendarToday() && (
                     <button
+                      disabled={gone}
                       onClick={() => {
                         if (event.recurring === true)
                           setSeriesOperation("rename");
@@ -303,7 +319,7 @@ export function EventDetails({
                   calendarDateAt(event.startsAt) >= calendarToday() && (
                     <button
                       className="danger-text"
-                      disabled={deleting}
+                      disabled={deleting || gone}
                       onClick={() => {
                         if (event.recurring === true) {
                           setSeriesOperation("delete");
@@ -328,7 +344,29 @@ export function EventDetails({
         </div>
       </div>
       {!event && !error && <p role="status">Загружаю карточку Small…</p>}
-      {error && (
+      {(gone || remote) && (
+        <div className="event-remote-change" role="status">
+          <p>
+            {gone
+              ? "Событие удалено или отменено на сервере. Изменить его больше нельзя."
+              : remote === "missing"
+                ? "Событие больше не показано в этом периоде: его могли удалить, отменить или перенести. Обновите карточку, чтобы проверить."
+                : "Событие изменилось на сервере. Показанные данные и ваши правки могут быть устаревшими."}
+          </p>
+          {!gone && (
+            <button
+              className="secondary"
+              onClick={() => {
+                setRetry((value) => value + 1);
+                acknowledgeRemote?.();
+              }}
+            >
+              Обновить карточку
+            </button>
+          )}
+        </div>
+      )}
+      {error && !gone && (
         <>
           <p className="form-error" role="alert">
             {error}
@@ -447,10 +485,12 @@ export function EventDetails({
               accountId={accountId}
               event={event}
               expired={expired}
+              locked={gone}
               saved={() => {
                 setEditing(null);
                 setRetry((value) => value + 1);
-                changed?.();
+                if ("id" in event.lookup)
+                  changed?.({ eventIds: [event.lookup.id], windows: [] });
               }}
             />
           )}
@@ -467,7 +507,7 @@ export function EventDetails({
           done={() => {
             const removed = seriesOperation === "delete";
             setSeriesOperation(null);
-            changed?.();
+            changed?.(seriesInvalidation(event));
             if (removed) close();
             else setRetry((value) => value + 1);
           }}
@@ -478,7 +518,7 @@ export function EventDetails({
           <span>Придёте?</span>
           <div>
             <button
-              disabled={responding}
+              disabled={responding || gone}
               aria-pressed={
                 response === "accepted" || (!response && event.accepted)
               }
@@ -487,7 +527,7 @@ export function EventDetails({
               Да
             </button>
             <button
-              disabled={responding}
+              disabled={responding || gone}
               aria-pressed={response === "declined"}
               onClick={() => void respond("declined")}
             >

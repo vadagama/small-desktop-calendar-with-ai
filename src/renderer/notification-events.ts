@@ -1,10 +1,21 @@
 export const events = new EventTarget();
 let nextId = 0;
-export type Notice = { id: number; type: "success" | "error"; message: string };
+export type Notice = {
+  id: number;
+  type: "success" | "error" | "info";
+  message: string;
+};
 export function notifySuccess(message: string) {
   events.dispatchEvent(
     new CustomEvent("notice", {
       detail: { id: ++nextId, type: "success", message },
+    }),
+  );
+}
+export function notifyInfo(message: string) {
+  events.dispatchEvent(
+    new CustomEvent("notice", {
+      detail: { id: ++nextId, type: "info", message },
     }),
   );
 }

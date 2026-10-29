@@ -1,10 +1,17 @@
-import { useEffect, useState } from "react";
-import type {
-  CalendarEvent,
-  CalendarIssue,
-  CalendarView,
-  SmallCalendar,
-} from "../shared/calendar.js";
+import { startTransition, useEffect, useRef, useState } from "react";
+import type { CalendarView, SmallCalendar } from "../shared/calendar.js";
+import { isEmptyDiff } from "../shared/calendar-diff.js";
+import type { EventInvalidation } from "../shared/calendar-invalidation.js";
+import {
+  calendarQueryKey,
+  deriveCalendarView,
+  pruneAffectedCalendarStore,
+  sameCalendarQuery,
+  storeCalendarResult,
+  type CalendarConnection,
+  type CalendarFailure,
+  type CalendarStore,
+} from "../shared/calendar-view-state.js";
 
 export function useSmallCalendar(
   accountId: string | null,
@@ -13,6 +20,11 @@ export function useSmallCalendar(
   expired: () => void,
 ) {
   const [reload, setReload] = useState(0);
+  // A manual refresh or a reload after a write must reach Small; navigation may use the cache.
+  const forced = useRef(false);
+  const refreshedAt = useRef(0);
+  // Only the user's own refresh asks Small for the calendar list again; a write cannot change it.
+  const manual = useRef(false);
   const [selection, setSelection] = useState<{
     accountId: string | null;
     my: boolean;
@@ -23,25 +35,30 @@ export function useSmallCalendar(
     calendars: SmallCalendar[];
     error: string;
   } | null>(null);
-  const [result, setResult] = useState<{
-    key: string;
-    events: CalendarEvent[];
-    issues: CalendarIssue[];
-    error: string;
-  } | null>(null);
+  const [store, setStore] = useState<CalendarStore>({});
+  const [failure, setFailure] = useState<CalendarFailure | null>(null);
+  const [connection, setConnection] = useState<CalendarConnection>("online");
+  const [pending, setPending] = useState(false);
   const my = selection.accountId === accountId ? selection.my : true;
   const ids = selection.accountId === accountId ? selection.ids : [];
-  const key = JSON.stringify([accountId, date, view, my, ids, reload]);
+  // `reload` is deliberately not part of the key: a refresh keeps the events on screen.
+  const key = calendarQueryKey({ accountId, date, view, my, ids });
+  useEffect(() => {
+    setStore({});
+    setFailure(null);
+    setConnection("online");
+  }, [accountId]);
   useEffect(() => {
     if (!accountId) {
       setCatalog(null);
-      setResult(null);
       setSelection({ accountId: null, my: true, ids: [] });
       return;
     }
     let active = true;
+    const refresh = manual.current;
+    manual.current = false;
     void window.smallDesktop.calendar
-      .calendars({ accountId })
+      .calendars({ accountId, ...(refresh ? { refresh } : {}) })
       .then((reply) => {
         if (!active) return;
         if (!reply.ok && reply.kind === "auth") expired();
@@ -66,44 +83,98 @@ export function useSmallCalendar(
   useEffect(() => {
     if (!accountId) return;
     let active = true;
+    const allowStale = !forced.current;
+    forced.current = false;
+    setPending(true);
     void window.smallDesktop.calendar
-      .events({ accountId, date, view, myCalendar: my, calendarIds: ids })
+      .events({
+        accountId,
+        date,
+        view,
+        myCalendar: my,
+        calendarIds: ids,
+        allowStale,
+      })
       .then((reply) => {
         if (!active) return;
         if (!reply.ok && reply.kind === "auth") expired();
-        setResult({
-          key,
-          events: reply.ok ? reply.data.events : [],
-          issues: reply.ok ? reply.data.issues : [],
-          error: reply.ok ? "" : reply.error,
-        });
+        if (reply.ok) {
+          setStore((previous) =>
+            storeCalendarResult(previous, key, reply.data, Date.now()),
+          );
+          setFailure(null);
+        } else setFailure({ key, message: reply.error });
       })
       .catch(() => {
         if (active)
-          setResult({
+          setFailure({
             key,
-            events: [],
-            issues: [],
-            error: "Не удалось загрузить события Small. Занятость неизвестна.",
+            message:
+              "Не удалось загрузить события Small. Занятость неизвестна.",
           });
+      })
+      .finally(() => {
+        if (active) setPending(false);
       });
     return () => {
       active = false;
     };
     // key includes every query field; a changed key hides the old result immediately.
-  }, [key, expired]);
-  const current = result?.key === key && accountId ? result : null;
+  }, [key, reload, expired]);
+  useEffect(() => {
+    if (!accountId) return;
+    return window.smallDesktop.calendar.subscribe((change) => {
+      if (change.type === "status") {
+        setConnection(change.status === "offline" ? "offline" : "online");
+        if (change.status === "auth-expired") expired();
+        return;
+      }
+      if (!sameCalendarQuery(change.query, { accountId, date, view, my, ids }))
+        return;
+      const apply = () => {
+        setStore((previous) =>
+          storeCalendarResult(previous, key, change.result, Date.now()),
+        );
+        setFailure(null);
+      };
+      // Only a real change may animate; a silent revalidation must not start a transition.
+      if (isEmptyDiff(change.diff)) apply();
+      else startTransition(apply);
+    });
+    // key includes every query field, so the closure above always matches it.
+  }, [accountId, key, expired]);
+  const renew = (write?: EventInvalidation) => {
+    forced.current = true;
+    refreshedAt.current = Date.now();
+    if (write)
+      setStore((previous) => pruneAffectedCalendarStore(previous, key, write));
+    setReload((value) => value + 1);
+  };
+  const current = deriveCalendarView({
+    accountId,
+    key,
+    data: store[key] ?? null,
+    failure,
+    connection,
+    pending,
+  });
   const list = catalog?.accountId === accountId ? catalog : null;
   return {
     calendars: list?.calendars ?? [],
     catalogError: list?.error ?? "",
     my,
     ids,
-    events: current?.events ?? [],
-    issues: current?.issues ?? [],
-    error: current?.error ?? "",
-    loading: Boolean(accountId) && !current,
-    refresh: () => setReload((value) => value + 1),
+    ...current,
+    queryKey: key,
+    /** True shortly after our own refresh or write, so its result is not "news". */
+    justRefreshed: () => Date.now() - refreshedAt.current < 5_000,
+    /** Renews the current range from Small. Takes no argument: it is used as a click handler. */
+    refresh: () => {
+      manual.current = true;
+      renew();
+    },
+    /** Renews the current range and forgets the other ranges the write may have changed. */
+    refreshAfterWrite: (write: EventInvalidation) => renew(write),
     setMy: (next: boolean) => setSelection({ accountId, my: next, ids }),
     toggle: (id: string) =>
       setSelection({
