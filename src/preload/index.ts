@@ -12,7 +12,7 @@ import {
   type AgentEvent,
   type DesktopBridge,
 } from "../shared/assistant.js";
-import { calendarChannels } from "../shared/calendar.js";
+import { calendarChannels, type CalendarChange } from "../shared/calendar.js";
 import { smallAuthChannels } from "../shared/small-auth.js";
 import { profileChannels } from "../shared/profiles.js";
 
@@ -65,6 +65,13 @@ const bridge: DesktopBridge = {
     calendars: (input) => ipcRenderer.invoke(calendarChannels.calendars, input),
     events: (input) => ipcRenderer.invoke(calendarChannels.events, input),
     detail: (input) => ipcRenderer.invoke(calendarChannels.detail, input),
+    subscribe: (listener) => {
+      const handler = (_event: IpcRendererEvent, change: CalendarChange) =>
+        listener(change);
+      ipcRenderer.on(calendarChannels.changed, handler);
+      return () =>
+        ipcRenderer.removeListener(calendarChannels.changed, handler);
+    },
   },
   smallAuth: {
     read: () => ipcRenderer.invoke(smallAuthChannels.read),

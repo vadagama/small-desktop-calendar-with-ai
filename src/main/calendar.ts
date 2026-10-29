@@ -16,6 +16,8 @@ export class CalendarError extends Error {
   constructor(
     public kind: CalendarIssueKind,
     message: string,
+    /** A write may have reached Small and its result could not be established. */
+    public unknownOutcome = false,
   ) {
     super(message);
   }
@@ -46,6 +48,7 @@ const querySchema = account.extend({
   myCalendar: z.boolean(),
   calendarIds: z.array(id).max(8),
 });
+export const parseCalendarQuery = (input: unknown) => parse(querySchema, input);
 const lookupSchema = z.union([
   z.strictObject({ id }),
   z.strictObject({ originalEventId: id, date }),

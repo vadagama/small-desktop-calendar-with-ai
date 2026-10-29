@@ -123,6 +123,7 @@ const unknownOutcome = () =>
   new CalendarError(
     "network",
     "Результат изменения неизвестен: не удалось подтвердить сохранение. Повторная запись заблокирована. Повторное действие только проверит состояние встречи.",
+    true,
   );
 export function isParticipantStatusRequest(path: string, body: unknown) {
   return (

@@ -12,6 +12,7 @@ const journal = () =>
 import assert from "node:assert/strict";
 import { test, after } from "node:test";
 import { EventRescheduleService } from "../../src/main/event-reschedule.js";
+import { CalendarError } from "../../src/main/calendar.js";
 const event = {
   id: "42",
   creator_id: "person-a",
@@ -531,4 +532,41 @@ test("corrupt durable state blocks writes instead of resetting the journal", asy
   );
   await assert.rejects(service.reschedule(input));
   assert.equal(writes, 0);
+});
+
+test("only an outcome that could not be established is flagged unknown", async () => {
+  const flag = (error: unknown) =>
+    error instanceof CalendarError ? error.unknownOutcome : undefined;
+  // An explicit refusal and failures before the write never reach "unknown".
+  for (const make of [
+    () => fixture({}, 409),
+    () => fixture({ creator_id: "other" }),
+    () => fixture({ starts_at: "2099-10-29T08:00:00+05:00" }),
+  ])
+    await assert.rejects(make().service.reschedule(input), (error) => {
+      assert.equal(flag(error), false);
+      return true;
+    });
+  // A write that failed and cannot be verified is unknown, and so is the blocked retry.
+  const log = journal();
+  const session = {
+    readCalendar: async <T>(
+      _id: string,
+      action: (
+        get: (path: string) => Promise<Response>,
+        person?: string,
+      ) => Promise<T>,
+    ) => action(async () => Response.json({ data: event }), "person-a"),
+    updateCalendarEvent: async () => {
+      throw Error("timeout");
+    },
+  };
+  for (let attempt = 0; attempt < 2; attempt++)
+    await assert.rejects(
+      new EventRescheduleService(session, log).reschedule(input),
+      (error) => {
+        assert.equal(flag(error), true);
+        return true;
+      },
+    );
 });

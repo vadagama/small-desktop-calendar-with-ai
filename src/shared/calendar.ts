@@ -1,3 +1,4 @@
+import type { CalendarDiff } from "./calendar-diff.js";
 import type { EventChangeQuery, EventChangePreview } from "./event-change.js";
 export type CalendarView = "day" | "week" | "month";
 export type EventLookup =
@@ -44,12 +45,36 @@ export interface CalendarQuery {
   myCalendar: boolean;
   calendarIds: string[];
 }
+/** `allowStale` lets main answer from the local cache and revalidate in the background. */
+export interface CalendarReadQuery extends CalendarQuery {
+  allowStale?: boolean;
+}
+export type CalendarFreshness = "fresh" | "stale";
 export interface CalendarResult {
   events: CalendarEvent[];
   issues: CalendarIssue[];
+  /** Set by the sync layer: when Small last confirmed these events. */
+  fetchedAt?: number;
+  freshness?: CalendarFreshness;
 }
+/** Pushed by main on `calendarChannels.changed`; "offline" means Small is unreachable. */
+export type CalendarChange =
+  | {
+      type: "events";
+      query: CalendarQuery;
+      result: CalendarResult;
+      diff: CalendarDiff;
+    }
+  | { type: "status"; status: "online" | "offline" | "auth-expired" };
 export type CalendarReply<T> =
-  { ok: true; data: T } | { ok: false; kind: CalendarIssueKind; error: string };
+  | { ok: true; data: T }
+  | {
+      ok: false;
+      kind: CalendarIssueKind;
+      error: string;
+      /** Set only for writes: they may have been applied, so do not treat this as a refusal. */
+      unknownOutcome?: true;
+    };
 export const calendarChannels = {
   people: "calendar:people",
   slots: "calendar:slots",
@@ -62,6 +87,7 @@ export const calendarChannels = {
   respond: "calendar:respond",
   openLink: "calendar:open-link",
   copyLink: "calendar:copy-link",
+  changed: "calendar:changed",
 } as const;
 export interface CalendarPerson {
   participantId: string;
@@ -115,8 +141,11 @@ export interface CalendarBridge {
   slots(input: SlotsQuery): Promise<CalendarReply<SlotsResult>>;
   calendars(input: {
     accountId: string;
+    /** Skips the cached list and asks Small. */
+    refresh?: boolean;
   }): Promise<CalendarReply<SmallCalendar[]>>;
-  events(input: CalendarQuery): Promise<CalendarReply<CalendarResult>>;
+  events(input: CalendarReadQuery): Promise<CalendarReply<CalendarResult>>;
+  subscribe(listener: (change: CalendarChange) => void): () => void;
   detail(input: {
     accountId: string;
     lookup: EventLookup;

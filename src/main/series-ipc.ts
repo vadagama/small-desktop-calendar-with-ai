@@ -7,7 +7,7 @@ import { SmallAuthError } from "./small-auth.js";
 import type { SeriesController } from "./series-controller.js";
 
 export function registerSeriesHandlers(
-  controller: SeriesController,
+  controller: Pick<SeriesController, "gate" | "apply">,
   trusted: (event: IpcMainInvokeEvent) => boolean,
 ) {
   const handle = <T>(channel: string, action: (input: unknown) => Promise<T>) =>
