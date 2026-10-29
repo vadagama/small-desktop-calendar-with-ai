@@ -123,7 +123,7 @@ app.whenReady().then(async () => {
     },
   );
   registerProfileHandlers(profiles, assistant.trusted, assistant.cancelActive);
-  registerMeetingHandlers(meetings, smallAuth, assistant.trusted);
+  registerMeetingHandlers(meetings, smallAuth, assistant.trusted, availability);
 
   registerCalendarHandlers(
     calendar,
