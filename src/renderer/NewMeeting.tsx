@@ -60,112 +60,114 @@ export function NewMeeting(props: Parameters<typeof useNewMeeting>[0]) {
           void create();
         }}
       >
-        <fieldset disabled={busy || locked} className="new-meeting-fields">
-          <label>
-            Наименование <span className="required-mark">*</span>
-            <input
-              required
-              maxLength={200}
-              placeholder="Введите наименование"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </label>
-          <label>
-            Описание
-            <textarea
-              maxLength={5000}
-              rows={2}
-              placeholder="Введите описание"
-              value={agenda}
-              onChange={(e) => setAgenda(e.target.value)}
-            />
-          </label>
-          <label>
-            Ссылка на встречу
-            <input
-              type="url"
-              placeholder="Добавьте ссылку"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-            />
-          </label>
-          <button
-            type="button"
-            className="meeting-link-action"
-            onClick={() =>
-              setUrl(`https://meet.small.kz/${crypto.randomUUID()}`)
-            }
-          >
-            <Video size={18} />
-            Сгенерировать ссылку
-          </button>
-          <div>
-            <label className="meeting-field-title">Участники</label>
-            <p className="meeting-organizer">Организатор: {account.name}</p>
-            <MeetingPeoplePicker data={people} label="участников" />
-          </div>
-          <button
-            type="button"
-            className="meeting-link-action"
-            aria-expanded={inform}
-            onClick={() => setInform(!inform)}
-          >
-            <Plus size={18} />
-            Информируемые
-          </button>
-          {inform && (
-            <MeetingPeoplePicker data={recipients} label="информируемых" />
-          )}
-          <label>
-            Переговорная
-            <select
-              aria-label="Переговорная"
-              value={room}
-              onChange={(e) => setRoom(e.target.value)}
+        <div className="new-meeting-body">
+          <fieldset disabled={busy || locked} className="new-meeting-fields">
+            <label>
+              Наименование <span className="required-mark">*</span>
+              <input
+                required
+                maxLength={200}
+                placeholder="Введите наименование"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </label>
+            <label>
+              Описание
+              <textarea
+                maxLength={5000}
+                rows={1}
+                placeholder="Введите описание"
+                value={agenda}
+                onChange={(e) => setAgenda(e.target.value)}
+              />
+            </label>
+            <label>
+              Ссылка на встречу
+              <input
+                type="url"
+                placeholder="Добавьте ссылку"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              className="meeting-link-action"
+              onClick={() =>
+                setUrl(`https://meet.small.kz/${crypto.randomUUID()}`)
+              }
             >
-              <option value="">Без переговорной</option>
-              {rooms.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {roomError && <p className="form-error">{roomError}</p>}
-          <MeetingSchedule data={data} />
-          <button
-            type="button"
-            className="meeting-link-action"
-            disabled={files.length >= 5}
-            onClick={() => void attach()}
-          >
-            <Paperclip size={18} />
-            Прикрепить файл
-          </button>
-          <small>
-            До 5 файлов по 10 МБ. Файлы загружаются в Small при выборе.
-          </small>
-          {files.length > 0 && (
-            <ul className="meeting-files">
-              {files.map((f) => (
-                <li key={f.id}>
-                  {f.name}
-                  <button
-                    type="button"
-                    className="icon-button"
-                    aria-label={`Убрать файл ${f.name}`}
-                    onClick={() =>
-                      setFiles((old) => old.filter((x) => x.id !== f.id))
-                    }
-                  >
-                    <X size={16} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </fieldset>
+              <Video size={18} />
+              Сгенерировать ссылку
+            </button>
+            <div>
+              <label className="meeting-field-title">Участники</label>
+              <p className="meeting-organizer">Организатор: {account.name}</p>
+              <MeetingPeoplePicker data={people} label="участников" />
+            </div>
+            <button
+              type="button"
+              className="meeting-link-action"
+              aria-expanded={inform}
+              onClick={() => setInform(!inform)}
+            >
+              <Plus size={18} />
+              Информируемые
+            </button>
+            {inform && (
+              <MeetingPeoplePicker data={recipients} label="информируемых" />
+            )}
+            <label>
+              Переговорная
+              <select
+                aria-label="Переговорная"
+                value={room}
+                onChange={(e) => setRoom(e.target.value)}
+              >
+                <option value="">Без переговорной</option>
+                {rooms.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {roomError && <p className="form-error">{roomError}</p>}
+            <MeetingSchedule data={data} />
+            <button
+              type="button"
+              className="meeting-link-action"
+              disabled={files.length >= 5}
+              onClick={() => void attach()}
+            >
+              <Paperclip size={18} />
+              Прикрепить файл
+            </button>
+            <small>
+              До 5 файлов по 10 МБ. Файлы загружаются в Small при выборе.
+            </small>
+            {files.length > 0 && (
+              <ul className="meeting-files">
+                {files.map((f) => (
+                  <li key={f.id}>
+                    {f.name}
+                    <button
+                      type="button"
+                      className="icon-button"
+                      aria-label={`Убрать файл ${f.name}`}
+                      onClick={() =>
+                        setFiles((old) => old.filter((x) => x.id !== f.id))
+                      }
+                    >
+                      <X size={16} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </fieldset>
+        </div>
         {error && (
           <p role="alert" className="form-error">
             {error}
