@@ -99,7 +99,7 @@ test("an expired session in the background sends the user back to sign-in", asyn
   await open(async ({ app, page }) => {
     await serve(app, 401);
     await expect(
-      page.getByText("Войдите в Small через кнопку профиля внизу слева."),
+      page.locator(".main-shell > .small-auth-notice"),
     ).toBeVisible();
     await expect(page.locator(".calendar-event")).toHaveCount(0);
   });

@@ -372,9 +372,7 @@ export function DesktopWorkspace() {
   const status = !accountId
     ? authStatus === "checking"
       ? "Проверяю доступ к Small…"
-      : !needsAuth
-        ? "Не удалось проверить доступ к Small. Проверьте подключение через профиль."
-        : "Войдите в Small через кнопку профиля внизу слева."
+      : "Не удалось проверить доступ к Small. Проверьте подключение через профиль."
     : calendar.loading
       ? "Загружаю календарь Small…"
       : calendar.error ||
@@ -555,7 +553,9 @@ export function DesktopWorkspace() {
                 today={calendarToday()}
                 hideFooter
                 statusContent={
-                  unavailable ? (
+                  needsAuth ? (
+                    <></>
+                  ) : unavailable ? (
                     <div className="state-screen" role="status">
                       <CalendarDays size={30} />
                       <h3>{status}</h3>
@@ -577,8 +577,6 @@ export function DesktopWorkspace() {
             <div className="assistant-container">
               <DesktopAssistant
                 key={identityId ?? "signed-out"}
-                authRequired={needsAuth}
-                authExpired={Boolean(identityId)}
                 swap={swap}
                 headerTarget={headerTarget}
               />
@@ -589,12 +587,7 @@ export function DesktopWorkspace() {
           <span>Team API · Asia/Almaty</span>
         </footer>
       </main>
-      {remindersOpen && (
-        <Reminders
-          authRequired={needsAuth}
-          close={() => setRemindersOpen(false)}
-        />
-      )}
+      {remindersOpen && <Reminders close={() => setRemindersOpen(false)} />}
       {memoryOpen && (
         <MemorySettings
           authRequired={needsAuth}

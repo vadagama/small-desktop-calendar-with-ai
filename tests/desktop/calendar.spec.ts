@@ -484,7 +484,7 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
     await page.getByRole("button", { name: "Закрыть профиль Small" }).click();
     await expect(page.locator(".month-event")).toHaveCount(0);
     await expect(
-      page.getByText("Войдите в Small через кнопку профиля внизу слева."),
+      page.locator(".main-shell > .small-auth-notice"),
     ).toBeVisible();
     expect(errors).toEqual([]);
   } finally {
