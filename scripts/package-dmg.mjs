@@ -65,16 +65,31 @@ on run argv
     set current view of installerWindow to icon view
     set toolbar visible of installerWindow to false
     set statusbar visible of installerWindow to false
-    set bounds of installerWindow to {120, 120, 760, 520}
+    set bounds of installerWindow to {120, 120, 760, 548}
     set options to icon view options of installerWindow
     set arrangement of options to not arranged
     set icon size of options to 96
     set text size of options to 12
     set background picture of options to file ".background:background.png" of volumeFolder
-    set position of item "Small Calendar.app" of volumeFolder to {170, 190}
-    set position of item "Applications" of volumeFolder to {470, 190}
-    update volumeFolder without registering applications
+    -- Item positions belong to this icon-view window, not another window
+    -- Finder may already have open for a volume with the same display name.
+    set position of item "Small Calendar.app" of installerWindow to {170, 190}
+    set position of item "Applications" of installerWindow to {470, 190}
     delay 2
+    close installerWindow
+    -- Reopening makes Finder commit the layout before hdiutil detaches it.
+    set installerWindow to make new Finder window to volumeFolder
+    set current view of installerWindow to icon view
+    set toolbar visible of installerWindow to false
+    set statusbar visible of installerWindow to false
+    set bounds of installerWindow to {120, 120, 760, 548}
+    set options to icon view options of installerWindow
+    set arrangement of options to not arranged
+    set position of item "Small Calendar.app" of installerWindow to {170, 190}
+    set position of item "Applications" of installerWindow to {470, 190}
+    if position of item "Small Calendar.app" of installerWindow is not {170, 190} then error "App icon position was not saved"
+    if position of item "Applications" of installerWindow is not {470, 190} then error "Applications icon position was not saved"
+    delay 3
     close installerWindow
   end tell
 end run`,
