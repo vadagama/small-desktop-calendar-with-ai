@@ -17,7 +17,8 @@
     "package:mac": "npm run build:desktop && node scripts/package-mac.mjs",
     "test:desktop": "playwright test -c playwright.desktop.config.ts",
     "pretest:desktop": "install-electron",
-    "package:mac:local": "npm run build:desktop && node scripts/package-mac.mjs --local-sign"
+    "package:mac:local": "npm run build:desktop && node scripts/package-mac.mjs --local-sign",
+    "package:dmg:local": "npm run package:mac:local && node scripts/package-dmg.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "3.0.80",
