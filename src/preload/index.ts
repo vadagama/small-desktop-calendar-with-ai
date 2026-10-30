@@ -1,3 +1,5 @@
+import { eventListChannel } from "../shared/event-list-channel.js";
+import type { EventListResult } from "../shared/event-list.js";
 import { topicRuleChannels } from "../shared/topic-rule-channels.js";
 import { memoryChannels } from "../shared/assistant-memory-channels.js";
 import { seriesChannels } from "../shared/series-channels.js";
@@ -58,6 +60,12 @@ const bridge: DesktopBridge = {
     reconcile: (input) => ipcRenderer.invoke(meetingChannels.reconcile, input),
   },
   calendar: {
+    subscribeEventList: (listener) => {
+      const handler = (_event: IpcRendererEvent, result: EventListResult) =>
+        listener(result);
+      ipcRenderer.on(eventListChannel, handler);
+      return () => ipcRenderer.removeListener(eventListChannel, handler);
+    },
     respond: (input) => ipcRenderer.invoke(calendarChannels.respond, input),
     openLink: (url) => ipcRenderer.invoke(calendarChannels.openLink, url),
     copyLink: (url) => ipcRenderer.invoke(calendarChannels.copyLink, url),

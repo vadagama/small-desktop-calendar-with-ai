@@ -1,0 +1,109 @@
+.event-list-view {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.event-list-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  border-bottom: 1px solid #e9eaec;
+  font-size: var(--font-menu);
+}
+.list-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f3f4;
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+.event-list-summary {
+  padding: 8px 20px;
+  color: #65676d;
+  font-size: var(--font-caption);
+}
+.event-list-scroll {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+.event-list-day h3 {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  padding: 10px 20px;
+  background: #f7f8fa;
+  border-block: 1px solid #e9eaec;
+  font-size: var(--font-compact);
+  font-weight: 500;
+}
+.event-list-day h3 span {
+  color: #71747a;
+  font-size: var(--font-caption);
+  font-weight: 400;
+}
+.event-list-day ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.event-list-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 8px 94px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  padding: 10px 20px;
+  border-bottom: 1px solid #f0f1f3;
+  font-size: var(--font-compact);
+}
+.event-list-row:hover,
+.event-list-row:focus-visible {
+  background: #f4f5f7;
+}
+.list-calendar-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #69a48a;
+}
+.calendar-team .list-calendar-dot {
+  background: #7299c9;
+}
+.calendar-room .list-calendar-dot {
+  background: #b28ac4;
+}
+.list-event-time {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.list-event-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.list-event-content strong {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.list-event-content small {
+  font-size: var(--font-caption);
+  color: #65676d;
+}
+@media (max-width: 760px) {
+  .event-list-row {
+    padding-inline: 12px;
+    gap: 8px;
+    grid-template-columns: 7px 86px minmax(0, 1fr);
+  }
+}

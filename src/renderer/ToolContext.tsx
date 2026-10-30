@@ -10,6 +10,7 @@ const labels: Record<string, string> = {
   participantMemory: "Память участников",
   assistantMemory: "Память",
   listMeetings: "Расписание",
+  showEventList: "Поиск событий списком",
   findSlots: "Общее время",
   meetingAnalytics: "Аналитика",
   prepareMeetingDraft: "Подготовка встречи",

@@ -9,6 +9,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       syntheticMeetingWrites: number;
       syntheticCreateRejection?: number;
       syntheticAuthStatus?: number;
+      syntheticProfileCookies?: boolean;
       syntheticSessionExpired?: boolean;
       syntheticAuthOffline?: boolean;
       syntheticAuthDelayMs?: number;
@@ -124,6 +125,18 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       if (path.endsWith("/logout")) return Response.json({});
       if (!request.headers.get("authorization")?.startsWith("Bearer header."))
         return new Response(null, { status: 401 });
+      if (path.endsWith("/info") && inspection.syntheticProfileCookies) {
+        for (const httpOnly of [false, true])
+          await isolated.cookies.set({
+            url: "https://team.small.kz",
+            name: `synthetic-profile-${httpOnly}`,
+            value: "synthetic-value",
+            secure: false,
+            httpOnly,
+            path: "/",
+            sameSite: "lax",
+          });
+      }
       if (path === "/gate/team/api/attachments" && request.method === "POST") {
         const form = await request.formData();
         if (

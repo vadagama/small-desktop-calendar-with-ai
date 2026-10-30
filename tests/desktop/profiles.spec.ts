@@ -192,7 +192,7 @@ test("model settings persist only metadata and use a locally encrypted key throu
     await page.getByRole("button", { name: "Отправить сообщение" }).click();
     await expect(
       page.getByRole("region", { name: "AI-ассистент" }).getByRole("alert"),
-    ).toContainText("Не удалось получить ответ");
+    ).toContainText("Сервер модели отклонил API-ключ (HTTP 401)");
     const afterError = await page.evaluate(() =>
       window.smallDesktop.profiles.read(),
     );

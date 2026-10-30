@@ -169,6 +169,7 @@ function normalize(value: unknown, participantId?: string): CalendarEvent {
         },
       ];
     }),
+    ...(e.creator_id ? { organizerId: e.creator_id } : {}),
     organizer: e.creator_name ?? "",
     description: e.description ?? "",
     location: e.location ?? "",

@@ -1,4 +1,5 @@
 import "./analytics.css";
+import { groupListEvents, type ListFilter } from "./event-list";
 import { useEffect, useRef, useState } from "react";
 import {
   Menu,
@@ -87,6 +88,7 @@ export default function App({
   const [date, setDate] = useState(TODAY);
   const [miniMonth, setMiniMonth] = useState(TODAY);
   const [view, setView] = useState<View>("week");
+  const [listFilter, setListFilter] = useState<ListFilter | null>(null);
   const [enabled, setEnabled] = useState<CalendarId[]>([
     "personal",
     "team",
@@ -489,6 +491,8 @@ export default function App({
               <Calendar
                 date={date}
                 setDate={updateDate}
+                listFilter={listFilter}
+                setListFilter={setListFilter}
                 view={view}
                 setView={setView}
                 events={visibleEvents}
@@ -570,6 +574,16 @@ export default function App({
             <div className="assistant-container">
               {panels.side === "assistant" ? (
                 <AssistantPanel
+                  showEventList={(filter) => {
+                    setListFilter(filter);
+                    updateDate(filter.from);
+                    setView("list");
+                    setSection("calendar");
+                    return groupListEvents(visibleEvents, filter).reduce(
+                      (sum, group) => sum + group.events.length,
+                      0,
+                    );
+                  }}
                   events={events}
                   add={add}
                   state={state}

@@ -23,6 +23,9 @@ test("Small account uses isolated session and encrypted local storage, restores 
   let app = await launch();
   try {
     await mockSmall(app, calendarToday());
+    await app.evaluate(() => {
+      Object.assign(globalThis, { syntheticProfileCookies: true });
+    });
     let page = await app.firstWindow();
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
@@ -86,6 +89,10 @@ test("Small account uses isolated session and encrypted local storage, restores 
       version: 3,
       username: "employee-a",
     });
+    const savedCookies = JSON.parse(JSON.parse(decoded).session)
+      .cookies as Array<{ secure: boolean }>;
+    expect(savedCookies).toHaveLength(3);
+    expect(savedCookies.every((cookie) => cookie.secure)).toBe(true);
     await page.screenshot({ path: "test-results/desktop/small-profile.png" });
     expect(errors).toEqual([]);
     await app.close();

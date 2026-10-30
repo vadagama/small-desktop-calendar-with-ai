@@ -1,3 +1,5 @@
+import { resolveListSearch, type PendingListSearch } from "./list-search";
+import type { ListFilter } from "./event-list";
 import {
   ArrowUp,
   ArrowUpRight,
@@ -17,6 +19,7 @@ import { addDays, dateLabel, findSlots, time, TODAY } from "./calendar";
 import { PEOPLE } from "./data";
 import type { DataState, Draft, Meeting, Slot } from "./types";
 interface Props {
+  showEventList?: (filter: ListFilter) => number;
   events: Meeting[];
   add: (draft: Draft) => string | undefined;
   state: DataState;
@@ -33,8 +36,12 @@ const prompts = [
   "Найди 30 минут для команды завтра",
   "Подготовь встречу по развитию календаря",
   "Как выглядит моя неделя?",
+  "Найди все события, где организатором была Жанна",
 ];
 export function Assistant(p: Props) {
+  const [pendingSearch, setPendingSearch] = useState<PendingListSearch | null>(
+    null,
+  );
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -93,6 +100,18 @@ export function Assistant(p: Props) {
         response =
           "Календарь недоступен или пуст в выбранном сценарии. Верните обычное состояние в настройках, чтобы проверить подбор времени.";
       else if (
+        p.showEventList &&
+        (pendingSearch ||
+          /спис[ок]|организатор|событи.*жанн|встреч.*жанн/i.test(text))
+      ) {
+        const result = resolveListSearch(text, pendingSearch, p.events, TODAY)!;
+        setPendingSearch(result.pending);
+        response = result.text;
+        if (result.filter) {
+          const count = p.showEventList(result.filter);
+          response = `Найдено событий: ${count}. ${response}`;
+        }
+      } else if (
         /недел|аналит|сколько/i.test(text) &&
         !/найди|встреч|минут/i.test(text)
       ) {
@@ -164,6 +183,7 @@ export function Assistant(p: Props) {
             if (timer.current) clearTimeout(timer.current);
             setBusy(false);
             setMessages([]);
+            setPendingSearch(null);
             setSlots([]);
             setDraft(null);
             setError("");
@@ -180,7 +200,7 @@ export function Assistant(p: Props) {
                 <Sparkles size={25} strokeWidth={1.5} />
               </span>
               <h2>Помочь с расписанием?</h2>
-              <p>Подберу время для команды и подготовлю черновик встречи.</p>
+              <p>Найду события, подберу время и подготовлю черновик встречи.</p>
             </div>
             <div className="suggestions">
               {prompts.map((prompt, i) => (

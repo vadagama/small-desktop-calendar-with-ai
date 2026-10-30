@@ -90,9 +90,18 @@ export function createSmallSession(): AuthTransport {
       });
     },
     async snapshot() {
-      const cookies = (await isolated.cookies.get({})).map((cookie) =>
-        cookieSchema.parse(cookie),
-      );
+      // Profile responses can add cookies without Secure. This transport only uses
+      // HTTPS; persist them as Secure so restoring never permits HTTP transmission.
+      const cookies = (await isolated.cookies.get({})).map((cookie) => {
+        const parsed = cookieSchema.safeParse({ ...cookie, secure: true });
+        if (!parsed.success)
+          throw new SmallAuthError(
+            "Не удалось сохранить формат сессии Small. Выполните вход заново.",
+            "network",
+            "invalid",
+          );
+        return parsed.data;
+      });
       if (!cookies.length)
         throw new SmallAuthError(
           "Small не вернул cookie сессии. Вход не сохранён.",

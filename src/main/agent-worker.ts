@@ -1,3 +1,4 @@
+import { assistantErrorMessage } from "../agent/assistant-error.js";
 import type { AgentSettingsState } from "../shared/agent-settings.js";
 import { streamCalendarTurn } from "../agent/calendar-runtime.js";
 import type {
@@ -71,7 +72,7 @@ async function run(
     const stream = toUIMessageStream<ToolSet>({
       stream: result.stream,
       sendReasoning: false,
-      onError: () => "Не удалось получить ответ. Попробуйте ещё раз.",
+      onError: assistantErrorMessage,
     });
     let failed = false;
     for await (const chunk of stream) {
@@ -82,7 +83,7 @@ async function run(
       const messages = await result.responseMessages;
       port.postMessage({ type: "history", requestId, messages });
     }
-  } catch {
+  } catch (error) {
     send({
       requestId,
       type: "chunk",
@@ -90,7 +91,7 @@ async function run(
         ? { type: "abort" }
         : {
             type: "error",
-            errorText: "Не удалось получить ответ. Попробуйте ещё раз.",
+            errorText: assistantErrorMessage(error),
           },
     });
   } finally {

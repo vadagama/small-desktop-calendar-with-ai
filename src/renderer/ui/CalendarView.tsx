@@ -25,6 +25,7 @@ import {
 import type { DataState, Meeting, View, Slot } from "./types";
 import { ViewTransition, useEffect, useRef, useState } from "react";
 interface Props {
+  listView?: { active: boolean; open: () => void; content: React.ReactNode };
   date: string;
   setDate: (date: string) => void;
   view: View;
@@ -194,16 +195,18 @@ export function Calendar(p: Props) {
           <h2>{title}</h2>
         </div>
         <div className="toolbar-actions">
-          <button
-            className="icon-button"
-            aria-label={searchOpen ? "Закрыть поиск" : "Поиск встреч"}
-            onClick={() => {
-              setSearchOpen(!searchOpen);
-              setSearch("");
-            }}
-          >
-            {searchOpen ? <X size={17} /> : <Search size={17} />}
-          </button>
+          {!p.listView?.active && (
+            <button
+              className="icon-button"
+              aria-label={searchOpen ? "Закрыть поиск" : "Поиск встреч"}
+              onClick={() => {
+                setSearchOpen(!searchOpen);
+                setSearch("");
+              }}
+            >
+              {searchOpen ? <X size={17} /> : <Search size={17} />}
+            </button>
+          )}
           <div className="view-switch" aria-label="Вид календаря">
             {(
               [
@@ -214,17 +217,28 @@ export function Calendar(p: Props) {
             ).map(([id, label]) => (
               <button
                 key={id}
-                aria-pressed={p.view === id}
-                className={p.view === id ? "selected" : ""}
+                aria-pressed={!p.listView?.active && p.view === id}
+                className={
+                  !p.listView?.active && p.view === id ? "selected" : ""
+                }
                 onClick={() => p.setView(id)}
               >
                 {label}
               </button>
             ))}
+            {p.listView && (
+              <button
+                aria-pressed={p.listView.active}
+                className={p.listView.active ? "selected" : ""}
+                onClick={p.listView.open}
+              >
+                Список
+              </button>
+            )}
           </div>
         </div>
       </div>
-      {searchOpen && (
+      {searchOpen && !p.listView?.active && (
         <div className="search-row">
           <Search size={16} />
           <input
@@ -240,6 +254,8 @@ export function Calendar(p: Props) {
         p.statusContent
       ) : p.state !== "ready" ? (
         <CalendarState state={p.state} retry={p.retry} />
+      ) : p.listView?.active ? (
+        p.listView.content
       ) : p.view === "month" ? (
         <div className="month-scroll">
           <div className="month-grid">
@@ -562,11 +578,13 @@ export function Calendar(p: Props) {
             {p.footerLabel ?? "Демонстрационные данные"}
           </span>
           <span>
-            {p.view === "week"
-              ? "Неделя · Пн–Вс"
-              : p.view === "day"
-                ? "День"
-                : "Месяц"}
+            {p.listView?.active
+              ? "Список"
+              : p.view === "week"
+                ? "Неделя · Пн–Вс"
+                : p.view === "day"
+                  ? "День"
+                  : "Месяц"}
           </span>
         </div>
       )}

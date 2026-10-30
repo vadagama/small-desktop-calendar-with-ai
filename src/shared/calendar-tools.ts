@@ -74,6 +74,7 @@ export type CalendarToolResult = CalendarReply<
       state: import("./assistant-memory.js").AssistantMemoryState;
     }
   | { kind: "memory-selection"; message: string; people?: CalendarPerson[] }
+  | import("./event-list.js").EventListResult
   | import("./schedule.js").ScheduleResult
   | import("./analytics.js").AnalyticsResult
   | PeoplePage

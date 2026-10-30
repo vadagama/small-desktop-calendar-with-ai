@@ -8,6 +8,7 @@ const requiredFrom: Record<(typeof skillIds)[number], number> = {
   schedule: 3,
   analytics: 4,
   "meeting-delete": 5,
+  "event-list": 6,
 };
 export const agentSettingsSchema = z
   .strictObject({
@@ -17,6 +18,7 @@ export const agentSettingsSchema = z
       z.literal(3),
       z.literal(4),
       z.literal(5),
+      z.literal(6),
     ]),
     mood: z.enum(moodIds).default("neutral"),
     instructions: z.string().max(8000),

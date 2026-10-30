@@ -69,6 +69,10 @@ export function useEventTooltip() {
       onMouseEnter: (e: React.MouseEvent<HTMLElement>) => {
         if (e.buttons === 0) show(event, e.currentTarget);
       },
+      onFocus: (e: React.FocusEvent<HTMLElement>) => {
+        if (e.currentTarget.matches(":focus-visible"))
+          show(event, e.currentTarget);
+      },
       onMouseLeave: leave,
       onBlur: hide,
     }),
@@ -87,9 +91,9 @@ export function useEventTooltip() {
         >
           <strong>{active.event.title}</strong>
           <p>
-            {time(active.event.start)}–
-            {time(active.event.start + active.event.duration)} ·{" "}
-            {active.event.duration} мин
+            {active.event.timeLabel ??
+              `${time(active.event.start)}–${time(active.event.start + active.event.duration)}`}{" "}
+            · {active.event.duration} мин
           </p>
           <p>Организатор: {active.event.organizer}</p>
         </div>,
