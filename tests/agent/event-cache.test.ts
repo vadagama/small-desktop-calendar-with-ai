@@ -53,6 +53,7 @@ const event = (key = "event:42", title = "SECRET-TITLE"): CalendarEvent => ({
   calendarIds: ["7"],
   participation: "organizer",
   organizer: "Synthetic organizer",
+  organizerId: "synthetic-organizer",
   description: "Agenda",
   location: "Room",
   participants: [

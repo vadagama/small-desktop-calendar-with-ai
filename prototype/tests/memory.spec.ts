@@ -13,6 +13,19 @@ test("edit memory, reopen it and clear only after confirmation", async ({
   await entry.click();
   const memory = page.getByRole("dialog", { name: "Память", exact: true });
   await expect(memory).toContainText("Алексей · демо-аккаунт");
+  await expect(memory).toContainText("Пока нет сохранённых записей");
+  for (const text of [
+    "Виктор — участник демо-команды.",
+    "Повестки встреч оформляй коротким списком",
+  ]) {
+    await memory
+      .getByRole("button", { name: "Добавить запись", exact: true })
+      .click();
+    await memory.getByLabel("Текст записи").fill(text);
+    await memory
+      .getByRole("button", { name: "Сохранить запись", exact: true })
+      .click();
+  }
   await memory.getByRole("button", { name: "Изменить предпочтения" }).click();
   await memory.getByLabel("Предлагать время с").fill("17:00");
   await memory.getByLabel("Предлагать время до").fill("10:00");
@@ -136,7 +149,8 @@ test("memory opens from rail and fits a narrow window", async ({ page }) => {
   );
   expect(fits).toBe(true);
   await memory.getByRole("button", { name: "Изменить предпочтения" }).click();
+  await memory.getByLabel("Длительность, минут").fill("45");
   await memory.getByRole("button", { name: "Сбросить длительность" }).click();
   await memory.getByRole("button", { name: "Сохранить предпочтения" }).click();
-  await expect(memory.getByText("Не задано", { exact: true })).toHaveCount(1);
+  await expect(memory.getByText("Не задано", { exact: true })).toHaveCount(3);
 });

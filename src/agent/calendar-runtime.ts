@@ -1,3 +1,4 @@
+import { eventListInput } from "../shared/event-list.js";
 import { scheduleToolInput } from "../shared/schedule.js";
 import { calendarClock } from "./calendar-context.js";
 import { z } from "zod";
@@ -43,6 +44,7 @@ export async function streamCalendarTurn(
   const runTool: CalendarToolExecutor = async (name, input) => {
     if (name === "assistantMemory") return execute(name, input);
     const skills: Record<string, string> = {
+      showEventList: "event-list",
       listMeetings: "schedule",
       meetingAnalytics: "analytics",
       searchPeople: "people-search",
@@ -87,6 +89,9 @@ export async function streamCalendarTurn(
       "assistantMemory",
       "loadSkill",
       "loadReference",
+      ...(enabled.some((s) => s.id === "event-list")
+        ? ["showEventList" as const]
+        : []),
       ...(enabled.some((s) => s.id === "schedule")
         ? ["listMeetings" as const]
         : []),
@@ -114,6 +119,12 @@ export async function streamCalendarTurn(
     maxRetries: 0,
     onError: () => {},
     tools: {
+      showEventList: tool({
+        description:
+          "Найти события и открыть представление Список. Сначала loadSkill event-list. from/to включительно, не более года; scope my (личный) или all-accessible (личный и доступные общие). organizerId только из searchPeople, при неоднозначности сначала уточни пользователя. Фильтр по ID организатора, не участнику. Результаты открываются автоматически. Сообщи число событий, период, область и неполноту; не дублируй события в чате.",
+        inputSchema: eventListInput,
+        execute: (input) => runTool("showEventList", input),
+      }),
       assistantMemory: tool({
         description:
           "Память аккаунта и текущая задача. offerTask регистрирует нумерованные варианты длительности/временного окна: options [{label, preferences}]; покажи их пользователю и дождись ответа. Один вариант допускает «да», несколько — номер; значения применятся автоматически в следующем ходе без записи памяти. recall читает записи/предпочтения/группы/форматы (query сужает результаты). Перед propose обязателен review: передай точный change и questions (пустой список, если всё однозначно). При вопросах дождись ответа пользователя в следующем ходе и повтори review с цитатой ответа в evidence. cancel отменяет уточнение. propose готовит проверенное изменение без записи; пользователь подтверждает кнопкой. Для создания entry/group/preset НЕ передавай change.id: его создаёт хранилище. Для редактирования бери change.id только из актуального recall. Перед propose группы или формата с participantIds выполни searchPeople, затем selectParticipants с полным составом; при неоднозначности уточни выбор. Организатора встречи добавляет приложение. Условные предпочтения (например, после обеда только с коллегами) сохраняй как entry, не как общее окно preferences. useGroup/usePreset проверяют каталог. task задаёт разовые параметры из точной цитаты текущего запроса.",

@@ -1,3 +1,4 @@
+import { eventListChannel } from "../shared/event-list-channel.js";
 import type { CalendarConversation } from "./calendar-conversation.js";
 import { WindowConversations } from "./window-conversations.js";
 import type { AgentHistoryEvent } from "../shared/assistant.js";
@@ -195,6 +196,7 @@ export function registerAssistantHandlers(
             if (!calendar || !z.uuid().safeParse(message.callId).success)
               return;
             const skillForTool: Record<string, string> = {
+              showEventList: "event-list",
               listMeetings: "schedule",
               meetingAnalytics: "analytics",
               searchPeople: "people-search",
@@ -230,6 +232,14 @@ export function registerAssistantHandlers(
             }
             void calendar(message.name, message.input)
               .then((result) => {
+                if (jobs.get(ownerId) !== job || job.controller.signal.aborted)
+                  return;
+                if (
+                  result.ok &&
+                  "kind" in result.data &&
+                  result.data.kind === "event-list"
+                )
+                  job.owner.send(eventListChannel, result.data);
                 if (jobs.get(ownerId) === job)
                   worker.postMessage({
                     type: "calendar-result",

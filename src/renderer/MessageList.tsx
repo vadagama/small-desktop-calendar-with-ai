@@ -94,6 +94,7 @@ export function MessageList({
                   [
                     "tool-searchPeople",
                     "tool-listMeetings",
+                    "tool-showEventList",
                     "tool-loadSkill",
                     "tool-loadReference",
                     "tool-selectParticipants",

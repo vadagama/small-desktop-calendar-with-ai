@@ -95,6 +95,7 @@ const calendarEvent = z.strictObject({
     .optional(),
   accepted: z.boolean().optional(),
   organizer: z.string(),
+  organizerId: z.string().optional(),
   description: z.string(),
   location: z.string(),
 });

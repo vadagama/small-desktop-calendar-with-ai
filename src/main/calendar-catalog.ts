@@ -80,11 +80,14 @@ export class CachedCatalog {
  */
 export function assistantCalendarSource(
   service: Pick<CalendarService, "events"> &
-    Partial<Pick<CalendarService, "detail">>,
+    Partial<Pick<CalendarService, "detail" | "calendars">>,
   catalog: Pick<CachedCatalog, "searchPeople">,
 ) {
   return {
     events: (input: unknown) => service.events(input),
+    ...(service.calendars
+      ? { calendars: (input: unknown) => service.calendars!(input) }
+      : {}),
     ...(service.detail
       ? { detail: (input: unknown) => service.detail!(input) }
       : {}),

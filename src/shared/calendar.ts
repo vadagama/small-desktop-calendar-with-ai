@@ -39,6 +39,7 @@ export interface CalendarEvent {
   calendarIds: string[];
   participation?: "organizer" | "invited" | "informed" | "unknown";
   accepted?: boolean;
+  organizerId?: string;
   organizer: string;
   description: string;
   location: string;
@@ -131,6 +132,9 @@ export interface SlotsResult {
   timezone: "Asia/Almaty";
 }
 export interface CalendarBridge {
+  subscribeEventList(
+    listener: (result: import("./event-list.js").EventListResult) => void,
+  ): () => void;
   respond(input: {
     accountId: string;
     eventId: string;

@@ -1,3 +1,7 @@
+import { EventList } from "./ui/EventList";
+import { monthRange } from "./ui/event-list";
+import { eventListMeetings } from "./event-list-meetings";
+import { useEventList } from "./useEventList";
 import { seriesInvalidation } from "../shared/calendar-invalidation.js";
 import { Reminders } from "./Reminders";
 import { Bell, Brain, Sparkles } from "lucide-react";
@@ -117,7 +121,28 @@ export function DesktopWorkspace() {
     requireSmallAccount();
   }, []);
   const calendar = useSmallCalendar(accountId, date, view, expired);
+  const list = useEventList(accountId, setDate, setView);
+  const listResult = list.active ? list.result : null;
+  const listRange = listResult?.query ?? monthRange(date);
+  const navigateDate = (next: string) => {
+    list.clear();
+    setDate(next);
+  };
+  const navigateView = (next: CalendarView) => {
+    list.clear();
+    list.setActive(false);
+    setView(next);
+  };
+  // Manual source/type changes return to the live month and its selected calendars.
+  useEffect(() => {
+    list.clear();
+  }, [
+    calendar.my,
+    JSON.stringify(calendar.ids),
+    JSON.stringify(participation),
+  ]);
   const showCreated = (result: MeetingView) => {
+    list.clear();
     setCreatedId(result.eventId ?? null);
     const visible = calendarRange(date, view);
     const start = Date.parse(result.draft.startsAt);
@@ -141,6 +166,7 @@ export function DesktopWorkspace() {
     const deleted = (event: Event) => {
       const result = (event as CustomEvent<MeetingDeletion>).detail;
       if (result.accountId !== currentAccount.current) return;
+      list.clear();
       calendar.refreshAfterWrite(
         result.series
           ? seriesInvalidation({
@@ -190,6 +216,18 @@ export function DesktopWorkspace() {
       };
     }),
   );
+  const listEvents = listResult?.events ?? shownEvents;
+  const listMeetings = eventListMeetings(
+    listEvents,
+    listRange.from,
+    listRange.to,
+    calendar.calendars,
+  );
+  const selectListMeeting = (meeting: Meeting) => {
+    const event = listEvents.find((event) => event.key === meeting.id);
+    if (event && accountId)
+      setSelected({ accountId, event, sequence: ++selectionSequence.current });
+  };
   const canChange = (meeting: Meeting) => {
     const event = byId.get(meeting.id);
     const original = meetings.find((item) => item.id === meeting.id);
@@ -431,7 +469,7 @@ export function DesktopWorkspace() {
         calendar={calendar}
         enabled={Boolean(accountId)}
         date={date}
-        setDate={setDate}
+        setDate={navigateDate}
         participation={participation}
         toggleParticipation={(type) =>
           setParticipation((current) => ({
@@ -477,14 +515,16 @@ export function DesktopWorkspace() {
           closeSettings={() => setSettingsOpen(false)}
           calendar={(swap) => (
             <div className="calendar-container live-calendar">
-              <CalendarFreshnessBar
-                fetchedAt={calendar.fetchedAt}
-                offline={calendar.offline}
-                refreshError={calendar.refreshError}
-                refreshing={calendar.refreshing}
-                refresh={calendar.refresh}
-              />
-              {calendar.issues.length > 0 && (
+              {!listResult && (
+                <CalendarFreshnessBar
+                  fetchedAt={calendar.fetchedAt}
+                  offline={calendar.offline}
+                  refreshError={calendar.refreshError}
+                  refreshing={calendar.refreshing}
+                  refresh={calendar.refresh}
+                />
+              )}
+              {!listResult && calendar.issues.length > 0 && (
                 <div className="calendar-warning" role="alert">
                   <strong>
                     Данные неполные. Занятость неизвестна для части календарей.
@@ -501,14 +541,16 @@ export function DesktopWorkspace() {
                   ))}
                 </div>
               )}
-              {!unavailable &&
+              {!listResult &&
+                !unavailable &&
                 !calendar.events.length &&
                 !calendar.issues.length && (
                   <p className="calendar-warning" role="status">
                     В этом периоде встреч нет.
                   </p>
                 )}
-              {!unavailable &&
+              {!listResult &&
+                !unavailable &&
                 calendar.my &&
                 calendar.events.length > 0 &&
                 !shownEvents.length && (
@@ -519,9 +561,60 @@ export function DesktopWorkspace() {
 
               <Calendar
                 date={date}
-                setDate={setDate}
+                setDate={navigateDate}
                 view={view}
-                setView={setView}
+                setView={navigateView}
+                listView={{
+                  active: list.active,
+                  open: () => {
+                    setView("month");
+                    list.setActive(true);
+                  },
+                  content: (
+                    <>
+                      {listResult && (!listResult.complete || list.stale) && (
+                        <div className="calendar-warning" role="status">
+                          {!listResult.complete && (
+                            <p>
+                              Результаты поиска неполные.{" "}
+                              {Array.from(
+                                new Set(
+                                  listResult.issues.map((i) => i.message),
+                                ),
+                              ).join(" ")}
+                            </p>
+                          )}
+                          {list.stale && (
+                            <p>
+                              Календарь обновился или недоступен. Для актуальных
+                              результатов повторите поиск ассистенту.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      <EventList
+                        organizerAlreadyFiltered
+                        events={listMeetings}
+                        date={date}
+                        filter={
+                          listResult
+                            ? {
+                                ...listResult.query,
+                                ...(listResult.organizer
+                                  ? { organizer: listResult.organizer.name }
+                                  : {}),
+                              }
+                            : null
+                        }
+                        changeFilter={() => list.clear()}
+                        select={selectListMeeting}
+                        complete={
+                          listResult?.complete ?? !calendar.issues.length
+                        }
+                      />
+                    </>
+                  ),
+                }}
                 events={meetings}
                 revealEventId={revealed}
                 changes={marks}
@@ -555,7 +648,7 @@ export function DesktopWorkspace() {
                 statusContent={
                   needsAuth ? (
                     <></>
-                  ) : unavailable ? (
+                  ) : unavailable && !listResult ? (
                     <div className="state-screen" role="status">
                       <CalendarDays size={30} />
                       <h3>{status}</h3>
@@ -633,9 +726,10 @@ export function DesktopWorkspace() {
           key={`${selected.accountId}:${selected.event.key}:${selected.sequence}`}
           accountId={selected.accountId}
           lookup={selected.event.lookup}
-          changed={(write, removed) =>
-            calendar.refreshAfterWrite(write, removed)
-          }
+          changed={(write, removed) => {
+            list.clear();
+            calendar.refreshAfterWrite(write, removed);
+          }}
           remote={remote}
           acknowledgeRemote={() => setRemote(null)}
           createWithPeople={(event) => {

@@ -1,3 +1,5 @@
+import { readEventList } from "./event-list.js";
+import { eventListInput } from "../shared/event-list.js";
 import { seriesTarget } from "../shared/series-scope.js";
 import { calendarDateAt } from "../shared/calendar-time.js";
 import type { EventChangeService } from "./event-change.js";
@@ -38,7 +40,7 @@ export function createCalendarToolExecutor(
   prompt: string,
   signal: AbortSignal,
   calendar: Pick<CalendarService, "searchPeople" | "events"> &
-    Partial<Pick<CalendarService, "detail">>,
+    Partial<Pick<CalendarService, "detail" | "calendars">>,
   availability: Pick<AvailabilityService, "find">,
   organizerName: string = accountId,
   registerDraft: (draft: MeetingDraft) => MeetingDraft = (draft) => draft,
@@ -86,6 +88,23 @@ export function createCalendarToolExecutor(
         );
         if (data.kind === "memory-selection" && data.people?.length && memory)
           await memory.used(accountId, data.people);
+      } else if (name === "showEventList") {
+        const q = eventListInput.parse(input);
+        const person = q.organizerId
+          ? conversation.people.get(q.organizerId)
+          : undefined;
+        if (q.organizerId && !person)
+          throw new CalendarError(
+            "invalid",
+            "Сначала найдите организатора через searchPeople.",
+          );
+        if (q.organizerId && conversation.ambiguous.get(q.organizerId) === turn)
+          throw new CalendarError(
+            "invalid",
+            "Уточните организатора у пользователя и продолжите следующим сообщением.",
+          );
+        data = await readEventList(accountId, q, calendar, signal);
+        if (person) data.organizer = person;
       } else if (name === "listMeetings") {
         data = await readSchedule(accountId, input, calendar, signal);
         conversation.observedMeetings.clear();

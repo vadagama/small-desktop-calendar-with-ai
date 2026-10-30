@@ -38,3 +38,33 @@ for (let week = -8; week <= 2; week++) {
     });
   }
 }
+
+// Synthetic organizer-search fixtures; no real meeting payloads.
+for (const [index, date] of [
+  "2026-10-02",
+  "2026-10-07",
+  "2026-10-14",
+  "2026-10-21",
+  "2026-10-23",
+].entries()) {
+  ANALYTICS_DEMO_EVENTS.push({
+    id: `list-demo:${index}`,
+    date,
+    start: 600 + (index % 2) * 120,
+    duration: 45,
+    title: [
+      "Обзор задач команды",
+      "Планирование запуска",
+      "Обсуждение обратной связи",
+      "Синхронизация проекта",
+      "Итоги месяца",
+    ][index],
+    organizer: "Жанна",
+    people: ["Алексей", "Жанна"],
+    calendar: "team",
+    color: "blue",
+    location: "Онлайн",
+    agenda: "Демонстрационное событие для проверки поиска.",
+    participation: "invited",
+  });
+}

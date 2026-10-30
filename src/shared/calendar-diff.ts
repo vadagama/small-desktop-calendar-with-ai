@@ -49,6 +49,7 @@ export function eventFingerprint(event: CalendarEvent): string {
     event.participation ?? null,
     event.accepted ?? null,
     event.organizer,
+    event.organizerId ?? null,
     event.description,
     event.location,
     event.recurring ?? null,
