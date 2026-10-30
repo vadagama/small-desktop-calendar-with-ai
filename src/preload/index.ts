@@ -63,6 +63,8 @@ const bridge: DesktopBridge = {
     copyLink: (url) => ipcRenderer.invoke(calendarChannels.copyLink, url),
     reschedule: (input) =>
       ipcRenderer.invoke(calendarChannels.reschedule, input),
+    updateEvent: (input) =>
+      ipcRenderer.invoke(calendarChannels.updateEvent, input),
     applyChange: (input) =>
       ipcRenderer.invoke(calendarChannels.applyChange, input),
     previewChange: (input) =>
@@ -81,6 +83,12 @@ const bridge: DesktopBridge = {
     },
   },
   smallAuth: {
+    subscribeRequired: (listener) => {
+      const handler = () => listener();
+      ipcRenderer.on(smallAuthChannels.required, handler);
+      return () =>
+        ipcRenderer.removeListener(smallAuthChannels.required, handler);
+    },
     read: () => ipcRenderer.invoke(smallAuthChannels.read),
     login: (input) => ipcRenderer.invoke(smallAuthChannels.login, input),
     logout: () => ipcRenderer.invoke(smallAuthChannels.logout),

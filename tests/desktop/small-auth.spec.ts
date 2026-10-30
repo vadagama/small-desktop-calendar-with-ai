@@ -35,6 +35,8 @@ test("Small account uses isolated session and encrypted local storage, restores 
     await expect(page.getByRole("dialog").getByRole("alert")).toContainText(
       "Логин или пароль",
     );
+    await expect(page.getByRole("dialog").getByRole("alert")).toHaveCount(1);
+    await expect(page.getByRole("dialog").getByRole("status")).toHaveCount(0);
     await expect(page.getByLabel("Пароль", { exact: true })).toHaveValue("");
     await page.getByLabel("Пароль", { exact: true }).fill("synthetic-password");
     await page
@@ -43,7 +45,7 @@ test("Small account uses isolated session and encrypted local storage, restores 
     await expect(
       page.getByRole("button", { name: "Выйти из Small" }),
     ).toBeVisible();
-    await expect(page.locator("dialog strong")).toHaveText("employee-a");
+    await expect(page.locator(".small-account-name")).toHaveText("employee-a");
     const state = await page.evaluate(() =>
       window.smallDesktop.smallAuth.read(),
     );
@@ -60,9 +62,27 @@ test("Small account uses isolated session and encrypted local storage, restores 
     expect(errors).toEqual([]);
     await app.close();
     app = await launch();
-    // Startup restoration can race this test handler; an explicit read retries safely.
-    await mockSmall(app, calendarToday());
     page = await app.firstWindow();
+    await page
+      .getByRole("button", { name: "Профиль Small", exact: true })
+      .click();
+    const disconnected = page.locator(".small-account");
+    await expect(disconnected.getByRole("alert")).toContainText(
+      "Нет связи с Small",
+    );
+    await expect(disconnected.getByRole("alert")).toHaveCount(1);
+    await expect(disconnected.getByRole("status")).toHaveCount(0);
+    await expect(page.locator(".main-shell .small-auth-notice")).toHaveCount(0);
+    await expect(
+      disconnected.getByLabel("Пароль", { exact: true }),
+    ).toHaveCount(0);
+    await mockSmall(app, calendarToday());
+    await disconnected
+      .getByRole("button", { name: "Повторить проверку" })
+      .click();
+    await expect(disconnected.getByRole("status")).toContainText(
+      "Вход подтверждён",
+    );
     const restored = await page.evaluate(() =>
       window.smallDesktop.smallAuth.read(),
     );
@@ -70,14 +90,6 @@ test("Small account uses isolated session and encrypted local storage, restores 
       ok: true,
       state: { status: "signed-in", profile: { id: "employee-a" } },
     });
-    await page
-      .getByRole("button", { name: "Профиль Small", exact: true })
-      .click();
-    if (
-      await page.getByRole("button", { name: "Повторить проверку" }).count()
-    ) {
-      await page.getByRole("button", { name: "Повторить проверку" }).click();
-    }
     await page.getByRole("button", { name: "Выйти из Small" }).click();
     await expect(
       page.getByRole("button", { name: "Войти в Small", exact: true }),

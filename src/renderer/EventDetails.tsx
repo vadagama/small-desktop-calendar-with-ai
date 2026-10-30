@@ -263,6 +263,28 @@ export function EventDetails({
   const eventLink = event
     ? `https://team.small.kz/calendar#${"id" in event.lookup ? `event-${event.lookup.id}-${calendarDateAt(event.startsAt)}` : `event-orig-${event.lookup.originalEventId}-${event.lookup.date}`}`
     : "";
+  const remoteNotice = (gone || remote) && (
+    <div className="event-remote-change" role="status">
+      <p>
+        {gone
+          ? "Событие удалено или отменено на сервере. Изменить его больше нельзя."
+          : remote === "missing"
+            ? "Событие больше не показано в этом периоде: его могли удалить, отменить или перенести. Обновите карточку, чтобы проверить."
+            : "Событие изменилось на сервере. Показанные данные и ваши правки могут быть устаревшими."}
+      </p>
+      {!gone && (
+        <button
+          className="secondary"
+          onClick={() => {
+            setRetry((value) => value + 1);
+            acknowledgeRemote?.();
+          }}
+        >
+          Обновить карточку
+        </button>
+      )}
+    </div>
+  );
   return (
     <dialog
       ref={dialog}
@@ -376,28 +398,7 @@ export function EventDetails({
         </div>
       </div>
       {!event && !error && <p role="status">Загружаю карточку Small…</p>}
-      {(gone || remote) && (
-        <div className="event-remote-change" role="status">
-          <p>
-            {gone
-              ? "Событие удалено или отменено на сервере. Изменить его больше нельзя."
-              : remote === "missing"
-                ? "Событие больше не показано в этом периоде: его могли удалить, отменить или перенести. Обновите карточку, чтобы проверить."
-                : "Событие изменилось на сервере. Показанные данные и ваши правки могут быть устаревшими."}
-          </p>
-          {!gone && (
-            <button
-              className="secondary"
-              onClick={() => {
-                setRetry((value) => value + 1);
-                acknowledgeRemote?.();
-              }}
-            >
-              Обновить карточку
-            </button>
-          )}
-        </div>
-      )}
+      {!editing && remoteNotice}
       {error && !gone && (
         <>
           <p className="form-error" role="alert">
@@ -575,6 +576,8 @@ export function EventDetails({
               event={event}
               expired={expired}
               locked={gone}
+              close={() => setEditing(null)}
+              notice={remoteNotice}
               saved={() => {
                 setEditing(null);
                 setRetry((value) => value + 1);

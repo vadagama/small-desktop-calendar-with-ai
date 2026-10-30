@@ -8,6 +8,9 @@ export async function mockSmall(app: ElectronApplication, date: string) {
     const inspection = globalThis as typeof globalThis & {
       syntheticMeetingWrites: number;
       syntheticCreateRejection?: number;
+      syntheticAuthStatus?: number;
+      syntheticAuthOffline?: boolean;
+      syntheticAuthDelayMs?: number;
       /**
        * reject: 409 without applying; lose: 503 without applying; lose-applied: 503, and
        * only the event list (not the card) shows the new time, as with replica lag.
@@ -54,6 +57,20 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       if (url.origin !== "https://team.small.kz")
         return new Response(null, { status: 403 });
       const path = url.pathname;
+      if (
+        inspection.syntheticAuthOffline &&
+        (path.endsWith("/info") || path.endsWith("/refresh"))
+      )
+        return Response.error();
+      if (inspection.syntheticAuthDelayMs && path.endsWith("/info"))
+        await new Promise((resolve) =>
+          setTimeout(resolve, inspection.syntheticAuthDelayMs),
+        );
+      if (
+        inspection.syntheticAuthStatus &&
+        (path.endsWith("/info") || path.endsWith("/refresh"))
+      )
+        return new Response(null, { status: inspection.syntheticAuthStatus });
       if (
         path.includes("/calendar/events") &&
         request.method !== "GET" &&
@@ -232,6 +249,24 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         movedTime = { starts_at: body.starts_at, ends_at: body.ends_at };
         inspection.syntheticEventExtra = {
           ...inspection.syntheticEventExtra,
+          description: body.description,
+          location: body.location,
+          calendar_ids: body.calendar_ids,
+          participants: body.participant_ids.map((id: string) => ({
+            id,
+            name:
+              id === "synthetic-organizer"
+                ? "Синтетический организатор"
+                : "Тестовый участник",
+            status: "accepted",
+          })),
+          notification_recipients: body.notification_recipient_ids.map(
+            (id: string) => ({ id, name: "Тестовый информируемый" }),
+          ),
+          attachments: body.attachments.map((id: string) => ({
+            id,
+            name: "Тестовый файл",
+          })),
           title: body.title,
           starts_at: body.starts_at,
           ends_at: body.ends_at,

@@ -17,6 +17,8 @@ import type { Meeting, Slot } from "../../prototype/src/types";
 import { DesktopAssistant } from "./Assistant";
 import { DockWorkspace } from "./DockWorkspace";
 import { SmallAccount } from "./SmallAccount";
+import { SmallAuthNotice } from "./SmallAuthNotice";
+import { openSmallAccount, requireSmallAccount } from "./useSmallAccount";
 import { CalendarFilters, type ParticipationFilter } from "./CalendarFilters";
 import { EventDetails } from "./EventDetails";
 import { CalendarFreshnessBar } from "./CalendarFreshnessBar";
@@ -47,7 +49,7 @@ import {
   splitEventDays,
 } from "../shared/calendar-time.js";
 import type { CalendarEvent, CalendarView } from "../shared/calendar.js";
-import type { SmallAuthState } from "../shared/small-auth.js";
+import type { SmallAuthState, SmallAuthStatus } from "../shared/small-auth.js";
 
 export function DesktopWorkspace() {
   const [memoryOpen, setMemoryOpen] = useState(false);
@@ -70,7 +72,13 @@ export function DesktopWorkspace() {
   const [initialSlot, setInitialSlot] = useState<Slot | null>(null);
   const [creating, setCreating] = useState(false);
   const [account, setAccount] = useState<SmallAuthState | null>(null);
-  const [revision, setRevision] = useState(0);
+  const [needsAuth, setNeedsAuth] = useState(false);
+  const [authStatus, setAuthStatus] = useState<SmallAuthStatus>("checking");
+  const updateAuthStatus = useCallback((status: SmallAuthStatus) => {
+    setAuthStatus(status);
+    if (status === "required" || status === "signed-out") setNeedsAuth(true);
+    else if (status === "verified") setNeedsAuth(false);
+  }, []);
   const [date, setDate] = useState(calendarToday);
   const [view, setView] = useState<CalendarView>("week");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -90,7 +98,9 @@ export function DesktopWorkspace() {
   } | null>(null);
   // What happened to the open card on the server since it was opened.
   const [remote, setRemote] = useState<"changed" | "missing" | null>(null);
-  const accountId = account?.status === "signed-in" ? account.profile.id : null;
+  const identityId =
+    account?.status === "signed-in" ? account.profile.id : null;
+  const accountId = needsAuth ? null : identityId;
   currentAccount.current = accountId;
   useEffect(() => {
     setParticipation({ organizer: true, invited: true, informed: true });
@@ -101,11 +111,10 @@ export function DesktopWorkspace() {
     setSelected(null);
     setMoves({});
     setRemote(null);
-  }, [accountId]);
+  }, [identityId]);
   useEffect(() => setRemote(null), [selected?.event.key]);
   const expired = useCallback(() => {
-    setAccount(null);
-    setRevision((value) => value + 1);
+    requireSmallAccount();
   }, []);
   const calendar = useSmallCalendar(accountId, date, view, expired);
   const showCreated = (result: MeetingView) => {
@@ -361,7 +370,11 @@ export function DesktopWorkspace() {
     (calendar.issues.length > 0 && calendar.events.length === 0) ||
     (!calendar.my && !calendar.ids.length);
   const status = !accountId
-    ? "Войдите в Small через кнопку профиля внизу слева."
+    ? authStatus === "checking"
+      ? "Проверяю доступ к Small…"
+      : !needsAuth
+        ? "Не удалось проверить доступ к Small. Проверьте подключение через профиль."
+        : "Войдите в Small через кнопку профиля внизу слева."
     : calendar.loading
       ? "Загружаю календарь Small…"
       : calendar.error ||
@@ -414,7 +427,7 @@ export function DesktopWorkspace() {
         >
           <Bell size={19} />
         </button>
-        <SmallAccount onChange={setAccount} revision={revision} />
+        <SmallAccount onChange={setAccount} onStatusChange={updateAuthStatus} />
       </nav>
       <CalendarFilters
         calendar={calendar}
@@ -440,18 +453,18 @@ export function DesktopWorkspace() {
         <header className="workspace-header">
           <div className="workspace-title">
             <h1>Календарь Small</h1>
-            <span className="prototype-tag">
-              {accountId ? "Team API" : "Вход не выполнен"}
-            </span>
           </div>
           <button
             className="primary header-create"
             aria-label="Создать событие"
-            disabled={!accountId}
             title={
               !accountId ? "Войдите в Small для создания встречи" : undefined
             }
             onClick={() => {
+              if (!accountId) {
+                openSmallAccount();
+                return;
+              }
               setInitialPeople([]);
               setInitialSlot(null);
               setCreating(true);
@@ -460,6 +473,7 @@ export function DesktopWorkspace() {
             Создать <Plus size={16} />
           </button>
         </header>
+        {needsAuth && <SmallAuthNotice expired={Boolean(identityId)} />}
         <DockWorkspace
           settingsOpen={settingsOpen}
           closeSettings={() => setSettingsOpen(false)}
@@ -562,7 +576,9 @@ export function DesktopWorkspace() {
           assistant={(swap, headerTarget) => (
             <div className="assistant-container">
               <DesktopAssistant
-                key={accountId ?? "signed-out"}
+                key={identityId ?? "signed-out"}
+                authRequired={needsAuth}
+                authExpired={Boolean(identityId)}
                 swap={swap}
                 headerTarget={headerTarget}
               />
@@ -573,9 +589,15 @@ export function DesktopWorkspace() {
           <span>Team API · Asia/Almaty</span>
         </footer>
       </main>
-      {remindersOpen && <Reminders close={() => setRemindersOpen(false)} />}
+      {remindersOpen && (
+        <Reminders
+          authRequired={needsAuth}
+          close={() => setRemindersOpen(false)}
+        />
+      )}
       {memoryOpen && (
         <MemorySettings
+          authRequired={needsAuth}
           key={accountId ?? "signed-out"}
           account={account?.status === "signed-in" ? account.profile : null}
           close={() => setMemoryOpen(false)}
@@ -609,6 +631,7 @@ export function DesktopWorkspace() {
           initialSlot={initialSlot ?? undefined}
           close={() => setCreating(false)}
           expired={expired}
+          authRequired={needsAuth}
           created={showCreated}
         />
       )}

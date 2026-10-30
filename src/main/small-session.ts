@@ -96,14 +96,23 @@ export function createSmallSession(): AuthTransport {
       if (!cookies.length)
         throw new SmallAuthError(
           "Small не вернул cookie сессии. Вход не сохранён.",
+          "network",
+          "invalid",
         );
       return JSON.stringify({ csrf, cookies });
     },
     async restore(value) {
-      const parsed = savedSchema.safeParse(JSON.parse(value));
+      let snapshot: unknown;
+      try {
+        snapshot = JSON.parse(value);
+      } catch {
+        snapshot = null;
+      }
+      const parsed = savedSchema.safeParse(snapshot);
       if (!parsed.success)
         throw new SmallAuthError(
           "Сохранённая сессия Small повреждена. Выполните вход заново.",
+          "auth",
         );
       await isolated.clearStorageData();
       csrf = parsed.data.csrf;

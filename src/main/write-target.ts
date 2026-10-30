@@ -1,3 +1,4 @@
+import { eventEditQuery } from "../shared/event-edit.js";
 import { z } from "zod";
 import {
   meetingInvalidation,
@@ -51,4 +52,18 @@ export function meetingTarget(draft: {
   recurrence: "none" | "weekly";
 }): WriteTarget {
   return { accountId: draft.organizer.id, ...meetingInvalidation(draft) };
+}
+
+export function editTarget(input: unknown): WriteTarget | null {
+  const q = eventEditQuery.safeParse(input);
+  if (!q.success) return null;
+  const { accountId, eventId, before, after } = q.data;
+  return {
+    accountId,
+    eventIds: [eventId],
+    windows: [
+      { start: before.starts_at, end: before.ends_at },
+      { start: after.starts_at, end: after.ends_at },
+    ],
+  };
 }

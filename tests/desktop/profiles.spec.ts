@@ -64,9 +64,7 @@ test("model settings persist only metadata and use a locally encrypted key throu
   });
   const page = await app.firstWindow();
   try {
-    await page
-      .getByRole("button", { name: "Настройки модели", exact: true })
-      .click();
+    await page.getByRole("button", { name: /^Настроить LLM:/ }).click();
     const dialog = page.getByRole("dialog", { name: "Настройки модели" });
     await expect(dialog.getByLabel("Base URL")).toHaveValue(
       "https://ai.skiftrade.kz/v1",
@@ -82,6 +80,12 @@ test("model settings persist only metadata and use a locally encrypted key throu
     await dialog.getByLabel("API-ключ", { exact: true }).fill(key);
     await dialog.getByRole("button", { name: "Сохранить" }).click();
     await expect(dialog).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: /^Настроить LLM:/ }),
+    ).toContainText("synthetic-profile-model");
+    await expect(
+      page.getByRole("button", { name: /^Настроить LLM:/ }),
+    ).toHaveCSS("font-size", "12px");
     await page
       .getByRole("button", { name: "Настройки модели", exact: true })
       .click();

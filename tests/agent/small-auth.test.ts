@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SmallAuth, type AuthTransport } from "../../src/main/small-auth.js";
+import { SmallAuthError } from "../../src/main/small-auth.js";
 import type { SecretStore } from "../../src/main/profiles.js";
 
 const token = (name: string) =>
@@ -83,6 +84,91 @@ function setup() {
   };
 }
 const login = { username: "employee-a", password: "synthetic-password" };
+
+test("auth failures distinguish credentials, connectivity, service and permissions", async () => {
+  for (const [status, kind] of [
+    [403, "denied"],
+    [503, "service"],
+  ] as const) {
+    const f = setup();
+    await f.auth.login(login);
+    const saved = f.saved();
+    let required = false;
+    f.auth.subscribeRequired(() => {
+      required = true;
+    });
+    const request = f.transport.request;
+    f.transport.request = (path, init) =>
+      path.endsWith("/info")
+        ? Promise.resolve(new Response(null, { status }))
+        : request(path, init);
+    await assert.rejects(
+      f.auth.read(),
+      (error) => error instanceof SmallAuthError && error.kind === kind,
+    );
+    assert.equal(required, false);
+    assert.equal(f.saved(), saved);
+  }
+  const offline = setup();
+  await offline.auth.login(login);
+  offline.offline();
+  await assert.rejects(
+    offline.auth.read(),
+    (error) => error instanceof SmallAuthError && error.kind === "network",
+  );
+  const badLogin = setup();
+  await assert.rejects(
+    badLogin.auth.login({ ...login, password: "wrong" }),
+    (error) => error instanceof SmallAuthError && error.kind === "auth",
+  );
+});
+
+test("session expiry notifies all consumers, but offline checks and refresh recovery do not", async () => {
+  const f = setup();
+  let required = 0;
+  const unsubscribe = f.auth.subscribeRequired(() => required++);
+  await f.auth.login(login);
+  f.expire();
+  await f.auth.read();
+  assert.equal(required, 0);
+  f.revoke();
+  assert.equal((await f.auth.read()).status, "signed-out");
+  assert.ok(required > 0);
+  unsubscribe();
+  const before = required;
+  await f.auth.read();
+  assert.equal(required, before);
+  const offline = setup();
+  offline.auth.subscribeRequired(() => assert.fail("network is not expiry"));
+  await offline.auth.login(login);
+  offline.offline();
+  await assert.rejects(offline.auth.read());
+});
+
+test("unauthorized writes notify expiry and are never replayed", async () => {
+  const f = setup();
+  await f.auth.login(login);
+  const original = f.transport.request;
+  let writes = 0;
+  f.transport.request = async (path, init) => {
+    if (init.method === "DELETE") {
+      writes++;
+      return new Response(null, { status: 401 });
+    }
+    return original(path, init);
+  };
+  let required = false;
+  f.auth.subscribeRequired(() => {
+    required = true;
+  });
+  assert.equal(
+    (await f.auth.deleteCalendarEvent("employee-a", "42")).status,
+    401,
+  );
+  assert.equal(required, true);
+  assert.equal(writes, 1);
+  assert.equal(f.saved(), null);
+});
 
 test("login verifies profile and returns only display identity, then restores through refresh", async () => {
   const f = setup();
@@ -351,6 +437,7 @@ test("calendar updates and replies send JSON bodies once without replaying an un
     attachments: [],
   };
   await f.auth.updateCalendarEvent("employee-a", "42", body);
+  await f.auth.login(login);
   await f.auth.respondCalendarEvent("employee-a", "42", "accepted");
   assert.equal(received.length, 2);
   assert.deepEqual(received[0]?.body, body);
@@ -368,7 +455,10 @@ test("series writes are validated, sent once with exact routes and never replaye
   }[] = [];
   const original = f.transport.request;
   f.transport.request = async (path, init) => {
-    if (init.method === "POST" || init.method === "PUT") {
+    if (
+      !path.startsWith("/gate/auth/") &&
+      (init.method === "POST" || init.method === "PUT")
+    ) {
       received.push({
         path,
         method: init.method,
@@ -396,7 +486,9 @@ test("series writes are validated, sent once with exact routes and never replaye
     attachments: [],
   };
   await f.auth.materializeCalendarEvent("employee-a", "43", "2099-10-29");
+  await f.auth.login(login);
   await f.auth.updateSeriesCalendarEvent("employee-a", "900", body);
+  await f.auth.login(login);
   await f.auth.cancelCalendarEvent("employee-a", "900", "Отмена");
   assert.deepEqual(
     received.map((r) => [r.method, r.path]),

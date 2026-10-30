@@ -1,4 +1,4 @@
-import { ipcMain, type IpcMainInvokeEvent } from "electron";
+import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import { SmallAuthError, type SmallAuth } from "./small-auth.js";
 import {
   smallAuthChannels,
@@ -12,6 +12,11 @@ export function registerSmallAuthHandlers(
   cancelActive: () => void,
   accountChanged: () => Promise<void>,
 ) {
+  auth.subscribeRequired(() => {
+    for (const window of BrowserWindow.getAllWindows())
+      if (!window.isDestroyed())
+        window.webContents.send(smallAuthChannels.required);
+  });
   const handle = (
     channel: string,
     action: (input: unknown) => Promise<SmallAuthState>,
@@ -32,6 +37,7 @@ export function registerSmallAuthHandlers(
         } catch (error) {
           return {
             ok: false,
+            kind: error instanceof SmallAuthError ? error.kind : "network",
             error:
               error instanceof SmallAuthError
                 ? error.message

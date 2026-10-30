@@ -144,4 +144,5 @@ export function registerMeetingHandlers(
       },
     );
   }
+  return (ids: string[]) => attachments.owns(ids, auth.sessionRevision);
 }

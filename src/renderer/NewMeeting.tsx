@@ -4,8 +4,13 @@ import { X, Video, Plus, Paperclip } from "lucide-react";
 import { MeetingPeoplePicker } from "./MeetingPeoplePicker";
 import { MeetingSchedule } from "./MeetingSchedule";
 import { useNewMeeting } from "./useNewMeeting";
-export function NewMeeting(props: Parameters<typeof useNewMeeting>[0]) {
-  const { account, close } = props;
+import { SmallAuthNotice } from "./SmallAuthNotice";
+export function NewMeeting(
+  props: Parameters<typeof useNewMeeting>[0] & {
+    notice?: import("react").ReactNode;
+  },
+) {
+  const { account, close, authRequired } = props;
   const data = useNewMeeting(props);
   const [confirmClose, setConfirmClose] = useState(false);
   function requestClose() {
@@ -47,21 +52,33 @@ export function NewMeeting(props: Parameters<typeof useNewMeeting>[0]) {
         aria-labelledby="new-meeting-title"
         onCancel={(e) => {
           e.preventDefault();
+          e.stopPropagation();
           requestClose();
         }}
-        onClose={close}
+        onClose={(e) => {
+          e.stopPropagation();
+          close();
+        }}
       >
         <div className="modal-header">
-          <h2 id="new-meeting-title">Новое событие</h2>
+          <h2 id="new-meeting-title">
+            {props.editEvent ? "Редактирование события" : "Новое событие"}
+          </h2>
           <button
             className="icon-button"
             disabled={busy}
-            aria-label="Закрыть новое событие"
+            aria-label={
+              props.editEvent
+                ? "Закрыть редактирование"
+                : "Закрыть новое событие"
+            }
             onClick={requestClose}
           >
             <X size={24} />
           </button>
         </div>
+        {authRequired && <SmallAuthNotice expired />}
+        {props.notice}
         <form
           className="meeting-form"
           onSubmit={(e) => {
@@ -70,7 +87,10 @@ export function NewMeeting(props: Parameters<typeof useNewMeeting>[0]) {
           }}
         >
           <div className="new-meeting-body">
-            <fieldset disabled={busy || locked} className="new-meeting-fields">
+            <fieldset
+              disabled={busy || locked || authRequired || props.disabled}
+              className="new-meeting-fields"
+            >
               <label>
                 Наименование <span className="required-mark">*</span>
                 <input
@@ -197,15 +217,24 @@ export function NewMeeting(props: Parameters<typeof useNewMeeting>[0]) {
               {result?.phase === "succeeded" ? "Готово" : "Отмена"}
             </button>
             {!locked && (
-              <button className="primary" type="submit" disabled={busy}>
-                Создать
+              <button
+                className="primary"
+                type="submit"
+                disabled={
+                  busy ||
+                  authRequired ||
+                  props.disabled ||
+                  (!!props.editEvent && !data.dirty)
+                }
+              >
+                {props.editEvent ? "Сохранить" : "Создать"}
               </button>
             )}
             {result?.phase === "unknown" && (
               <button
                 className="primary"
                 type="button"
-                disabled={busy}
+                disabled={busy || authRequired}
                 onClick={() => void reconcile()}
               >
                 Проверить результат

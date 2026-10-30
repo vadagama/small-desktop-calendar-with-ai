@@ -2,7 +2,14 @@ import { NotificationCheck } from "./NotificationCheck";
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import type { ReminderReply, ReminderState } from "../shared/reminders.js";
-export function Reminders({ close }: { close: () => void }) {
+import { SmallAuthNotice } from "./SmallAuthNotice";
+export function Reminders({
+  close,
+  authRequired = false,
+}: {
+  close: () => void;
+  authRequired?: boolean;
+}) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [state, setState] = useState<ReminderState | null>(null);
   const [enabled, setEnabled] = useState(true);
@@ -64,6 +71,7 @@ export function Reminders({ close }: { close: () => void }) {
       onCancel={close}
       onClose={close}
     >
+      {authRequired && <SmallAuthNotice />}
       <div className="modal-header">
         <h2 id="reminders-title">Напоминания</h2>
         <button

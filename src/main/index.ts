@@ -274,7 +274,12 @@ app.whenReady().then(async () => {
   );
   registerTopicRuleHandlers(topicRules, assistant.trusted);
   registerProfileHandlers(profiles, assistant.trusted, assistant.cancelActive);
-  registerMeetingHandlers(meetings, smallAuth, assistant.trusted, availability);
+  const ownsMeetingAttachments = registerMeetingHandlers(
+    meetings,
+    smallAuth,
+    assistant.trusted,
+    availability,
+  );
 
   registerCalendarHandlers(
     calendar,
@@ -286,6 +291,7 @@ app.whenReady().then(async () => {
       new EventMutationJournal(
         resolve(app.getPath("userData"), "event-mutations"),
       ),
+      ownsMeetingAttachments,
     ),
     calendarSync,
     catalog,
