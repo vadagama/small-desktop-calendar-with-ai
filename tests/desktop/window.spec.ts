@@ -72,8 +72,44 @@ test("local desktop UI runs with an isolated renderer and no external navigation
     ).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator(".month-day")).toHaveCount(0);
     await expect(
-      page.getByText("Войдите в Small через кнопку профиля внизу слева."),
+      page.locator(".main-shell > .small-auth-notice"),
     ).toBeVisible();
+    await expect(page.locator(".small-auth-notice")).toHaveCount(1);
+    expect(
+      await page
+        .locator(".main-shell > .small-auth-notice")
+        .evaluate((el) => getComputedStyle(el).fontSize),
+    ).toBe("13px");
+    await expect(
+      page.locator(".assistant-scroll .small-auth-notice"),
+    ).toHaveCount(0);
+    await page
+      .getByRole("button", {
+        name: "Войти в Small — открыть форму",
+        exact: true,
+      })
+      .click();
+    const login = page.getByRole("dialog", {
+      name: "Вход в Small",
+      exact: true,
+    });
+    await expect(login.getByLabel("Логин", { exact: true })).toBeVisible();
+    await expect(login.getByLabel("Пароль", { exact: true })).toBeVisible();
+    await login.getByRole("button", { name: "Закрыть профиль Small" }).click();
+    await page
+      .getByRole("button", { name: "Напоминания", exact: true })
+      .click();
+    const reminders = page.getByRole("dialog", {
+      name: "Напоминания",
+      exact: true,
+    });
+    await expect(reminders.locator(".small-auth-notice")).toHaveCount(0);
+    await expect(
+      reminders.getByRole("heading", { name: "Напоминания", exact: true }),
+    ).toHaveCSS("font-size", "18px");
+    await reminders
+      .getByRole("button", { name: "Закрыть напоминания" })
+      .click();
     await page.screenshot({ path: "test-results/desktop/window.png" });
     await page.evaluate(() => {
       window.open("https://example.invalid");

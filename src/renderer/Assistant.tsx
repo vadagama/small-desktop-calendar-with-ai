@@ -19,18 +19,13 @@ import { DesktopTransport } from "./transport";
 import { MessageList } from "./MessageList";
 import { ModelSettings } from "./ModelSettings";
 import type { ProfileState } from "../shared/profiles.js";
-import { SmallAuthNotice } from "./SmallAuthNotice";
 
 export function DesktopAssistant({
   swap,
   headerTarget,
-  authRequired = false,
-  authExpired = false,
 }: {
   swap: () => void;
   headerTarget: HTMLElement | null;
-  authRequired?: boolean;
-  authExpired?: boolean;
 }) {
   const [promptTemplates, setPromptTemplates] = useState<string[]>([]);
   const [chatId, setChatId] = useState(() => crypto.randomUUID());
@@ -141,7 +136,6 @@ export function DesktopAssistant({
             headerTarget,
           )}
         <div className="assistant-scroll" ref={scroll}>
-          {authRequired && <SmallAuthNotice expired={authExpired} />}
           {!messages.length && (
             <div className="assistant-intro">
               <span className="assistant-mark">
@@ -172,7 +166,7 @@ export function DesktopAssistant({
               </button>
               {local && (
                 <p className="form-note">
-                  Выберите модель и войдите в Small для работы с календарём.
+                  Выберите модель для работы ассистента.
                 </p>
               )}
             </div>
