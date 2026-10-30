@@ -116,12 +116,18 @@ export function MeetingSchedule({
       <label className="repeat-toggle">
         Повторяемость
         <input
+          disabled={!!data.editing}
           role="switch"
           type="checkbox"
           checked={repeat}
           onChange={(e) => setRepeat(e.target.checked)}
         />
       </label>
+      {data.editing && (
+        <small>
+          Изменение повторяемости существующего события пока недоступно.
+        </small>
+      )}
       {repeat && (
         <div className="recurrence-controls">
           <p>Еженедельно</p>

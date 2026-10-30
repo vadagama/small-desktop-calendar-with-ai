@@ -249,6 +249,24 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         movedTime = { starts_at: body.starts_at, ends_at: body.ends_at };
         inspection.syntheticEventExtra = {
           ...inspection.syntheticEventExtra,
+          description: body.description,
+          location: body.location,
+          calendar_ids: body.calendar_ids,
+          participants: body.participant_ids.map((id: string) => ({
+            id,
+            name:
+              id === "synthetic-organizer"
+                ? "Синтетический организатор"
+                : "Тестовый участник",
+            status: "accepted",
+          })),
+          notification_recipients: body.notification_recipient_ids.map(
+            (id: string) => ({ id, name: "Тестовый информируемый" }),
+          ),
+          attachments: body.attachments.map((id: string) => ({
+            id,
+            name: "Тестовый файл",
+          })),
           title: body.title,
           starts_at: body.starts_at,
           ends_at: body.ends_at,

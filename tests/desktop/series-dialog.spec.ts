@@ -39,7 +39,7 @@ test("series changes ask for an explicit scope and stay closed until the contrac
     ).toBeVisible();
     await page.getByRole("button", { name: "Закрыть профиль Small" }).click();
 
-    // A plain meeting keeps the direct T10 flow and never opens the scope dialog.
+    // A plain meeting opens the full editor without asking for a series scope.
     await page
       .locator(".calendar-event")
       .filter({ hasText: "Синтетическая встреча A" })
@@ -49,11 +49,16 @@ test("series changes ask for an explicit scope and stay closed until the contrac
     await plain
       .getByRole("button", { name: "Редактировать", exact: true })
       .click();
-    await expect(plain.getByLabel("Новое название")).toBeVisible();
+    const editor = page.getByRole("dialog", { name: "Редактирование события" });
+    await expect(editor.getByPlaceholder("Введите наименование")).toHaveValue(
+      "Синтетическая встреча A",
+    );
     await expect(page.locator(".series-scope-dialog")).toHaveCount(0);
     await expect(
       plain.getByRole("button", { name: "Перенести", exact: true }),
     ).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(editor).toHaveCount(0);
     await page.keyboard.press("Escape");
 
     await page

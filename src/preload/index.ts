@@ -63,6 +63,8 @@ const bridge: DesktopBridge = {
     copyLink: (url) => ipcRenderer.invoke(calendarChannels.copyLink, url),
     reschedule: (input) =>
       ipcRenderer.invoke(calendarChannels.reschedule, input),
+    updateEvent: (input) =>
+      ipcRenderer.invoke(calendarChannels.updateEvent, input),
     applyChange: (input) =>
       ipcRenderer.invoke(calendarChannels.applyChange, input),
     previewChange: (input) =>

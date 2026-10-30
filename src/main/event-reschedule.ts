@@ -1,3 +1,4 @@
+import { eventEditQuery, eventEditFields } from "../shared/event-edit.js";
 import {
   EventMutationJournal,
   mutationHash,
@@ -158,6 +159,7 @@ export class EventRescheduleService {
       ): Promise<Response>;
     },
     private journal: EventMutationJournal,
+    private ownsAttachments: (ids: string[]) => boolean = (ids) => !ids.length,
   ) {}
   private async verified(
     accountId: string,
@@ -255,6 +257,14 @@ export class EventRescheduleService {
       throw unknownOutcome();
     await this.journal.clear(accountId, eventId);
   }
+  async update(input: unknown): Promise<void> {
+    const q = eventEditQuery.parse(input);
+    await this.applyChange({
+      accountId: q.accountId,
+      eventId: q.eventId,
+      change: { kind: "edit", before: q.before, after: q.after },
+    });
+  }
   async applyChange(input: unknown): Promise<void> {
     const v = z
       .strictObject({
@@ -266,6 +276,11 @@ export class EventRescheduleService {
             title: z.string().trim().min(1).max(200),
           }),
           z.strictObject({ kind: z.literal("cancel") }),
+          z.strictObject({
+            kind: z.literal("edit"),
+            before: eventEditFields,
+            after: eventEditQuery.shape.after,
+          }),
         ]),
       })
       .parse(input);
@@ -322,9 +337,46 @@ export class EventRescheduleService {
         );
         return;
       }
-      const title = v.change.title;
-      if (title === e.title) return;
-      const body = eventUpdateBody.parse({ ...updateBody(e), title });
+      const current = updateBody(e);
+      let body: EventUpdateBody;
+      if (v.change.kind === "edit") {
+        const { before, after } = v.change;
+        const normalize = (value: unknown, key: string) =>
+          Array.isArray(value)
+            ? [...value].sort()
+            : key.endsWith("_at")
+              ? Date.parse(String(value))
+              : value;
+        const equal = (a: unknown, b: unknown, key: string) =>
+          JSON.stringify(normalize(a, key)) ===
+          JSON.stringify(normalize(b, key));
+        const patch: Record<string, unknown> = {};
+        for (const key of Object.keys(after) as (keyof typeof after)[]) {
+          if (equal(before[key], after[key], key)) continue;
+          if (!equal(before[key], current[key], key))
+            throw new CalendarError(
+              "invalid",
+              "Событие изменено другим пользователем. Закройте форму и откройте редактирование заново.",
+            );
+          patch[key] = after[key];
+        }
+        if (!Object.keys(patch).length) return;
+        body = eventUpdateBody.parse({ ...current, ...patch });
+        if (
+          !this.ownsAttachments(
+            body.attachments.filter((id) => !current.attachments.includes(id)),
+          )
+        )
+          throw new CalendarError("denied", "Прикрепите новые файлы заново.");
+        if (calendarDateAt(body.starts_at) < calendarToday())
+          throw new CalendarError(
+            "denied",
+            "Нельзя переносить события в прошедшие дни.",
+          );
+      } else {
+        if (v.change.title === e.title) return;
+        body = eventUpdateBody.parse({ ...current, title: v.change.title });
+      }
       await this.writeMutation(v.accountId, v.eventId, v, body, () =>
         this.session.updateCalendarEvent(v.accountId, v.eventId, body),
       );

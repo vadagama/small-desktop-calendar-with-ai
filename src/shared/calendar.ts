@@ -1,3 +1,4 @@
+import type { EventEditQuery } from "./event-edit.js";
 import type { CalendarDiff } from "./calendar-diff.js";
 import type { EventChangeQuery, EventChangePreview } from "./event-change.js";
 export type CalendarView = "day" | "week" | "month";
@@ -97,6 +98,7 @@ export const calendarChannels = {
   events: "calendar:events",
   detail: "calendar:detail",
   applyChange: "calendar:apply-change",
+  updateEvent: "calendar:update-event",
   previewChange: "calendar:preview-change",
   reschedule: "calendar:reschedule",
   respond: "calendar:respond",
@@ -144,6 +146,7 @@ export interface CalendarBridge {
     startsAt: string;
     endsAt: string;
   }): Promise<CalendarReply<void>>;
+  updateEvent(input: EventEditQuery): Promise<CalendarReply<void>>;
   applyChange(input: EventChangeQuery): Promise<CalendarReply<void>>;
   previewChange(
     input: EventChangeQuery,

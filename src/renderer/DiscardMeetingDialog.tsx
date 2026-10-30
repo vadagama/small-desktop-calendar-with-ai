@@ -21,6 +21,7 @@ export function DiscardMeetingDialog({
       aria-labelledby="discard-meeting-title"
       onCancel={(e) => {
         e.preventDefault();
+        e.stopPropagation();
         keepEditing();
       }}
     >

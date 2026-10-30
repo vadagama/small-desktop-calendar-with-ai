@@ -146,32 +146,26 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
     await details
       .getByRole("button", { name: "Редактировать", exact: true })
       .click();
-    await details.getByLabel("Новое название").fill("Новый синтетический план");
+    const editor = page.getByRole("dialog", { name: "Редактирование события" });
+    await editor
+      .getByPlaceholder("Введите наименование")
+      .fill("Новый синтетический план");
     await app.evaluate(() => {
       (
         globalThis as typeof globalThis & { syntheticEventOwner: string }
       ).syntheticEventOwner = "another-person";
     });
-    await details
+    await editor
       .getByRole("button", { name: "Сохранить", exact: true })
       .click();
-    const failureNotice = page.locator(".notification-error");
-    await expect(failureNotice).toContainText("недостаточно прав");
-    await page.screenshot({
-      path: "test-results/desktop/notification-error.png",
-      animations: "disabled",
-    });
-    await failureNotice
-      .getByRole("button", { name: "Закрыть уведомление" })
-      .click();
-    await expect(failureNotice).toHaveCount(0);
+    await expect(editor.getByRole("alert")).toContainText("только организатор");
     await app.evaluate(() => {
       (
         globalThis as typeof globalThis & { syntheticEventOwner: string }
       ).syntheticEventOwner = "synthetic-organizer";
     });
 
-    await details
+    await editor
       .getByRole("button", { name: "Сохранить", exact: true })
       .click();
     await expect(
@@ -184,8 +178,10 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
     await renamed
       .getByRole("button", { name: "Редактировать", exact: true })
       .click();
-    await renamed.getByLabel("Новое название").fill("Синтетическая встреча A");
-    await renamed
+    await editor
+      .getByPlaceholder("Введите наименование")
+      .fill("Синтетическая встреча A");
+    await editor
       .getByRole("button", { name: "Сохранить", exact: true })
       .click();
     await expect(details).toBeVisible();

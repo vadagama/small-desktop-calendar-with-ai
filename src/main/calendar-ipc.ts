@@ -9,6 +9,7 @@ import type { CalendarSync } from "./calendar-sync.js";
 import type { CachedCatalog } from "./calendar-catalog.js";
 import {
   eventTarget,
+  editTarget,
   rescheduleTarget,
   type WriteTarget,
 } from "./write-target.js";
@@ -97,6 +98,10 @@ export function registerCalendarHandlers(
   handle(
     calendarChannels.applyChange,
     written((input) => reschedules.applyChange(input), eventTarget),
+  );
+  handle(
+    calendarChannels.updateEvent,
+    written((input) => reschedules.update(input), editTarget),
   );
   handle(calendarChannels.previewChange, (input) => changes.preview(input));
   handle(calendarChannels.calendars, (input) => catalog.calendars(input));

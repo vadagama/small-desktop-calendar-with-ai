@@ -77,9 +77,10 @@ async function startEditing(page: Page) {
   await page
     .getByRole("button", { name: "Редактировать", exact: true })
     .click();
-  const field = details.getByLabel("Новое название");
+  const editor = page.getByRole("dialog", { name: "Редактирование события" });
+  const field = editor.getByPlaceholder("Введите наименование");
   await field.fill("Моя правка");
-  return { details, field };
+  return { details: editor, field };
 }
 
 test("a change on the server is announced on the open card and the form being filled in survives", async () => {
@@ -106,9 +107,7 @@ test("a change on the server is announced on the open card and the form being fi
     await page.waitForTimeout(300);
     await expect(field).toBeVisible();
     await expect(field).toHaveValue("Моя правка");
-    await expect(
-      page.getByRole("dialog", { name: "Название с сервера" }),
-    ).toBeVisible();
+    await expect(page.locator("dialog.small-event-details")).toBeVisible();
     await expect(field).toHaveValue("Моя правка");
     await expect(details.locator(".event-remote-change")).toHaveCount(0);
     await expect(
@@ -137,9 +136,96 @@ test("an event that is gone from Small locks the open card after it is checked",
     await expect(
       details.getByRole("button", { name: "Сохранить", exact: true }),
     ).toBeDisabled();
-    await details.getByLabel("Действия со встречей").click();
+  });
+});
+
+test("full event editor prepopulates and saves creation fields without creating another event", async () => {
+  await open(async ({ app, page, date }) => {
+    const { details: editor, field } = await startEditing(page);
     await expect(
-      page.getByRole("button", { name: "Удалить", exact: true }),
+      editor.getByRole("textbox", { name: "Описание", exact: true }),
+    ).toHaveValue("Синтетическая повестка");
+    await expect(editor.getByLabel("Начало", { exact: true })).toHaveValue(
+      "09:00",
+    );
+    await expect(editor.getByLabel("Окончание", { exact: true })).toHaveValue(
+      "09:30",
+    );
+    await expect(
+      editor.getByLabel("Переговорная", { exact: true }),
+    ).toHaveValue("7");
+    await expect(
+      editor.getByRole("switch", { name: "Повторяемость" }),
     ).toBeDisabled();
+    expect(
+      await editor
+        .locator("h2")
+        .evaluate((el) => getComputedStyle(el).fontSize),
+    ).toBe("18px");
+    expect(await field.evaluate((el) => getComputedStyle(el).fontSize)).toBe(
+      "14px",
+    );
+    await editor
+      .getByRole("textbox", { name: "Описание", exact: true })
+      .fill("Обновлённая повестка");
+    await editor
+      .getByLabel("Ссылка на встречу", { exact: true })
+      .fill("https://meet.small.kz/synthetic-edit");
+    await editor.getByLabel("Переговорная", { exact: true }).selectOption("11");
+    await editor.getByLabel("Начало", { exact: true }).fill("10:30");
+    await editor.getByLabel("Окончание", { exact: true }).fill("11:00");
+    await editor
+      .getByRole("button", { name: "Информируемые", exact: true })
+      .click();
+    await editor
+      .getByLabel("Поиск информируемых", { exact: true })
+      .fill("Тест");
+    await editor
+      .getByRole("button", { name: "Найти информируемых", exact: true })
+      .click();
+    await editor.getByRole("checkbox").first().check();
+    await page.screenshot({
+      path: "test-results/desktop/full-event-editor.png",
+    });
+    await editor
+      .getByRole("button", { name: "Сохранить", exact: true })
+      .click();
+    await expect(editor).toHaveCount(0);
+    const saved = await app.evaluate(
+      () => (globalThis as Inspection).syntheticEventExtra,
+    );
+    expect(saved.title).toBe("Моя правка");
+    expect(saved.description).toBe(
+      "Обновлённая повестка\n\nhttps://meet.small.kz/synthetic-edit",
+    );
+    expect(saved.calendar_ids).toEqual([11]);
+    expect(Date.parse(String(saved.starts_at))).toBe(
+      Date.parse(`${date}T10:30:00+05:00`),
+    );
+    expect(saved.notification_recipients).toHaveLength(1);
+    await expect(
+      page.locator(".calendar-event").filter({ hasText: "Моя правка" }),
+    ).toHaveCount(1);
+  });
+});
+
+test("cancelling an edit confirms unsaved changes and returns to the event card", async () => {
+  await open(async ({ page }) => {
+    const { details: editor, field } = await startEditing(page);
+    await editor.getByRole("button", { name: "Отмена", exact: true }).click();
+    const confirm = page.getByRole("dialog", {
+      name: "Отменить несохранённые изменения?",
+    });
+    await page.keyboard.press("Escape");
+    await expect(confirm).toHaveCount(0);
+    await expect(field).toHaveValue("Моя правка");
+    await editor.getByRole("button", { name: "Отмена", exact: true }).click();
+    await confirm
+      .getByRole("button", { name: "Не сохранять", exact: true })
+      .click();
+    await expect(editor).toHaveCount(0);
+    await expect(
+      page.getByRole("dialog", { name: "Исходное название", exact: true }),
+    ).toBeVisible();
   });
 });

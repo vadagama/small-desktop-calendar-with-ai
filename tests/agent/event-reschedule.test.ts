@@ -11,7 +11,10 @@ const journal = () =>
   new EventMutationJournal(join(directory, crypto.randomUUID()));
 import assert from "node:assert/strict";
 import { test, after } from "node:test";
-import { EventRescheduleService } from "../../src/main/event-reschedule.js";
+import {
+  EventRescheduleService,
+  type EventUpdateBody,
+} from "../../src/main/event-reschedule.js";
 import { CalendarError } from "../../src/main/calendar.js";
 const event = {
   id: "42",
@@ -25,8 +28,8 @@ const event = {
   is_recurring: false,
   is_public: false,
   participants: [{ id: "person-a" }],
-  notification_recipients: [],
-  attachments: [],
+  notification_recipients: [] as { id: string }[],
+  attachments: [] as { id: string }[],
   calendar_ids: [1],
 };
 const input = {
@@ -37,7 +40,11 @@ const input = {
   startsAt: "2099-10-29T10:00:00+05:00",
   endsAt: "2099-10-29T11:00:00+05:00",
 };
-function fixture(patch = {}, status = 200) {
+function fixture(
+  patch = {},
+  status = 200,
+  ownsAttachments?: (ids: string[]) => boolean,
+) {
   let value = { ...event, ...patch };
   const writes: unknown[] = [];
   const service = new EventRescheduleService(
@@ -49,6 +56,14 @@ function fixture(patch = {}, status = 200) {
         if (status === 200)
           value = {
             ...value,
+            description: payload.description,
+            location: payload.location,
+            calendar_ids: payload.calendar_ids,
+            participants: payload.participant_ids.map((id) => ({ id })),
+            notification_recipients: payload.notification_recipient_ids.map(
+              (id) => ({ id }),
+            ),
+            attachments: payload.attachments.map((id) => ({ id })),
             title: payload.title,
             starts_at: payload.starts_at,
             ends_at: payload.ends_at,
@@ -57,6 +72,7 @@ function fixture(patch = {}, status = 200) {
       },
     },
     journal(),
+    ownsAttachments,
   );
   return { service, writes };
 }
@@ -650,4 +666,124 @@ test("a body that is not an event cannot confirm a delete", async () => {
     () => new Response(null, { status: 204 }),
   );
   await assert.rejects(cancel(), /неизвестен/);
+});
+
+const editable = {
+  title: event.title,
+  description: event.description,
+  location: event.location,
+  starts_at: event.starts_at,
+  ends_at: event.ends_at,
+  calendar_ids: event.calendar_ids,
+  participant_ids: ["person-a"],
+  notification_recipient_ids: [],
+  attachments: [],
+};
+test("full editor updates fields while preserving hidden server metadata", async () => {
+  const { service, writes } = fixture({ is_public: true });
+  await service.update({
+    accountId: "account-a",
+    eventId: "42",
+    before: editable,
+    after: {
+      ...editable,
+      title: "Updated",
+      description: "New agenda",
+      location: "New room",
+      calendar_ids: [2],
+      participant_ids: ["person-a", "person-b"],
+      notification_recipient_ids: ["person-c"],
+    },
+  });
+  assert.equal(writes.length, 1);
+  assert.equal((writes[0] as EventUpdateBody).description, "New agenda");
+  assert.equal((writes[0] as EventUpdateBody).is_public, true);
+  assert.deepEqual((writes[0] as EventUpdateBody).participant_ids, [
+    "person-a",
+    "person-b",
+  ]);
+});
+test("full editor rejects conflicting changes and keeps unrelated remote changes", async () => {
+  const stale = fixture({ title: "Remote" });
+  await assert.rejects(
+    stale.service.update({
+      accountId: "account-a",
+      eventId: "42",
+      before: editable,
+      after: { ...editable, title: "Mine" },
+    }),
+    /изменено|изменил/,
+  );
+  assert.equal(stale.writes.length, 0);
+  const other = fixture({ description: "Remote agenda" });
+  await other.service.update({
+    accountId: "account-a",
+    eventId: "42",
+    before: editable,
+    after: { ...editable, title: "Mine" },
+  });
+  assert.equal(
+    (other.writes[0] as EventUpdateBody).description,
+    "Remote agenda",
+  );
+});
+test("full editor rejects arbitrary attachment IDs and recurring/foreign events", async () => {
+  for (const patch of [{}, { creator_id: "other" }, { is_recurring: true }]) {
+    const { service, writes } = fixture(patch);
+    await assert.rejects(
+      service.update({
+        accountId: "account-a",
+        eventId: "42",
+        before: editable,
+        after: { ...editable, attachments: ["unowned"] },
+      }),
+    );
+    assert.equal(writes.length, 0);
+  }
+});
+
+test("full editor never replays an uncertain write, even with a changed form", async () => {
+  const { service, writes } = fixture({}, 503);
+  const query = {
+    accountId: "account-a",
+    eventId: "42",
+    before: editable,
+    after: { ...editable, title: "Mine" },
+  };
+  const unknown = (e: unknown) =>
+    e instanceof CalendarError && e.unknownOutcome === true;
+  await assert.rejects(service.update(query), unknown);
+  await assert.rejects(service.update(query), unknown);
+  await assert.rejects(
+    service.update({ ...query, after: { ...query.after, title: "Another" } }),
+    unknown,
+  );
+  assert.equal(writes.length, 1);
+});
+test("full editor preserves fresh attachments when that field was not edited", async () => {
+  const { service, writes } = fixture({ attachments: [{ id: "remote-file" }] });
+  await service.update({
+    accountId: "account-a",
+    eventId: "42",
+    before: { ...editable, attachments: ["old-file"] },
+    after: { ...editable, attachments: ["old-file"], title: "Mine" },
+  });
+  assert.deepEqual((writes[0] as EventUpdateBody).attachments, ["remote-file"]);
+});
+
+test("full editor can replace attachments with files uploaded in this session", async () => {
+  const { service, writes } = fixture(
+    { attachments: [{ id: "old-file" }] },
+    200,
+    (ids) => ids.length === 1 && ids[0] === "uploaded-file",
+  );
+  await service.update({
+    accountId: "account-a",
+    eventId: "42",
+    before: { ...editable, attachments: ["old-file"] },
+    after: { ...editable, attachments: ["uploaded-file"] },
+  });
+  assert.deepEqual((writes[0] as EventUpdateBody).attachments, [
+    "uploaded-file",
+  ]);
 });
