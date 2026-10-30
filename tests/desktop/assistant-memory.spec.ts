@@ -113,7 +113,7 @@ test("memory UI persists preferences, entries, groups and presets; chat writes r
       .click();
     await expect(
       page.getByRole("dialog", { name: "Память", exact: true }),
-    ).toContainText("Войдите в Small");
+    ).toContainText("Введите логин и пароль");
     await page.keyboard.press("Escape");
     await page
       .getByRole("button", { name: "Профиль Small", exact: true })

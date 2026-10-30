@@ -4,6 +4,7 @@ import type {
   CalendarResult,
 } from "../shared/calendar.js";
 import { diffEvents } from "../shared/calendar-diff.js";
+import { CalendarWriteNotStarted } from "./calendar-write-error.js";
 import {
   CalendarError,
   parseCalendarQuery,
@@ -155,6 +156,35 @@ export class CalendarSync {
     this.inflight.clear();
     if (target) await this.cache.invalidateEvents(target.accountId, target);
     else await this.cache.clearAll();
+  }
+
+  /** Cache failures after a write must never replace its result or unknown-outcome error. */
+  async write<T>(
+    action: () => Promise<T>,
+    target?: EventInvalidation & { accountId: string },
+  ): Promise<T> {
+    try {
+      await this.cache.beginWrite();
+    } catch {
+      throw new CalendarWriteNotStarted();
+    }
+    this.generation++;
+    this.inflight.clear();
+    try {
+      return await action();
+    } finally {
+      let clean = false;
+      try {
+        await this.invalidate(target);
+        clean = true;
+      } catch {
+        // endWrite keeps the durable guard and disables disk reads, including after restart.
+      }
+      if (!(await this.cache.endWrite(clean)))
+        console.warn(
+          "[calendar-cache] disk cache disabled after write cleanup failure",
+        );
+    }
   }
 
   stop() {

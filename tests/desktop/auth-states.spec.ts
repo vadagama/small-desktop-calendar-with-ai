@@ -137,6 +137,8 @@ test("authentication UI distinguishes verified, offline and expired sessions and
       })
       .click();
     await expect(profile).toContainText("Сессия Small завершена");
+    await expect(profile).toContainText("Введите пароль для повторного входа");
+    await expect(profile).toContainText("Пароль не сохраняется");
     await expect(profile.getByRole("status")).toHaveCount(1);
     await expect(profile.getByRole("alert")).toHaveCount(0);
     await expect(profile.getByLabel("Логин", { exact: true })).toHaveValue(

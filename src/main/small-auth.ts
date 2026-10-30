@@ -43,12 +43,68 @@ const identity = z.object({
   preferred_username: z.string().min(1).max(200),
   name: z.string().min(1).max(500),
 });
-const signedOut: SmallAuthState = { status: "signed-out" };
+const savedSession = z.strictObject({
+  version: z.literal(3),
+  session: z.string().nullable(),
+  username: z.string().max(200),
+  accountId: z.string().min(1).nullable(),
+  expired: z.boolean(),
+});
+function unpackSession(saved: string): z.infer<typeof savedSession> {
+  let value: unknown;
+  try {
+    value = JSON.parse(saved);
+  } catch {
+    /* Legacy cookie snapshot. */
+  }
+  if (value && typeof value === "object" && "version" in value) {
+    if (value.version === 2) {
+      // Strip legacy passwords before any network request, including offline starts.
+      const legacy = z
+        .object({
+          version: z.literal(2),
+          session: z.string(),
+          login: z
+            .object({
+              username: credentials.shape.username,
+              accountId: z.string().min(1),
+            })
+            .nullable(),
+        })
+        .safeParse(value);
+      if (legacy.success)
+        return {
+          version: 3,
+          session: legacy.data.session,
+          username: legacy.data.login?.username ?? "",
+          accountId: legacy.data.login?.accountId ?? null,
+          expired: false,
+        };
+    }
+    const parsed = savedSession.safeParse(value);
+    if (!parsed.success)
+      throw new SmallAuthError(
+        "Сохранённая сессия Small повреждена. Введите пароль для повторного входа.",
+        "auth",
+      );
+    return parsed.data;
+  }
+  return {
+    version: 3,
+    session: saved,
+    username: "",
+    accountId: null,
+    expired: false,
+  };
+}
 
 /** Serializes transitions so logout/account switching cannot race a refresh. */
 export class SmallAuth {
   private pending: Promise<unknown> = Promise.resolve();
   private token: string | null = null;
+  private username = "";
+  private accountId: string | null = null;
+  private expired = false;
   private version = 0;
   private restored = false;
   private requiredListeners = new Set<() => void>();
@@ -60,7 +116,26 @@ export class SmallAuth {
   }
   private requireSignIn(): SmallAuthState {
     for (const listener of this.requiredListeners) listener();
-    return signedOut;
+    return this.signedOut();
+  }
+  private signedOut(): SmallAuthState {
+    return {
+      status: "signed-out",
+      ...(this.username ? { username: this.username } : {}),
+      ...(this.expired ? { reason: "expired" as const } : {}),
+    };
+  }
+  private async loadSaved() {
+    const saved = await this.storedSecret(() => this.secrets.get(account));
+    if (!saved) return null;
+    const snapshot = unpackSession(saved);
+    this.username = snapshot.username;
+    this.accountId = snapshot.accountId;
+    this.expired = snapshot.expired;
+    const sanitized = JSON.stringify(snapshot);
+    if (sanitized !== saved)
+      await this.storedSecret(() => this.secrets.set(account, sanitized));
+    return snapshot.session;
   }
   constructor(
     private transport: AuthTransport,
@@ -89,18 +164,14 @@ export class SmallAuth {
       );
     }
   }
-  private async clear() {
+  private async clear(expired = false) {
     this.token = null;
+    this.accountId = null;
+    this.expired = expired;
     this.restored = true;
-    // Invalidate persistence first, including when Chromium cleanup fails.
-    // A tombstone also works if the local store has no entry yet.
+    // Persist the username-only tombstone before clearing Chromium's cookies.
     try {
-      await this.storedSecret(() => this.secrets.set(account, ""));
-      try {
-        await this.secrets.remove(account);
-      } catch {
-        /* Tombstone prevents restoration. */
-      }
+      await this.persist(null);
     } finally {
       await this.transport.clear();
     }
@@ -136,10 +207,23 @@ export class SmallAuth {
         "network",
         "invalid",
       );
-    // Only session cookies are persisted; passwords and access tokens are not.
-    const snapshot = await this.transport.snapshot();
-    await this.storedSecret(() => this.secrets.set(account, snapshot));
-    this.token = parsed.data.data.access_token;
+    const nextToken = parsed.data.data.access_token;
+    if (
+      this.accountId &&
+      String(this.claims(nextToken).uid) !== this.accountId
+    ) {
+      try {
+        await this.clear(true);
+      } finally {
+        this.requireSignIn();
+      }
+      throw new SmallAuthError(
+        "Изменился аккаунт Small. Войдите заново.",
+        "auth",
+      );
+    }
+    await this.persist();
+    this.token = nextToken;
   }
   /** Writes are never replayed, even after a 401. */
   private async write(path: string, method: string, body?: unknown) {
@@ -147,38 +231,77 @@ export class SmallAuth {
   }
   private async checkWrite(response: Response) {
     if (response.status === 401) {
+      let recovery: "true" | "pending";
       try {
-        await this.clear();
+        if (!(await this.renew())) return response;
+        recovery = "true";
+      } catch (error) {
+        if (error instanceof SmallAuthError && error.code === "auth")
+          throw error;
+        recovery = "pending";
+      }
+      // Preserve the explicit 401 for retry journals; never replay this write.
+      return new Response(null, {
+        status: 401,
+        headers: { "X-Small-Session-Recovered": recovery },
+      });
+    }
+    return response;
+  }
+  private async persist(session?: string | null) {
+    const snapshot = JSON.stringify({
+      version: 3,
+      session:
+        session === undefined ? await this.transport.snapshot() : session,
+      username: this.username,
+      accountId: this.accountId,
+      expired: this.expired,
+    });
+    await this.storedSecret(() => this.secrets.set(account, snapshot));
+  }
+  private async renew(): Promise<boolean> {
+    const response = await this.request("/gate/auth/refresh");
+    if (response.status === 401 || response.status === 403) {
+      try {
+        await this.clear(true);
       } finally {
         this.requireSignIn();
       }
+      return false;
     }
-    return response;
+    await this.accept(response);
+    return true;
   }
   private async authorized(path: string, body?: unknown): Promise<Response> {
     const method = body === undefined ? "GET" : "POST";
     let response = await this.request(path, method, body);
     if (response.status === 401) {
-      const refreshed = await this.request("/gate/auth/refresh");
-      if (refreshed.status === 401 || refreshed.status === 403) {
-        try {
-          await this.clear();
-        } finally {
-          this.requireSignIn();
-        }
-        return new Response(null, { status: 401 });
-      }
-      await this.accept(refreshed);
+      if (!(await this.renew())) return new Response(null, { status: 401 });
       response = await this.request(path, method, body);
       if (response.status === 401) {
         try {
-          await this.clear();
+          await this.clear(true);
         } finally {
           this.requireSignIn();
         }
       }
     }
     return response;
+  }
+  private claims(token: string): z.infer<typeof identity> {
+    try {
+      return identity.parse(
+        JSON.parse(
+          Buffer.from(token.split(".")[1]!, "base64url").toString("utf8"),
+        ),
+      );
+    } catch {
+      throw new SmallAuthError(
+        "Small вернул неизвестный формат пользователя.",
+        "network",
+        "invalid",
+      );
+    }
   }
   private async profile(): Promise<SmallAuthState> {
     const response = await this.authorized("/gate/team/api/user/info");
@@ -205,19 +328,11 @@ export class SmallAuth {
         "invalid",
       );
     // Same display claims used by the official client. They never grant permissions.
-    let claims: z.infer<typeof identity>;
-    try {
-      claims = identity.parse(
-        JSON.parse(
-          Buffer.from(this.token!.split(".")[1]!, "base64url").toString("utf8"),
-        ),
-      );
-    } catch {
-      throw new SmallAuthError(
-        "Small вернул неизвестный формат пользователя.",
-        "network",
-        "invalid",
-      );
+    const claims = this.claims(this.token!);
+    if (!this.accountId || !this.username) {
+      this.accountId = String(claims.uid);
+      this.username = claims.preferred_username;
+      await this.persist();
     }
     return {
       status: "signed-in",
@@ -231,22 +346,13 @@ export class SmallAuth {
   }
   private async current(): Promise<SmallAuthState> {
     if (!this.restored) {
-      const saved = await this.storedSecret(() => this.secrets.get(account));
-      if (!saved) {
+      const session = await this.loadSaved();
+      if (session === null) {
         this.restored = true;
         return this.requireSignIn();
       }
-      await this.transport.restore(saved);
-      const response = await this.request("/gate/auth/refresh");
-      if (response.status === 401 || response.status === 403) {
-        try {
-          await this.clear();
-        } finally {
-          this.requireSignIn();
-        }
-        return signedOut;
-      }
-      await this.accept(response);
+      await this.transport.restore(session);
+      if (!(await this.renew())) return this.signedOut();
       this.restored = true;
     }
     return this.token ? this.profile() : this.requireSignIn();
@@ -283,14 +389,14 @@ export class SmallAuth {
           throw new SmallAuthError("Операция Small недоступна.");
         if (!this.token)
           throw new SmallAuthError(
-            "Сессия Small завершена. Войдите заново.",
+            "Сессия Small завершена. Введите пароль для повторного входа.",
             "auth",
           );
         const response = await this.authorized(path, body);
         assertCurrent();
         if (response.status === 401)
           throw new SmallAuthError(
-            "Сессия Small завершена. Войдите заново.",
+            "Сессия Small завершена. Введите пароль для повторного входа.",
             "auth",
           );
         return response;
@@ -298,7 +404,7 @@ export class SmallAuth {
       assertCurrent();
       if (!this.token)
         throw new SmallAuthError(
-          "Сессия Small завершена. Войдите заново.",
+          "Сессия Small завершена. Введите пароль для повторного входа.",
           "auth",
         );
       return result;
@@ -500,6 +606,7 @@ export class SmallAuth {
       const parsed = credentials.safeParse(input);
       if (!parsed.success)
         throw new SmallAuthError("Проверьте логин и пароль.");
+      this.username = parsed.data.username.toLowerCase().replace(/\s+/g, "");
       await this.clear();
       try {
         const response = await this.request("/gate/auth/login", "POST", {
@@ -510,7 +617,12 @@ export class SmallAuth {
         if (response.status === 401 || response.status === 403)
           throw new SmallAuthError("Логин или пароль не подошли.", "auth");
         await this.accept(response);
-        return await this.profile();
+        const state = await this.profile();
+        if (state.status === "signed-in") {
+          this.accountId = state.profile.id;
+          await this.persist();
+        }
+        return state;
       } catch (error) {
         await this.clear();
         throw error;
@@ -524,10 +636,8 @@ export class SmallAuth {
       try {
         // Restore cookies solely to revoke the server session, even before read().
         if (!this.restored) {
-          const saved = await this.storedSecret(() =>
-            this.secrets.get(account),
-          );
-          if (saved) await this.transport.restore(saved);
+          const session = await this.loadSaved();
+          if (session !== null) await this.transport.restore(session);
         }
         const response = await this.request("/gate/auth/logout");
         if (!response.ok)
@@ -538,7 +648,7 @@ export class SmallAuth {
           "Локальный выход выполнен. Сервер не подтвердил отзыв сессии.";
       }
       await this.clear();
-      return warning ? { status: "signed-out" as const, warning } : signedOut;
+      return { ...this.signedOut(), ...(warning ? { warning } : {}) };
     });
   }
 }

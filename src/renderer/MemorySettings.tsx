@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Brain, Clock3, HardDrive, Trash2 } from "lucide-react";
-import { Modal } from "../../prototype/src/Dialogs";
-import { MemoryEntries } from "../../prototype/src/MemoryEntries";
-import { MemoryPreferences } from "../../prototype/src/MemoryPreferences";
+import { Modal } from "./ui/Modal";
+import { MemoryEntries } from "./ui/MemoryEntries";
+import { MemoryPreferences } from "./ui/MemoryPreferences";
 import { MemoryCollections } from "./MemoryCollections";
 import { SmallAuthNotice } from "./SmallAuthNotice";
 import { openSmallAccount } from "./useSmallAccount";
@@ -11,7 +11,7 @@ import type {
   MemoryChange,
   MemorySource,
 } from "../shared/assistant-memory.js";
-import "../../prototype/src/memory-settings.css";
+import "./ui/memory-settings.css";
 import "./memory-settings.css";
 
 const sourceText = (source: MemorySource) =>

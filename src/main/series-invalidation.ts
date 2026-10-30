@@ -10,16 +10,10 @@ type Series = Pick<SeriesController, "gate" | "apply">;
  */
 export function invalidatingSeries(
   series: Series,
-  sync: Pick<CalendarSync, "invalidate">,
+  sync: Pick<CalendarSync, "write">,
 ): Series {
   return {
     gate: (input) => series.gate(input),
-    apply: async (input) => {
-      try {
-        return await series.apply(input);
-      } finally {
-        await sync.invalidate();
-      }
-    },
+    apply: (input) => sync.write(() => series.apply(input)),
   };
 }

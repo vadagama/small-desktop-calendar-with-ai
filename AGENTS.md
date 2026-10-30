@@ -121,3 +121,31 @@ content 13 px, form/body text 14 px, dialog titles 18 px. Do not derive CSS
 font sizes from screenshot pixels: screenshots may be Retina or zoomed.
 Preserve the compact desktop density; do not increase font sizes or spacing
 unless the user requests it. Verify computed font sizes in Electron.
+
+## Clean rebuilds and initial application state
+
+Every rebuilt application must be delivered and launched with a clean initial
+profile by default. Do not reuse the developer's or user's existing `userData`
+for a post-build launch unless the user explicitly requests that profile.
+Use a new, isolated `--user-data-dir` for each rebuild launch; do not delete an
+existing personal profile to achieve a clean start.
+
+Required initial state:
+
+- Small is signed out: no prefilled login or password, no saved session,
+  cookies or authentication tokens.
+- No LLM API token/key or other pre-entered credentials.
+- Mood: neutral (`Нейтральный`).
+- `Ваши инструкции`: empty.
+- `Предпочтения встреч`: empty.
+- `Сохранённый контекст`: empty.
+- `Группы участников`: empty.
+- `Форматы встреч`: empty.
+
+Never include local vaults, user profiles, personal settings, memory records,
+credentials or test-populated state in the application package. Verify the
+required initial state in the rebuilt application before reporting it ready.
+If defaults populate any of these fields, fix those defaults rather than hiding
+the values in the UI. This is a rebuild/delivery rule, not a reset on every app
+startup: data explicitly entered afterwards persists according to the normal
+session and settings rules within that profile.

@@ -47,7 +47,7 @@ import { registerSmallAuthHandlers } from "./small-auth-ipc.js";
 const here = dirname(fileURLToPath(import.meta.url));
 const rendererRoot = resolve(here, "../renderer");
 const appIcon = resolve(
-  app.isPackaged ? rendererRoot : resolve(here, "../../prototype/public"),
+  app.isPackaged ? rendererRoot : resolve(here, "../../resources/renderer"),
   "app-icon.png",
 );
 const localUrl = "small-app://workspace/index.html";
@@ -204,13 +204,11 @@ app.whenReady().then(async () => {
     preflight: (draft) => meetingWriter.preflight(draft),
     verify: (draft, eventId) => meetingWriter.verify(draft, eventId),
     wasDeleted: (draft, eventId) => meetingWriter.wasDeleted(draft, eventId),
-    create: async (draft) => {
-      try {
-        return await meetingWriter.create(draft);
-      } finally {
-        await calendarSync.invalidate(meetingTarget(draft));
-      }
-    },
+    create: (draft) =>
+      calendarSync.write(
+        () => meetingWriter.create(draft),
+        meetingTarget(draft),
+      ),
   };
   const meetings = new MeetingOperations(
     new MeetingJournal(resolve(app.getPath("userData"), "meeting-operations")),

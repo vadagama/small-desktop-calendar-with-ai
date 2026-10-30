@@ -16,8 +16,14 @@ function setup(apply: () => Promise<unknown>) {
     },
   } as unknown as Pick<SeriesController, "gate" | "apply">;
   const sync = {
-    invalidate: async (target?: unknown) => {
-      calls.push(target === undefined ? "invalidate-all" : "invalidate-target");
+    write: async <T>(action: () => Promise<T>, target?: unknown) => {
+      try {
+        return await action();
+      } finally {
+        calls.push(
+          target === undefined ? "invalidate-all" : "invalidate-target",
+        );
+      }
     },
   };
   return { wrapped: invalidatingSeries(series, sync), calls };

@@ -20,7 +20,7 @@ export const smallAuthLabels: Record<SmallAuthStatus, string> = {
   checking: "Проверяем вход…",
   verified: "Вход подтверждён",
   "signed-out": "Войти в Small",
-  required: "Требуется вход",
+  required: "Требуется пароль",
   unknown: "Сессия не проверена",
 };
 const failureCopy: Record<
@@ -57,6 +57,8 @@ export function SmallAccount({
     errorKind,
     checkedAt,
     needsLogin,
+    username,
+    setUsername,
     perform,
     check,
   } = useSmallAccount(onChange, onStatusChange);
@@ -85,7 +87,7 @@ export function SmallAccount({
     (status === "verified"
       ? "Сессия проверена сервером Small."
       : status === "required"
-        ? "Войдите повторно, чтобы обновлять календарь и изменять встречи."
+        ? "Введите пароль для повторного входа. Логин уже сохранён."
         : "Проверяем доступ к Small…");
   useEffect(() => {
     const show = () => setOpen(true);
@@ -205,16 +207,17 @@ export function SmallAccount({
             <>
               {!showNotice && (
                 <p className="modal-description">
-                  Войдите с рабочей учётной записью Team Small, чтобы работать с
-                  календарём.
+                  Введите пароль от рабочей учётной записи Team Small, чтобы
+                  работать с календарём.
                 </p>
               )}
               <SmallLoginForm
-                initialUsername={profile?.username ?? ""}
+                initialUsername={username}
                 status={status}
                 busy={busy}
                 check={check}
                 login={(input) => {
+                  setUsername(input.username);
                   void perform(
                     () => window.smallDesktop.smallAuth.login(input),
                     "login",
@@ -237,7 +240,7 @@ export function SmallAccount({
               Сессия хранится в зашифрованном хранилище этого{" "}
               {window.smallDesktop.platform === "darwin" ? "Mac" : "устройства"}
               .<br />
-              Ассистент не получает пароль и сессию.
+              Пароль не сохраняется. Ассистент не получает пароль и сессию.
             </p>
           </footer>
         </dialog>

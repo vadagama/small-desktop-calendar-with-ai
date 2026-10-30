@@ -4,6 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { CalendarWriteNotStarted } from "../../src/main/calendar-write-error.js";
 import {
   MeetingOperations,
   type MeetingWriter,
@@ -44,6 +45,22 @@ const writer = (create: MeetingWriter["create"]): MeetingWriter => ({
   create,
   verify: async () => true,
 });
+test("a failed cache barrier releases the create claim before any request was sent", async () =>
+  fixture(async (dir) => {
+    let calls = 0;
+    const service = new MeetingOperations(
+      new MeetingJournal(dir),
+      writer(async () => {
+        if (++calls === 1) throw new CalendarWriteNotStarted();
+        return "42";
+      }),
+    );
+    const d = service.register(draft());
+    const failed = await service.confirm("a", d.id, 1);
+    assert.equal(failed.phase, "preview");
+    assert.match(failed.message, /не отправлены/);
+    assert.equal((await service.confirm("a", d.id, 1)).phase, "succeeded");
+  }));
 test("three adjacent drafts create independently and remain idempotent after restart", async () =>
   fixture(async (dir) => {
     let calls = 0;
