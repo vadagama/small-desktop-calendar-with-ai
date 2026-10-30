@@ -43,7 +43,7 @@ test("Small account uses isolated session and encrypted local storage, restores 
     await expect(
       page.getByRole("button", { name: "Выйти из Small" }),
     ).toBeVisible();
-    await expect(page.locator("dialog strong")).toHaveText("employee-a");
+    await expect(page.locator(".small-account-name")).toHaveText("employee-a");
     const state = await page.evaluate(() =>
       window.smallDesktop.smallAuth.read(),
     );

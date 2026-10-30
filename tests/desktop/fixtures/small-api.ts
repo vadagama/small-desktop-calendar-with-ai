@@ -8,6 +8,8 @@ export async function mockSmall(app: ElectronApplication, date: string) {
     const inspection = globalThis as typeof globalThis & {
       syntheticMeetingWrites: number;
       syntheticCreateRejection?: number;
+      syntheticAuthStatus?: number;
+      syntheticAuthDelayMs?: number;
       /**
        * reject: 409 without applying; lose: 503 without applying; lose-applied: 503, and
        * only the event list (not the card) shows the new time, as with replica lag.
@@ -54,6 +56,15 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       if (url.origin !== "https://team.small.kz")
         return new Response(null, { status: 403 });
       const path = url.pathname;
+      if (inspection.syntheticAuthDelayMs && path.endsWith("/info"))
+        await new Promise((resolve) =>
+          setTimeout(resolve, inspection.syntheticAuthDelayMs),
+        );
+      if (
+        inspection.syntheticAuthStatus &&
+        (path.endsWith("/info") || path.endsWith("/refresh"))
+      )
+        return new Response(null, { status: inspection.syntheticAuthStatus });
       if (
         path.includes("/calendar/events") &&
         request.method !== "GET" &&

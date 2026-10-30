@@ -4,6 +4,7 @@ import { Modal } from "../../prototype/src/Dialogs";
 import { MemoryEntries } from "../../prototype/src/MemoryEntries";
 import { MemoryPreferences } from "../../prototype/src/MemoryPreferences";
 import { MemoryCollections } from "./MemoryCollections";
+import { SmallAuthNotice } from "./SmallAuthNotice";
 import type {
   AssistantMemoryState,
   MemoryChange,
@@ -17,9 +18,11 @@ const sourceText = (source: MemorySource) =>
 export function MemorySettings({
   account,
   close,
+  authRequired = false,
 }: {
   account: { id: string; name: string } | null;
   close: () => void;
+  authRequired?: boolean;
 }) {
   const [state, setState] = useState<AssistantMemoryState | null>(null);
   const [busy, setBusy] = useState(true),
@@ -48,14 +51,14 @@ export function MemorySettings({
   };
   useEffect(() => {
     alive.current = true;
-    if (account) void load();
+    if (account && !authRequired) void load();
     else setBusy(false);
     return () => {
       alive.current = false;
     };
-  }, [account?.id]);
+  }, [account?.id, authRequired]);
   async function save(change: MemoryChange) {
-    if (!state || locked.current) return false;
+    if (!state || locked.current || authRequired) return false;
     locked.current = true;
     setBusy(true);
     setError("");
@@ -124,6 +127,7 @@ export function MemorySettings({
     : [];
   return (
     <Modal label="Память" close={close}>
+      {authRequired && account && <SmallAuthNotice expired />}
       <div className="memory-screen">
         <div className="memory-account">
           <Brain size={22} />
@@ -140,12 +144,15 @@ export function MemorySettings({
           запомнить.
         </p>
         {!account ? (
-          <p role="status">Войдите в Small, чтобы управлять памятью.</p>
+          <SmallAuthNotice />
         ) : (
           <>
             {busy && !state && <p role="status">Загружаю память…</p>}
             {state && p && (
-              <fieldset disabled={busy} className="memory-fields-reset">
+              <fieldset
+                disabled={busy || authRequired}
+                className="memory-fields-reset"
+              >
                 <section
                   className="memory-section"
                   aria-label="Предпочтения встреч"

@@ -34,10 +34,8 @@
   margin-top: 8px;
 }
 
-.small-account {
-  width: min(520px, calc(100vw - 32px));
-}
 .small-account .modal-description {
+  font-size: var(--font-body);
   margin-bottom: 20px;
   line-height: 1.6;
 }
@@ -1711,4 +1709,226 @@
 .event-file-meta {
   color: var(--muted);
   font-size: var(--font-caption);
+}
+
+/* Small account uses the shared compact desktop typography. */
+.small-account {
+  --auth-success: #21734b;
+  --auth-success-bg: #edf7f1;
+  --auth-warning: #80501a;
+  --auth-warning-bg: #fff6e9;
+  width: min(440px, calc(100vw - 32px));
+  padding: 24px;
+  font-size: var(--font-body);
+}
+.small-account .modal-header h2 {
+  font-size: var(--font-dialog-title);
+}
+.small-account .modal-header {
+  margin-bottom: 16px;
+}
+.small-account .meeting-form {
+  gap: 12px;
+}
+.small-account .meeting-form label,
+.small-account .meeting-form input,
+.small-account button {
+  font-size: var(--font-body);
+}
+.small-account .meeting-form label {
+  gap: 6px;
+}
+.small-account-status {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f4f4f5;
+  color: var(--muted);
+  font-size: var(--font-compact);
+  margin-bottom: 20px;
+}
+.small-account-status svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.small-account-status strong {
+  display: block;
+  margin-bottom: 2px;
+}
+.small-account-status p {
+  margin: 0;
+}
+.small-account-status.verified {
+  color: var(--auth-success);
+  background: var(--auth-success-bg);
+}
+.small-account-status.required,
+.small-account-status.unknown {
+  color: var(--auth-warning);
+  background: var(--auth-warning-bg);
+}
+.small-account-identity {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.small-account-avatar {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #f4f4f5;
+  font-weight: 600;
+}
+.small-account-identity p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: var(--font-compact);
+}
+.small-account-checked {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 16px;
+  margin-bottom: 20px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: var(--font-compact);
+}
+.small-account-checked time {
+  color: var(--ink);
+}
+.small-account-password {
+  position: relative;
+}
+.small-account-password input {
+  width: 100%;
+  padding-right: 42px;
+}
+.small-account-password .icon-button {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.small-account-submit {
+  width: 100%;
+}
+.small-account-security {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+  margin-top: 22px;
+  color: var(--muted);
+  font-size: var(--font-menu);
+  line-height: 1.5;
+}
+.small-account-security svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.small-account-security p {
+  margin: 0;
+}
+.small-account-trigger {
+  position: relative;
+}
+.small-auth-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8b8d93;
+}
+.small-auth-dot.verified {
+  background: #21734b;
+}
+.small-auth-dot.required,
+.small-auth-dot.unknown {
+  background: #a56814;
+}
+.small-account-trigger .small-auth-dot {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  border: 2px solid white;
+  width: 10px;
+  height: 10px;
+}
+.small-auth-notice {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: #fff6e9;
+  color: #80501a;
+  padding: 10px 14px;
+  font-size: var(--font-compact);
+}
+.small-auth-notice > svg {
+  flex-shrink: 0;
+}
+.small-auth-notice > div {
+  flex: 1;
+  min-width: 150px;
+}
+.small-auth-notice p {
+  margin: 2px 0 0;
+}
+.small-auth-notice button {
+  font-size: var(--font-compact);
+}
+.small-account-trigger .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.composer .composer-model-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  max-width: calc(100% - 48px);
+  min-width: 0;
+  height: 28px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--font-menu);
+}
+.composer .composer-model-button > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.composer .composer-model-button > svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.composer .composer-model-button > svg:last-child {
+  width: 12px;
+  height: 12px;
+}
+.composer .composer-model-button:hover:not(:disabled),
+.composer .composer-model-button[aria-expanded="true"] {
+  background: var(--soft);
+  color: var(--ink);
 }

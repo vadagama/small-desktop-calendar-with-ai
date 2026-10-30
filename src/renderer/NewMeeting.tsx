@@ -4,8 +4,9 @@ import { X, Video, Plus, Paperclip } from "lucide-react";
 import { MeetingPeoplePicker } from "./MeetingPeoplePicker";
 import { MeetingSchedule } from "./MeetingSchedule";
 import { useNewMeeting } from "./useNewMeeting";
+import { SmallAuthNotice } from "./SmallAuthNotice";
 export function NewMeeting(props: Parameters<typeof useNewMeeting>[0]) {
-  const { account, close } = props;
+  const { account, close, authRequired } = props;
   const data = useNewMeeting(props);
   const [confirmClose, setConfirmClose] = useState(false);
   function requestClose() {
@@ -62,6 +63,7 @@ export function NewMeeting(props: Parameters<typeof useNewMeeting>[0]) {
             <X size={24} />
           </button>
         </div>
+        {authRequired && <SmallAuthNotice expired />}
         <form
           className="meeting-form"
           onSubmit={(e) => {
@@ -70,7 +72,10 @@ export function NewMeeting(props: Parameters<typeof useNewMeeting>[0]) {
           }}
         >
           <div className="new-meeting-body">
-            <fieldset disabled={busy || locked} className="new-meeting-fields">
+            <fieldset
+              disabled={busy || locked || authRequired}
+              className="new-meeting-fields"
+            >
               <label>
                 Наименование <span className="required-mark">*</span>
                 <input
@@ -197,7 +202,11 @@ export function NewMeeting(props: Parameters<typeof useNewMeeting>[0]) {
               {result?.phase === "succeeded" ? "Готово" : "Отмена"}
             </button>
             {!locked && (
-              <button className="primary" type="submit" disabled={busy}>
+              <button
+                className="primary"
+                type="submit"
+                disabled={busy || authRequired}
+              >
                 Создать
               </button>
             )}
@@ -205,7 +214,7 @@ export function NewMeeting(props: Parameters<typeof useNewMeeting>[0]) {
               <button
                 className="primary"
                 type="button"
-                disabled={busy}
+                disabled={busy || authRequired}
                 onClick={() => void reconcile()}
               >
                 Проверить результат

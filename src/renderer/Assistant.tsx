@@ -6,19 +6,31 @@ import type { AssistantTemplates } from "../shared/agent-settings.js";
 import type { AgentSettingsState } from "../shared/agent-settings.js";
 import { createPortal } from "react-dom";
 import { useChat } from "@ai-sdk/react";
-import { ArrowUp, Settings2, Sparkles, Square, RotateCcw } from "lucide-react";
+import {
+  ArrowUp,
+  ChevronDown,
+  Settings2,
+  Sparkles,
+  Square,
+  RotateCcw,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { DesktopTransport } from "./transport";
 import { MessageList } from "./MessageList";
 import { ModelSettings } from "./ModelSettings";
 import type { ProfileState } from "../shared/profiles.js";
+import { SmallAuthNotice } from "./SmallAuthNotice";
 
 export function DesktopAssistant({
   swap,
   headerTarget,
+  authRequired = false,
+  authExpired = false,
 }: {
   swap: () => void;
   headerTarget: HTMLElement | null;
+  authRequired?: boolean;
+  authExpired?: boolean;
 }) {
   const [promptTemplates, setPromptTemplates] = useState<string[]>([]);
   const [chatId, setChatId] = useState(() => crypto.randomUUID());
@@ -78,6 +90,9 @@ export function DesktopAssistant({
     (profile) => profile.id === profiles.active,
   );
   const local = profiles?.active === "synthetic";
+  const modelLabel = local
+    ? "Синтетическая модель"
+    : (activeProfile?.modelId ?? (profiles ? "Настроить модель" : "Загрузка…"));
   const busy = status === "submitted" || status === "streaming";
   useEffect(() => () => transport.close(), [transport]);
   useEffect(() => {
@@ -126,6 +141,7 @@ export function DesktopAssistant({
             headerTarget,
           )}
         <div className="assistant-scroll" ref={scroll}>
+          {authRequired && <SmallAuthNotice expired={authExpired} />}
           {!messages.length && (
             <div className="assistant-intro">
               <span className="assistant-mark">
@@ -162,7 +178,11 @@ export function DesktopAssistant({
             </div>
           )}
           <MessageList messages={messages} busy={busy} />
-          <p role="status" className="tool-status">
+          <p
+            role="status"
+            aria-label="Состояние ответа ассистента"
+            className="tool-status"
+          >
             {stopped
               ? "Запрос остановлен"
               : status === "submitted"
@@ -209,14 +229,20 @@ export function DesktopAssistant({
               }}
             />
             <div>
-              <span>
-                <Sparkles size={13} />
-                {local
-                  ? "Синтетическая модель"
-                  : activeProfile
-                    ? activeProfile.modelId
-                    : "Загрузка…"}
-              </span>
+              <button
+                className="composer-model-button"
+                type="button"
+                aria-label={`Настроить LLM: ${modelLabel}`}
+                aria-haspopup="dialog"
+                aria-expanded={settings}
+                title="Открыть настройки LLM"
+                disabled={!profiles}
+                onClick={() => setSettings(true)}
+              >
+                <Sparkles size={14} aria-hidden="true" />
+                <span>{modelLabel}</span>
+                <ChevronDown size={12} aria-hidden="true" />
+              </button>
               {busy ? (
                 <button
                   type="button"

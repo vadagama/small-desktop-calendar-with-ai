@@ -22,6 +22,7 @@ export function useNewMeeting({
   expired,
   created,
   close,
+  authRequired = false,
 }: {
   account: { id: string; name: string; participantId?: string };
   initialDate: string;
@@ -30,6 +31,7 @@ export function useNewMeeting({
   close: () => void;
   expired: () => void;
   created: (result: MeetingView) => void;
+  authRequired?: boolean;
 }) {
   const dialog = useRef<HTMLDialogElement>(null),
     active = useRef(true),
@@ -63,6 +65,16 @@ export function useNewMeeting({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [result, setResult] = useState<MeetingView | null>(null);
+  const wasAuthRequired = useRef(authRequired);
+  useEffect(() => {
+    if (wasAuthRequired.current && !authRequired && files.length && !result) {
+      setFiles([]);
+      setError(
+        "Вход восстановлен. Прикрепите файлы заново перед созданием события.",
+      );
+    }
+    wasAuthRequired.current = authRequired;
+  }, [authRequired, files.length, result]);
   const people = useAvailability(
       account.id,
       expired,
@@ -118,6 +130,10 @@ export function useNewMeeting({
     };
   }, [account.id]);
   async function attach() {
+    if (authRequired) {
+      expired();
+      return;
+    }
     if (running.current) return;
     running.current = true;
     setBusy(true);
@@ -135,6 +151,10 @@ export function useNewMeeting({
     }
   }
   async function create() {
+    if (authRequired) {
+      expired();
+      return;
+    }
     let submitted = false;
     if (running.current) return;
     running.current = true;
@@ -219,6 +239,10 @@ export function useNewMeeting({
     }
   }
   async function reconcile() {
+    if (authRequired) {
+      expired();
+      return;
+    }
     if (!result) return;
     setBusy(true);
     setError("");

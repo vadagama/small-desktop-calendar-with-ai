@@ -106,7 +106,9 @@ test("SDK chat streams a tool, handles errors, cancellation and a new turn", asy
     await send("Сложи 100 и 200");
     await page.getByRole("button", { name: "Остановить ответ" }).click();
     await expect(
-      page.getByRole("region", { name: "AI-ассистент" }).getByRole("status"),
+      page
+        .getByRole("region", { name: "AI-ассистент" })
+        .getByRole("status", { name: "Состояние ответа ассистента" }),
     ).toContainText("Запрос остановлен");
     await send("Сложи 7 и 8");
     await expect(page.getByRole("log")).toContainText("Результат: 15");
