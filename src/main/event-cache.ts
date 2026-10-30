@@ -21,7 +21,7 @@ import {
   type TimeWindow,
 } from "../shared/calendar-invalidation.js";
 
-/** Encrypts cache files. Electron's safeStorage in the app, a fake in tests. */
+/** Encrypts cache files. a local authenticated cipher in the app, a fake in tests. */
 export interface CacheCipher {
   isAvailable(): Promise<boolean>;
   encrypt(text: string): Promise<Buffer>;

@@ -1,0 +1,57 @@
+.memory-fields-reset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.memory-collection-editor {
+  display: grid;
+  gap: 12px;
+}
+.memory-collection-editor label,
+.memory-clear label {
+  display: grid;
+  gap: 6px;
+  font-size: var(--font-compact);
+}
+.memory-screen select {
+  max-width: 100%;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--font-body);
+}
+.memory-clear label {
+  margin-bottom: 12px;
+}
+.memory-collection-empty {
+  padding: 12px 0;
+  color: var(--muted);
+  font-size: var(--font-compact);
+}
+.icon-rail > .rail-memory {
+  margin-top: auto;
+}
+.icon-rail:has(.rail-memory) .rail-settings {
+  margin-top: 0;
+}
+.memory-proposal {
+  font-size: var(--font-compact);
+}
+.memory-proposal pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+}
+.memory-proposal dl {
+  margin: 12px 0;
+}
+.memory-proposal dt {
+  color: var(--muted);
+}
+.memory-proposal dd {
+  margin: 0 0 8px;
+}

@@ -63,12 +63,12 @@ export class SmallAuth {
     this.pending = result.catch(() => {});
     return result;
   }
-  private async keychain<T>(action: () => Promise<T>): Promise<T> {
+  private async storedSecret<T>(action: () => Promise<T>): Promise<T> {
     try {
       return await action();
     } catch {
       throw new SmallAuthError(
-        "Не удалось получить доступ к Keychain. Повторите операцию.",
+        "Не удалось получить доступ к локальному хранилищу. Повторите операцию.",
       );
     }
   }
@@ -76,9 +76,9 @@ export class SmallAuth {
     this.token = null;
     this.restored = true;
     // Invalidate persistence first, including when Chromium cleanup fails.
-    // A tombstone also works if Keychain has no entry yet.
+    // A tombstone also works if the local store has no entry yet.
     try {
-      await this.keychain(() => this.secrets.set(account, ""));
+      await this.storedSecret(() => this.secrets.set(account, ""));
       try {
         await this.secrets.remove(account);
       } catch {
@@ -111,7 +111,7 @@ export class SmallAuth {
       throw new SmallAuthError("Small вернул неизвестный формат сессии.");
     // Only session cookies are persisted; passwords and access tokens are not.
     const snapshot = await this.transport.snapshot();
-    await this.keychain(() => this.secrets.set(account, snapshot));
+    await this.storedSecret(() => this.secrets.set(account, snapshot));
     this.token = parsed.data.data.access_token;
   }
   private async authorized(path: string, body?: unknown): Promise<Response> {
@@ -164,7 +164,7 @@ export class SmallAuth {
   }
   private async current(): Promise<SmallAuthState> {
     if (!this.restored) {
-      const saved = await this.keychain(() => this.secrets.get(account));
+      const saved = await this.storedSecret(() => this.secrets.get(account));
       if (!saved) {
         this.restored = true;
         return signedOut;
@@ -323,8 +323,8 @@ export class SmallAuth {
     });
   }
   /**
-   * Series writes (T13). One attempt, never replayed. The trusted transport does not allow
-   * these routes until the series contract is verified, so today they fail before sending.
+   * Series writes. One attempt, never replayed. Materialization and single cancellation
+   * are used by the deletion flow; new rename/move scopes retain their contract gate.
    */
   private seriesWrite(
     accountId: string,
@@ -454,7 +454,9 @@ export class SmallAuth {
       try {
         // Restore cookies solely to revoke the server session, even before read().
         if (!this.restored) {
-          const saved = await this.keychain(() => this.secrets.get(account));
+          const saved = await this.storedSecret(() =>
+            this.secrets.get(account),
+          );
           if (saved) await this.transport.restore(saved);
         }
         const response = await this.request("/gate/auth/logout");

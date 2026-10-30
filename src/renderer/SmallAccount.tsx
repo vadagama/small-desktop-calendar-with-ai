@@ -102,8 +102,8 @@ export function SmallAccount({
             </button>
           </div>
           <p className="modal-description">
-            Учётная запись Team Small. Сессия сохраняется в Keychain этого Mac.
-            После входа доступны ваши календари.
+            Учётная запись Team Small. Сессия сохраняется в зашифрованном
+            хранилище этого Mac. После входа доступны ваши календари.
           </p>
           {busy && (
             <p className="form-note" role="status">

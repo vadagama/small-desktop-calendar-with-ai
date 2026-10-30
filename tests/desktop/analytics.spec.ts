@@ -4,8 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:http";
 import { once } from "node:events";
-import { createHash } from "node:crypto";
-import { AsyncEntry } from "@napi-rs/keyring";
 import { mockSmall } from "./fixtures/small-api.js";
 import { calendarToday } from "../../src/shared/calendar-time.js";
 
@@ -124,37 +122,20 @@ test("analytics report is calculated by main and rendered as a verifiable card",
       ).toBeVisible();
     };
 
-    const open = () =>
-      page.getByRole("button", { name: "Правила тем аналитики", exact: true });
-    const rules = page.getByRole("dialog", { name: "Правила тем аналитики" });
-    await open().click();
-    await expect(rules).toContainText(
-      "Правил нет: все встречи «Без категории».",
-    );
-    await rules.getByRole("button", { name: "Добавить тему" }).click();
-    await rules.getByRole("button", { name: "Добавить тему" }).click();
-    await rules.getByLabel("Тема 1", { exact: true }).fill("Встречи");
-    await rules.getByLabel("Ключевые слова 1 (через запятую)").fill("встреча");
-    await rules.getByLabel("Тема 2", { exact: true }).fill("встречи");
-    await rules
-      .getByLabel("Ключевые слова 2 (через запятую)")
-      .fill("серия, регулярная");
-    await rules.getByRole("button", { name: "Сохранить правила тем" }).click();
-    await expect(rules.getByRole("alert")).toContainText(
-      "названия не повторяются",
-    );
-    await rules.getByLabel("Тема 2", { exact: true }).fill("Серии");
-    await rules.getByRole("button", { name: "Сохранить правила тем" }).click();
-    await expect(rules.getByRole("status")).toContainText("Правила сохранены.");
-    await rules.getByRole("button", { name: "Закрыть правила тем" }).click();
-    await open().click();
-    await expect(rules.getByLabel("Тема 2", { exact: true })).toHaveValue(
-      "Серии",
-    );
     await expect(
-      rules.getByLabel("Ключевые слова 2 (через запятую)"),
-    ).toHaveValue("серия, регулярная");
-    await rules.getByRole("button", { name: "Закрыть правила тем" }).click();
+      page.getByRole("button", { name: "Правила тем аналитики", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("dialog", { name: "Правила тем аналитики" }),
+    ).toHaveCount(0);
+    // Seed saved rules through the bridge while their editor is hidden.
+    const savedRules = await page.evaluate(() =>
+      window.smallDesktop.topicRules.save([
+        { topic: "Встречи", keywords: ["встреча"] },
+        { topic: "Серии", keywords: ["серия", "регулярная"] },
+      ]),
+    );
+    expect(savedRules.ok).toBe(true);
 
     plan = [
       { name: "loadSkill", input: { name: "analytics" } },
@@ -298,12 +279,6 @@ test("analytics report is calculated by main and rendered as a verifiable card",
     );
     expect(removed.ok).toBe(true);
     await app.close();
-    const service = `kz.small.desktop-calendar.llm.${createHash("sha256").update(userData).digest("hex").slice(0, 24)}`;
-    try {
-      await new AsyncEntry(service, "small-auth-session-v1").deleteCredential();
-    } catch {
-      /* May already be removed. */
-    }
     api.closeAllConnections();
     await new Promise<void>((resolve) => api.close(() => resolve()));
     await rm(userData, { recursive: true, force: true });

@@ -50,12 +50,27 @@ test("reminders settings, native failure, background delivery and account isolat
     await page.getByRole("button", { name: "Сохранить напоминания" }).click();
     await expect(page.getByText("Настройки сохранены.")).toBeVisible();
     await page.getByRole("button", { name: "Закрыть напоминания" }).click();
+    const listRequests = await app.evaluate(
+      () => (globalThis as any).syntheticListRequests ?? 0,
+    );
     await page
       .getByRole("button", { name: "Напоминания", exact: true })
       .click();
     await expect(page.getByLabel("За сколько минут до начала")).toHaveValue(
       "0",
     );
+    expect(
+      await app.evaluate(() => (globalThis as any).syntheticListRequests ?? 0),
+    ).toBe(listRequests);
+    await expect(page.locator("#reminders-title")).toHaveCSS(
+      "font-size",
+      "18px",
+    );
+    await expect(page.getByLabel("За сколько минут до начала")).toHaveCSS(
+      "font-size",
+      "14px",
+    );
+    await expect(page.locator(".reminder-help")).toHaveCSS("font-size", "13px");
     expect(await app.evaluate(() => (globalThis as any).reminderCount)).toBe(0);
     await app.evaluate(({ BrowserWindow }) => {
       for (const window of BrowserWindow.getAllWindows()) window.close();
@@ -81,20 +96,18 @@ test("reminders settings, native failure, background delivery and account isolat
     await page
       .getByRole("button", { name: "Напоминания", exact: true })
       .click();
-    await expect(page.locator(".reminder-item")).toContainText(
-      "Синтетическая встреча A",
+    await expect(page.getByLabel("За сколько минут до начала")).toHaveValue(
+      "0",
     );
-    await expect(page.locator(".reminder-item")).toContainText(
-      "Ссылка на встречу отсутствует",
-    );
+    await expect(page.locator(".reminder-item")).toHaveCount(0);
+    await expect(page.getByText("Текущие напоминания")).toHaveCount(0);
     await expect(
       page.getByText(/Системное уведомление не показано/),
-    ).toBeVisible();
-    await page.getByRole("button", { name: "Обновить напоминания" }).click();
-    expect(await app.evaluate(() => (globalThis as any).reminderCount)).toBe(1);
+    ).toHaveCount(0);
     await expect(
       page.getByRole("button", { name: "Обновить напоминания" }),
-    ).toBeEnabled();
+    ).toHaveCount(0);
+    expect(await app.evaluate(() => (globalThis as any).reminderCount)).toBe(1);
     await page.screenshot({ path: "test-results/desktop/reminders.png" });
     await page.getByRole("button", { name: "Закрыть напоминания" }).click();
     await page
@@ -108,7 +121,10 @@ test("reminders settings, native failure, background delivery and account isolat
     await page
       .getByRole("button", { name: "Напоминания", exact: true })
       .click();
-    await expect(page.getByText("Сейчас напоминаний нет.")).toBeVisible();
+    await expect(page.getByLabel("За сколько минут до начала")).toHaveValue(
+      "0",
+    );
+    await expect(page.locator(".reminder-item")).toHaveCount(0);
   } finally {
     await app.close();
     await rm(userData, { recursive: true, force: true });

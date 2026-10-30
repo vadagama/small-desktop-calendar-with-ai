@@ -16,7 +16,11 @@ export interface SecretStore {
   set(account: string, value: string): Promise<void>;
   remove(account: string): Promise<void>;
 }
-const storedProfile = profileSchema.extend({ credentialId: z.uuid() });
+const storedProfile = profileSchema.extend({
+  credentialId: z.uuid(),
+  keySuffix: z.string().length(4).optional(),
+  storage: z.literal("local-v1").optional(),
+});
 const configSchema = z
   .strictObject({
     version: z.literal(1),
@@ -83,32 +87,26 @@ export class ProfileStore {
   private async view(config: Config): Promise<ProfileState> {
     return {
       active: config.active,
-      profiles: await Promise.all(
-        config.profiles.map(async (profile) => {
-          const { id, baseURL, modelId } = profile;
-          let keySuffix: string | undefined;
-          let hasKey = false;
-          try {
-            const key = await this.secrets.get(accountFor(profile));
-            hasKey = Boolean(key);
-            // Never reveal an entire short credential or return the full key.
-            if (key && key.length > 4) keySuffix = key.slice(-4);
-          } catch {
-            // Settings must remain accessible when Keychain is locked.
-          }
-          return {
-            id,
-            baseURL,
-            modelId,
-            hasKey,
-            ...(keySuffix ? { keySuffix } : {}),
-          };
+      // Metadata is sufficient for settings. Reading secrets here used to prompt at startup.
+      profiles: config.profiles.map(
+        ({ id, baseURL, modelId, keySuffix, storage }) => ({
+          id,
+          baseURL,
+          modelId,
+          hasKey: storage === "local-v1",
+          ...(storage === "local-v1" && keySuffix ? { keySuffix } : {}),
         }),
       ),
+      ...(config.profiles.some((profile) => profile.storage !== "local-v1")
+        ? {
+            warning:
+              "Введите API-ключ заново: приложение перешло на локальное шифрование без Keychain.",
+          }
+        : {}),
       ...(config.retired.length
         ? {
             warning:
-              "Предыдущий ключ пока не удалён из Keychain. Повторите сохранение или удаление профиля.",
+              "Предыдущий ключ пока не удалён из локального хранилища. Повторите сохранение или удаление профиля.",
           }
         : {}),
     };
@@ -160,15 +158,21 @@ export class ProfileStore {
       (profile) => profile.id === config.active,
     );
     if (!profile) throw new ProfileError("Выбранный профиль не настроен");
+    if (profile.storage !== "local-v1")
+      throw new ProfileError(
+        "Введите API-ключ заново в настройках модели: приложение использует локальное шифрование без Keychain.",
+      );
     let apiKey: string | null;
     try {
       apiKey = await this.secrets.get(accountFor(profile), signal);
     } catch {
-      throw new ProfileError("Не удалось прочитать ключ из Keychain");
+      throw new ProfileError(
+        "Не удалось прочитать ключ из локального хранилища",
+      );
     }
     if (!apiKey)
       throw new ProfileError(
-        "Ключ профиля отсутствует в Keychain. Откройте настройки модели.",
+        "Ключ профиля отсутствует в локальном хранилище. Откройте настройки модели.",
       );
     return {
       id: profile.id,
@@ -188,6 +192,7 @@ export class ProfileStore {
       if (
         !apiKey &&
         (!previous ||
+          previous.storage !== "local-v1" ||
           new URL(previous.baseURL).origin !== new URL(baseURL).origin)
       )
         throw new ProfileError("Для нового адреса сервиса нужен новый ключ");
@@ -196,21 +201,25 @@ export class ProfileStore {
         baseURL,
         modelId,
         credentialId: apiKey ? crypto.randomUUID() : previous!.credentialId,
+        storage: "local-v1" as const,
+        ...(apiKey && apiKey.length > 4
+          ? { keySuffix: apiKey.slice(-4) }
+          : !apiKey && previous?.keySuffix
+            ? { keySuffix: previous.keySuffix }
+            : {}),
       };
       if (apiKey) {
         try {
           await this.secrets.set(accountFor(next), apiKey);
         } catch {
-          throw new ProfileError("Не удалось сохранить ключ в Keychain");
+          throw new ProfileError(
+            "Не удалось сохранить ключ в локальном хранилище",
+          );
         }
       } else {
         const existingKey = await this.secrets.get(accountFor(next));
-        if (!existingKey) throw new ProfileError("Ключ отсутствует в Keychain");
-        try {
-          await this.secrets.set(accountFor(next), existingKey);
-        } catch {
-          throw new ProfileError("Не удалось обновить ключ в Keychain");
-        }
+        if (!existingKey)
+          throw new ProfileError("Ключ отсутствует в локальном хранилище");
       }
       config.profiles = [
         ...config.profiles.filter((profile) => profile.id !== id),
@@ -235,7 +244,11 @@ export class ProfileStore {
       const config = await this.read();
       if (id !== "synthetic") {
         const profile = config.profiles.find((profile) => profile.id === id);
-        if (!profile || !(await this.secrets.get(accountFor(profile))))
+        if (
+          !profile ||
+          profile.storage !== "local-v1" ||
+          !(await this.secrets.get(accountFor(profile)))
+        )
           throw new ProfileError("Сначала сохраните профиль и ключ");
       }
       config.active = id;

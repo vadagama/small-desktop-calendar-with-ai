@@ -47,6 +47,7 @@ export class SmallMeetingWriter implements MeetingWriter {
     private auth: Pick<SmallAuth, "createCalendarEvent" | "readCalendar">,
     private calendar: Pick<CalendarService, "events">,
     private availability: Pick<AvailabilityService, "find">,
+    private memory?: { read(account: string): Promise<{ revision: number }> },
   ) {}
   private events(d: MeetingDraft) {
     return this.calendar.events({
@@ -57,7 +58,20 @@ export class SmallMeetingWriter implements MeetingWriter {
       calendarIds: [],
     });
   }
+  private async checkMemory(d: MeetingDraft) {
+    if (
+      d.memoryPolicy &&
+      this.memory &&
+      (await this.memory.read(d.organizer.id)).revision !==
+        d.memoryPolicy.revision
+    )
+      throw new CalendarError(
+        "invalid",
+        "Память изменилась. Подготовьте и подтвердите новый черновик.",
+      );
+  }
   async preflight(d: MeetingDraft) {
+    await this.checkMemory(d);
     for (const occurrence of meetingOccurrences(d))
       await this.checkOccurrence(occurrence);
   }
@@ -69,6 +83,14 @@ export class SmallMeetingWriter implements MeetingWriter {
       durationMinutes: d.durationMinutes,
       includeWeekends: true,
       exactInterval: { start: d.startsAt, end: d.endsAt },
+      ...(d.memoryPolicy
+        ? {
+            bufferMinutes: d.memoryPolicy.bufferMinutes,
+            organizerParticipantId: d.memoryPolicy.organizerParticipantId,
+            timeFrom: d.memoryPolicy.timeFrom,
+            timeTo: d.memoryPolicy.timeTo,
+          }
+        : {}),
     });
     if (
       !available.slots.some(
@@ -122,6 +144,7 @@ export class SmallMeetingWriter implements MeetingWriter {
       );
   }
   async create(d: MeetingDraft) {
+    await this.checkMemory(d);
     const response = await this.auth.createCalendarEvent(
       d.organizer.id,
       meetingPayload(d),
@@ -130,6 +153,21 @@ export class SmallMeetingWriter implements MeetingWriter {
       throw new MeetingCreateRejected(response.status);
     const body = await calendarJson(response);
     return z.object({ data: z.object({ id }) }).parse(body).data.id;
+  }
+  async wasDeleted(d: MeetingDraft, eventId: string): Promise<boolean> {
+    return this.auth.readCalendar(d.organizer.id, async (get) => {
+      const response = await get(
+        `/gate/team/api/calendar/events/${id.parse(eventId)}`,
+      );
+      // A bare 404 may be a stale replica or lost access; require Small's explicit cancellation.
+      if (response.status === 404) return false;
+      const parsed = z
+        .object({
+          data: z.object({ id, status: z.literal("cancelled") }),
+        })
+        .safeParse(await calendarJson(response));
+      return parsed.success && parsed.data.data.id === eventId;
+    });
   }
   async verify(d: MeetingDraft, eventId?: string) {
     if (!eventId) {

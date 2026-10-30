@@ -240,3 +240,77 @@ test("HTTP refusals are distinguished from ambiguous server failures", async () 
     });
   }
 });
+
+test("slot reuse requires explicit cancellation for the exact event and current account", async () => {
+  const d = draft();
+  let response = () =>
+    Response.json({ data: { id: "42", status: "cancelled" } });
+  const service = new SmallMeetingWriter(
+    {
+      createCalendarEvent: async () => {
+        throw new Error("no writes");
+      },
+      readCalendar: async (account, run) => {
+        assert.equal(account, d.organizer.id);
+        return run(async (path) => {
+          assert.equal(path, "/gate/team/api/calendar/events/42");
+          return response();
+        });
+      },
+    },
+    { events: async () => ({ events: [], issues: [] }) },
+    {
+      find: async () => {
+        throw new Error("unused");
+      },
+    },
+  );
+  assert.equal(await service.wasDeleted(d, "42"), true);
+  for (const data of [
+    { id: "43", status: "cancelled" },
+    { id: "42", status: "active" },
+    { id: "42" },
+  ]) {
+    response = () => Response.json({ data });
+    assert.equal(await service.wasDeleted(d, "42"), false);
+  }
+  response = () => new Response(null, { status: 404 });
+  assert.equal(await service.wasDeleted(d, "42"), false);
+  for (const status of [401, 403, 503]) {
+    response = () => new Response(null, { status });
+    await assert.rejects(service.wasDeleted(d, "42"));
+  }
+});
+
+test("memory change invalidates a draft both before preflight and immediately before write", async () => {
+  const d = draft();
+  d.memoryPolicy = {
+    revision: 1,
+    bufferMinutes: 15,
+    organizerParticipantId: "p",
+    timeFrom: "10:00",
+    summary: "30 мин · перерыв 15 мин",
+  };
+  let writes = 0;
+  const writer = new SmallMeetingWriter(
+    {
+      createCalendarEvent: async () => {
+        writes++;
+        throw Error("must not write");
+      },
+      readCalendar: async () => {
+        throw Error("unused");
+      },
+    },
+    { events: async () => ({ events: [], issues: [] }) },
+    {
+      find: async () => {
+        throw Error("must not check stale draft");
+      },
+    },
+    { read: async () => ({ revision: 2 }) },
+  );
+  await assert.rejects(writer.preflight(d), /Память изменилась/);
+  await assert.rejects(writer.create(d), /Память изменилась/);
+  assert.equal(writes, 0);
+});

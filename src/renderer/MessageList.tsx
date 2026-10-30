@@ -5,6 +5,9 @@ import {
 } from "./AssistantPresentation";
 import { CalendarToolResult } from "./CalendarToolResult";
 import { AnalyticsCard } from "./AnalyticsCard";
+import { ToolContext, SearchActivity } from "./ToolContext";
+import { groupSearchActivity } from "./search-activity";
+import { MemoryToolResult } from "./MemoryChangeCard";
 import { isToolUIPart, type UIMessage } from "ai";
 import { Sparkles } from "lucide-react";
 
@@ -36,7 +39,19 @@ export function MessageList({
             </span>
           )}
           <div>
-            {message.parts.map((part, index) => {
+            {groupSearchActivity(message.parts).map((part, index, parts) => {
+              if (Array.isArray(part))
+                return (
+                  <SearchActivity
+                    key={part[0]!.toolCallId}
+                    parts={part}
+                    active={
+                      busy &&
+                      message.id === messages.at(-1)?.id &&
+                      index === parts.length - 1
+                    }
+                  />
+                );
               if (
                 part.type === "text" &&
                 message.parts.some(
@@ -60,64 +75,48 @@ export function MessageList({
                 );
               if (isToolUIPart(part)) {
                 if (
-                  part.type === "tool-searchPeople" ||
-                  part.type === "tool-listMeetings"
-                )
-                  return null;
+                  part.type === "tool-assistantMemory" ||
+                  part.type === "tool-participantMemory"
+                ) {
+                  return (
+                    <div key={part.toolCallId}>
+                      <ToolContext part={part} />
+                      {part.state === "output-available" && (
+                        <MemoryToolResult
+                          output={part.output}
+                          disabled={busy}
+                        />
+                      )}
+                    </div>
+                  );
+                }
                 if (
                   [
+                    "tool-searchPeople",
+                    "tool-listMeetings",
                     "tool-loadSkill",
                     "tool-loadReference",
                     "tool-selectParticipants",
-                    "tool-participantMemory",
                   ].includes(part.type)
-                ) {
-                  return (
-                    <details
-                      className="assistant-tool-detail"
-                      key={part.toolCallId}
-                    >
-                      <summary>
-                        {part.type === "tool-loadSkill"
-                          ? "Навык"
-                          : part.type === "tool-loadReference"
-                            ? "Справочник"
-                            : part.type === "tool-selectParticipants"
-                              ? "Участники"
-                              : "Память участников"}{" "}
-                        ·{" "}
-                        {part.state === "output-available"
-                          ? "Обработано"
-                          : part.state === "output-error"
-                            ? "Ошибка"
-                            : "Выполняется"}
-                      </summary>
-                      {part.state === "output-available" && (
-                        <p>
-                          {typeof part.output === "object" &&
-                          part.output &&
-                          "error" in part.output
-                            ? String(part.output.error)
-                            : "Результат передан ассистенту."}
-                        </p>
-                      )}
-                    </details>
-                  );
-                }
+                )
+                  return <ToolContext key={part.toolCallId} part={part} />;
                 if (part.type === "tool-meetingAnalytics") {
                   if (part.state === "output-available")
                     return (
-                      <AnalyticsCard
-                        key={part.toolCallId}
-                        output={part.output}
-                      />
+                      <div key={part.toolCallId}>
+                        <ToolContext part={part} />
+                        <AnalyticsCard output={part.output} />
+                      </div>
                     );
                   return (
-                    <p key={part.toolCallId} className="analytics-pending">
-                      {part.state === "output-error"
-                        ? "Не удалось построить отчёт. Уточните период и повторите."
-                        : "Считаю аналитику…"}
-                    </p>
+                    <div key={part.toolCallId}>
+                      <ToolContext part={part} />
+                      <p className="analytics-pending">
+                        {part.state === "output-error"
+                          ? "Не удалось построить отчёт. Уточните период и повторите."
+                          : "Считаю аналитику…"}
+                      </p>
+                    </div>
                   );
                 }
                 const calendar =
@@ -129,7 +128,7 @@ export function MessageList({
                   (part.state === "input-streaming" ||
                     part.state === "input-available")
                 )
-                  return null;
+                  return <ToolContext key={part.toolCallId} part={part} />;
                 return (
                   <div
                     className={
@@ -143,6 +142,7 @@ export function MessageList({
                     key={part.toolCallId}
                     data-tool-state={part.state}
                   >
+                    <ToolContext part={part} />
                     {![
                       "tool-prepareMeetingDraft",
                       "tool-prepareMeetingDeletion",

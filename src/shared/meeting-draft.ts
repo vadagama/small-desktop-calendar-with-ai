@@ -50,6 +50,16 @@ export const meetingDraftSchema = z.strictObject({
   options: meetingOptions.optional(),
   visibility: z.literal("private"),
   availabilityCheckedAt: z.iso.datetime(),
+  memoryPolicy: z
+    .strictObject({
+      revision: z.number().int().nonnegative(),
+      bufferMinutes: z.number().int().min(0).max(120),
+      organizerParticipantId: z.string().min(1),
+      timeFrom: z.string().optional(),
+      timeTo: z.string().optional(),
+      summary: z.string(),
+    })
+    .optional(),
 });
 export type MeetingDraft = z.infer<typeof meetingDraftSchema>;
 

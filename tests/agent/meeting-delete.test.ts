@@ -101,3 +101,49 @@ test("deletion propagates organizer permission refusal", async () => {
     error: "Только организатор",
   });
 });
+
+test("assistant prepares a recurring deletion with explicit scope and fresh organizer check, never a write", async () => {
+  const execute = createCalendarToolExecutor(
+    "account-a",
+    "Удали серию",
+    new AbortController().signal,
+    {
+      searchPeople: async () => ({ people: [], page: 1, nextPage: null }),
+      events: async () => ({
+        events: [{ ...event, recurring: true, originalEventId: "s" }],
+        issues: [],
+      }),
+      detail: async () => ({
+        ...event,
+        recurring: true,
+        originalEventId: "s",
+        participation: "organizer",
+      }),
+    },
+    {
+      find: async () => {
+        throw new Error("Unused");
+      },
+    },
+  );
+  const result = await execute("prepareMeetingDeletion", {
+    ...input,
+    scope: "following",
+  });
+  assert.equal(result.ok, true);
+  if (result.ok)
+    assert.deepEqual(result.data, {
+      kind: "meeting-delete",
+      accountId: "account-a",
+      eventId: "a",
+      title: event.title,
+      startsAt: event.startsAt,
+      endsAt: event.endsAt,
+      series: {
+        seriesId: "s",
+        originalDate: input.date,
+        eventId: "a",
+        scope: "following",
+      },
+    });
+});

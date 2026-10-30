@@ -155,7 +155,7 @@ test("series changes ask for an explicit scope and stay closed until the contrac
     await move.getByRole("button", { name: "Отмена" }).click();
     await expect(move).toHaveCount(0);
 
-    // Delete: only one occurrence can be offered in the first version.
+    // Deletion supports an explicit choice; cancel keeps the calendar unchanged.
     await card.getByLabel("Действия со встречей").click();
     await card.getByRole("button", { name: "Удалить", exact: true }).click();
     const remove = scopeDialog("Удалить повторяющуюся встречу");
@@ -164,16 +164,14 @@ test("series changes ask for an explicit scope and stay closed until the contrac
     ).toBeChecked();
     await expect(
       remove.getByRole("radio", { name: /Это и последующие/ }),
-    ).toBeDisabled();
-    await expect(remove).toContainText(
-      "для удаления доступно только одно вхождение",
-    );
-    await expect(remove.getByRole("status")).toContainText(
-      "Удаление (только это вхождение)",
+    ).toBeEnabled();
+    await remove.getByRole("radio", { name: /Это и последующие/ }).check();
+    await expect(remove.getByTestId("series-summary")).toContainText(
+      "Прошедшие встречи не изменятся",
     );
     await expect(
       remove.getByRole("button", { name: "Удалить", exact: true }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     await page.keyboard.press("Escape");
 
     // Nothing was written and no series journal exists.

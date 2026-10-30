@@ -1,4 +1,5 @@
 import { topicRuleChannels } from "../shared/topic-rule-channels.js";
+import { memoryChannels } from "../shared/assistant-memory-channels.js";
 import { seriesChannels } from "../shared/series-channels.js";
 import { agentSettingsChannels } from "../shared/agent-settings.js";
 import {
@@ -17,6 +18,12 @@ import { smallAuthChannels } from "../shared/small-auth.js";
 import { profileChannels } from "../shared/profiles.js";
 
 const bridge: DesktopBridge = {
+  memory: {
+    read: () => ipcRenderer.invoke(memoryChannels.read),
+    write: (input) => ipcRenderer.invoke(memoryChannels.write, input),
+    confirm: (input) => ipcRenderer.invoke(memoryChannels.confirm, input),
+    reset: () => ipcRenderer.invoke(memoryChannels.reset),
+  },
   notifications: {
     read: () => ipcRenderer.invoke(nativeNotificationChannels.read),
     test: () => ipcRenderer.invoke(nativeNotificationChannels.test),

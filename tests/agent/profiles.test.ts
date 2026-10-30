@@ -84,7 +84,7 @@ test("changing only model ID preserves the key for the same origin", async () =>
   }
 });
 
-test("Keychain refusal never activates a new profile or falls back from a configured profile", async () => {
+test("local storage refusal never activates a new profile or falls back from a configured profile", async () => {
   const f = await fixture();
   try {
     const denied = new ProfileStore(f.directory, {
@@ -104,7 +104,7 @@ test("Keychain refusal never activates a new profile or falls back from a config
   }
 });
 
-test("explicit removal clears the profile and its Keychain entry", async () => {
+test("explicit removal clears the profile and its local storage entry", async () => {
   const f = await fixture();
   try {
     await f.store.save({ ...profile, apiKey: "synthetic-key" });
@@ -169,7 +169,7 @@ test("failed key deletion remains visible and is retried without losing the acti
         throw new Error("synthetic locked store");
       },
     });
-    await assert.rejects(unavailable.resolveActive(), /Keychain/);
+    await assert.rejects(unavailable.resolveActive(), /локальн/);
     assert.equal((await unavailable.state()).active, "small");
   } finally {
     await f.clean();
@@ -188,6 +188,89 @@ test("an inactive saved profile requests activation rather than a new key", asyn
     await f.store.save(profile);
     assert.equal((await f.store.resolveActive())?.id, "small");
     assert.equal(f.values.size, 1);
+  } finally {
+    await f.clean();
+  }
+});
+
+test("reading settings does not unlock any local storage entries, including legacy profiles", async () => {
+  const f = await fixture();
+  try {
+    await f.store.save({ ...profile, apiKey: "synthetic-key" });
+    let reads = 0;
+    const locked = new ProfileStore(f.directory, {
+      ...f.secrets,
+      get: async () => {
+        reads++;
+        throw Error("locked");
+      },
+    });
+    const state = await locked.state();
+    assert.equal(reads, 0);
+    assert.equal(state.profiles[0]?.hasKey, true);
+    assert.equal(state.profiles[0]?.keySuffix, "-key");
+    const path = join(f.directory, "llm-profiles.json");
+    const legacy = JSON.parse(await readFile(path, "utf8"));
+    delete legacy.profiles[0].keySuffix;
+    await writeFile(path, JSON.stringify(legacy));
+    assert.equal((await locked.state()).profiles[0]?.hasKey, true);
+    assert.equal(reads, 0);
+  } finally {
+    await f.clean();
+  }
+});
+
+test("saving model metadata without a new API key does not rewrite a credential", async () => {
+  const f = await fixture();
+  try {
+    await f.store.save({ ...profile, apiKey: "synthetic-key" });
+    let writes = 0;
+    const store = new ProfileStore(f.directory, {
+      ...f.secrets,
+      set: async () => {
+        writes++;
+        throw Error("unexpected write");
+      },
+    });
+    await store.save({ ...profile, modelId: "updated-model" });
+    assert.equal(writes, 0);
+    assert.equal((await store.resolveActive())?.apiKey, "synthetic-key");
+  } finally {
+    await f.clean();
+  }
+});
+
+test("legacy profile metadata never reads native credentials and requires a new local key", async () => {
+  const f = await fixture();
+  try {
+    await f.store.save({ ...profile, apiKey: "synthetic-key" });
+    const path = join(f.directory, "llm-profiles.json");
+    const legacy = JSON.parse(await readFile(path, "utf8"));
+    delete legacy.profiles[0].storage;
+    await writeFile(path, JSON.stringify(legacy));
+    let reads = 0;
+    const store = new ProfileStore(f.directory, {
+      ...f.secrets,
+      get: async () => {
+        reads++;
+        throw Error("native access forbidden");
+      },
+    });
+    const state = await store.state();
+    assert.equal(state.profiles[0]?.hasKey, false);
+    assert.match(state.warning!, /локальное шифрование/);
+    await assert.rejects(store.resolveActive(), /Введите API-ключ заново/);
+    await assert.rejects(store.save(profile));
+    assert.equal(reads, 0);
+    const replacement = await f.store.save({
+      ...profile,
+      apiKey: "synthetic-local-key",
+    });
+    assert.equal(replacement.profiles[0]?.hasKey, true);
+    assert.equal(
+      (await f.store.resolveActive())?.apiKey,
+      "synthetic-local-key",
+    );
   } finally {
     await f.clean();
   }

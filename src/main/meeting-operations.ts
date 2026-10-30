@@ -15,6 +15,8 @@ export interface MeetingWriter {
   preflight(draft: MeetingDraft): Promise<void>;
   create(draft: MeetingDraft): Promise<string>;
   verify(draft: MeetingDraft, eventId?: string): Promise<boolean>;
+  /** Read-only proof that a previously verified event has been deleted. */
+  wasDeleted?(draft: MeetingDraft, eventId: string): Promise<boolean>;
 }
 const hash = (value: unknown) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -31,6 +33,7 @@ const uncertain =
 
 export class MeetingOperations {
   private entries = new Map<string, MeetingView>();
+  private operationKeys = new Map<string, string>();
   constructor(
     private journal: MeetingJournal,
     private writer: MeetingWriter,
@@ -60,8 +63,37 @@ export class MeetingOperations {
       );
     return entry;
   }
+  private operationKey(entry: MeetingView) {
+    const key = this.operationKeys.get(entry.draft.id);
+    if (!key)
+      throw new MeetingOperationError("Журнал черновика ещё не проверен.");
+    return key;
+  }
+  private async receipt(entry: MeetingView) {
+    const pinned = this.operationKeys.get(entry.draft.id);
+    if (pinned) return this.journal.read(pinned);
+    let key = keyFor(entry.draft);
+    for (let generation = 0; generation < 100; generation++) {
+      const stored = await this.journal.read(key);
+      if (
+        stored?.phase === "succeeded" &&
+        stored.eventId &&
+        (await this.writer.wasDeleted?.(entry.draft, stored.eventId))
+      ) {
+        // Preserve old receipts and give fresh drafts a shared successor claim.
+        // Old cards stay pinned to their original operation and cannot replay it.
+        key = hash([key, stored.eventId]);
+        continue;
+      }
+      this.operationKeys.set(entry.draft.id, key);
+      return stored;
+    }
+    throw new MeetingOperationError(
+      "Слишком много прежних операций на это время.",
+    );
+  }
   private async restore(entry: MeetingView) {
-    const stored = await this.journal.read(keyFor(entry.draft));
+    const stored = await this.receipt(entry);
     if (stored) {
       entry.phase =
         stored.payloadHash === digestFor(entry.draft)
@@ -125,20 +157,20 @@ export class MeetingOperations {
       assertCurrent();
       journalAccess = true;
       claimed = await this.journal.claim(
-        keyFor(entry.draft),
+        this.operationKey(entry),
         digestFor(entry.draft),
       );
       if (!claimed) return await this.restore(entry);
       assertCurrent();
       const eventId = await this.writer.create(entry.draft);
       entry.eventId = eventId;
-      await this.journal.finish(keyFor(entry.draft), {
+      await this.journal.finish(this.operationKey(entry), {
         phase: "unknown",
         eventId,
       });
       if (!(await this.writer.verify(entry.draft, eventId)))
         throw new Error("Не удалось сверить созданное событие.");
-      await this.journal.finish(keyFor(entry.draft), {
+      await this.journal.finish(this.operationKey(entry), {
         phase: "succeeded",
         eventId,
       });
@@ -147,7 +179,7 @@ export class MeetingOperations {
     } catch (error) {
       if (claimed && !entry.eventId && error instanceof MeetingCreateRejected) {
         try {
-          await this.journal.releaseRejected(keyFor(entry.draft));
+          await this.journal.releaseRejected(this.operationKey(entry));
           entry.phase = "preview";
           entry.message = error.message;
           return structuredClone(entry);
@@ -164,7 +196,7 @@ export class MeetingOperations {
             (await this.writer.verify(entry.draft, entry.eventId)) &&
             entry.eventId
           ) {
-            await this.journal.finish(keyFor(entry.draft), {
+            await this.journal.finish(this.operationKey(entry), {
               phase: "succeeded",
               eventId: entry.eventId,
             });
@@ -194,7 +226,7 @@ export class MeetingOperations {
         (await this.writer.verify(entry.draft, entry.eventId)) &&
         entry.eventId
       ) {
-        await this.journal.finish(keyFor(entry.draft), {
+        await this.journal.finish(this.operationKey(entry), {
           phase: "succeeded",
           eventId: entry.eventId,
         });

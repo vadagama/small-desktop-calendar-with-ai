@@ -16,6 +16,100 @@ const coverage = ["a", "b"].map((participant_id) => ({
   participant_id,
   busy_slots: [],
 }));
+test("organizer buffer allows the exact boundary and does not pad guests", async () => {
+  const before = {
+    start: "2026-10-29T08:00:00+05:00",
+    end: "2026-10-29T08:45:00+05:00",
+  };
+  const f = setup(undefined, {
+    data: [
+      { ...coverage[0], busy_slots: [before] },
+      {
+        ...coverage[1],
+        busy_slots: [{ ...before, end: "2026-10-29T09:00:00+05:00" }],
+      },
+    ],
+  });
+  assert.equal(
+    (
+      await f.service.find({
+        ...query,
+        bufferMinutes: 15,
+        organizerParticipantId: "a",
+      })
+    ).slots.length,
+    1,
+  );
+  const near = setup(undefined, {
+    data: [
+      {
+        ...coverage[0],
+        busy_slots: [{ ...before, end: "2026-10-29T08:46:00+05:00" }],
+      },
+      coverage[1],
+    ],
+  });
+  assert.equal(
+    (
+      await near.service.find({
+        ...query,
+        bufferMinutes: 15,
+        organizerParticipantId: "a",
+      })
+    ).slots.length,
+    0,
+  );
+});
+test("buffer checks adjacent days and refuses missing organizer coverage", async () => {
+  const start = {
+    start: "2026-10-29T00:05:00+05:00",
+    end: "2026-10-29T00:35:00+05:00",
+  };
+  const dates: string[] = [];
+  const service = new AvailabilityService(
+    {
+      readCalendar: async (_account, action) =>
+        action(async (path, body) => {
+          if (path.endsWith("find-slots"))
+            return Response.json({ data: { available_slots: [start] } });
+          const date = (body as { date: string }).date;
+          dates.push(date);
+          return Response.json({
+            data:
+              date === query.date
+                ? coverage
+                : [
+                    {
+                      ...coverage[0],
+                      busy_slots: [
+                        {
+                          start: "2026-10-28T23:00:00+05:00",
+                          end: "2026-10-28T23:55:00+05:00",
+                        },
+                      ],
+                    },
+                  ],
+          });
+        }),
+    },
+    () => Date.parse("2026-10-27T00:00:00Z"),
+  );
+  assert.equal(
+    (
+      await service.find({
+        ...query,
+        bufferMinutes: 15,
+        organizerParticipantId: "a",
+      })
+    ).slots.length,
+    0,
+  );
+  assert.deepEqual(dates, ["2026-10-29", "2026-10-28"]);
+  await assert.rejects(
+    setup().service.find({ ...query, bufferMinutes: 15 }),
+    /перерыв/,
+  );
+});
 function setup(
   slots: unknown = { data: { available_slots: [slot] } },
   busy: unknown = { data: coverage },

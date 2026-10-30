@@ -14,7 +14,16 @@ const entry = z.object({
 export type RememberedParticipant = z.infer<typeof entry>;
 export class ParticipantMemory {
   private pending: Promise<unknown> = Promise.resolve();
-  constructor(private directory: string) {}
+  constructor(
+    private directory: string,
+    private store?: {
+      read(account: string): Promise<{ participants: RememberedParticipant[] }>;
+      updateParticipants(
+        account: string,
+        change: (people: RememberedParticipant[]) => RememberedParticipant[],
+      ): Promise<RememberedParticipant[]>;
+    },
+  ) {}
   private path(account: string) {
     return join(
       this.directory,
@@ -23,6 +32,7 @@ export class ParticipantMemory {
     );
   }
   private async load(account: string): Promise<RememberedParticipant[]> {
+    if (this.store) return (await this.store.read(account)).participants;
     try {
       return z
         .array(entry)
@@ -43,6 +53,15 @@ export class ParticipantMemory {
     clear = false,
   ) {
     const operation = this.pending.then(async () => {
+      if (this.store)
+        return this.store.updateParticipants(account, (items) =>
+          change(clear ? [] : items)
+            .sort(
+              (a, b) =>
+                b.uses - a.uses || b.updatedAt.localeCompare(a.updatedAt),
+            )
+            .slice(0, 100),
+        );
       const items = z
         .array(entry)
         .max(100)

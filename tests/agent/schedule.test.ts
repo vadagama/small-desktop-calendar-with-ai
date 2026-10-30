@@ -188,7 +188,7 @@ test("collectEvents merges the views of one occurrence from different weekly rea
   }
 });
 
-test("collectEvents keeps separate events and the schedule tool output stays unchanged in shape", async () => {
+test("collectEvents keeps separate events and summary output stays unchanged in shape", async () => {
   const a = seriesView("900", "2026-11-02T05:00:00Z");
   const b = seriesView("901", "2026-11-02T05:00:00Z");
   const result = await readSchedule(
@@ -209,4 +209,32 @@ test("collectEvents keeps separate events and the schedule tool output stays unc
     "startsAt",
     "title",
   ]);
+});
+
+test("schedule preserves source participants and agenda for copying", async () => {
+  const event = {
+    ...seriesView("source-copy", "2099-11-02T05:00:00Z"),
+    description: "Synthetic agenda",
+    participants: [
+      {
+        id: "person-a",
+        name: "Synthetic person",
+        status: "accepted",
+        organizer: false,
+      },
+    ],
+  };
+  const result = await readSchedule(
+    "a",
+    {
+      period: "custom",
+      from: "2099-11-02",
+      to: "2099-11-02",
+      includeDetails: true,
+    },
+    { events: async () => ({ events: [event], issues: [] }) },
+    new AbortController().signal,
+  );
+  assert.deepEqual(result.events[0]?.participants, event.participants);
+  assert.equal(result.events[0]?.description, event.description);
 });

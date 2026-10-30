@@ -1,6 +1,8 @@
+import { seriesInvalidation } from "../shared/calendar-invalidation.js";
 import { Reminders } from "./Reminders";
-import { Bell, Tags } from "lucide-react";
-import { AnalyticsRules } from "./AnalyticsRules";
+import { Bell, Brain, Sparkles } from "lucide-react";
+import { MemorySettings } from "./MemorySettings";
+import { AgentSettings } from "./AgentSettings";
 import {
   events,
   notifySuccess,
@@ -15,11 +17,12 @@ import type { Meeting, Slot } from "../../prototype/src/types";
 import { DesktopAssistant } from "./Assistant";
 import { DockWorkspace } from "./DockWorkspace";
 import { SmallAccount } from "./SmallAccount";
-import { CalendarFilters } from "./CalendarFilters";
+import { CalendarFilters, type ParticipationFilter } from "./CalendarFilters";
 import { EventDetails } from "./EventDetails";
 import { CalendarFreshnessBar } from "./CalendarFreshnessBar";
 import { eventFromCreatedMeeting } from "../shared/calendar-view-state.js";
 import type { MeetingView } from "../shared/meeting-operations.js";
+import type { MeetingDeletion } from "../shared/calendar-tools.js";
 import { meetingInvalidation } from "../shared/calendar-invalidation.js";
 import {
   beginMove,
@@ -47,8 +50,14 @@ import type { CalendarEvent, CalendarView } from "../shared/calendar.js";
 import type { SmallAuthState } from "../shared/small-auth.js";
 
 export function DesktopWorkspace() {
+  const [memoryOpen, setMemoryOpen] = useState(false);
+  const [agentSettingsOpen, setAgentSettingsOpen] = useState(false);
+  useEffect(() => {
+    const open = () => setAgentSettingsOpen(true);
+    window.addEventListener("small:open-ai-settings", open);
+    return () => window.removeEventListener("small:open-ai-settings", open);
+  }, []);
   const [remindersOpen, setRemindersOpen] = useState(false);
-  const [rulesOpen, setRulesOpen] = useState(false);
   const [savingTime, setSavingTime] = useState(false);
   // Moves shown at their new time while Small has not confirmed them yet.
   const [moves, setMoves] = useState<PendingMoves>({});
@@ -66,6 +75,13 @@ export function DesktopWorkspace() {
   const [view, setView] = useState<CalendarView>("week");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [participation, setParticipation] = useState<
+    Record<ParticipationFilter, boolean>
+  >({
+    organizer: true,
+    invited: true,
+    informed: true,
+  });
   const selectionSequence = useRef(0);
   const [selected, setSelected] = useState<{
     sequence: number;
@@ -77,6 +93,8 @@ export function DesktopWorkspace() {
   const accountId = account?.status === "signed-in" ? account.profile.id : null;
   currentAccount.current = accountId;
   useEffect(() => {
+    setParticipation({ organizer: true, invited: true, informed: true });
+    setMemoryOpen(false);
     setRemindersOpen(false);
     setCreating(false);
     setCreatedId(null);
@@ -111,13 +129,37 @@ export function DesktopWorkspace() {
       if (result.draft.organizer.id !== currentAccount.current) return;
       showCreated(result);
     };
+    const deleted = (event: Event) => {
+      const result = (event as CustomEvent<MeetingDeletion>).detail;
+      if (result.accountId !== currentAccount.current) return;
+      calendar.refreshAfterWrite(
+        result.series
+          ? seriesInvalidation({
+              lookup: {
+                originalEventId: result.series.seriesId,
+                date: result.series.originalDate,
+              },
+            })
+          : { eventIds: [result.eventId], windows: [] },
+        true,
+      );
+    };
     events.addEventListener("assistant-meeting-created", created);
-    return () =>
+    events.addEventListener("assistant-meeting-deleted", deleted);
+    return () => {
       events.removeEventListener("assistant-meeting-created", created);
+      events.removeEventListener("assistant-meeting-deleted", deleted);
+    };
   }, [showCreated]);
   const range = calendarRange(date, view);
   const byId = new Map<string, CalendarEvent>();
-  const shownEvents = overlayMoves(calendar.events, moves);
+  const shownEvents = overlayMoves(calendar.events, moves).filter((event) => {
+    if (!calendar.my) return true;
+    // Missing role metadata must not silently hide a meeting while any type is enabled.
+    if (!event.participation || event.participation === "unknown")
+      return Object.values(participation).some(Boolean);
+    return participation[event.participation];
+  });
   const meetings: Meeting[] = shownEvents.flatMap((event) =>
     splitEventDays(event.startsAt, event.endsAt, range).map((part) => {
       const id = `${event.key}:${part.date}`;
@@ -127,6 +169,7 @@ export function DesktopWorkspace() {
         id,
         title: event.title,
         organizer: event.organizer,
+        recurring: event.recurring === true,
         participation: event.participation,
         accepted: event.accepted,
         agenda: event.description,
@@ -342,19 +385,27 @@ export function DesktopWorkspace() {
           <CalendarDays size={19} />
         </button>
         <button
+          className={`rail-memory ${memoryOpen ? "active" : ""}`}
+          aria-label="Память ассистента"
+          title="Память ассистента"
+          onClick={() => setMemoryOpen(true)}
+        >
+          <Brain size={20} />
+        </button>
+        <button
+          aria-label="Настройки AI-помощника"
+          title="Настройки AI-помощника"
+          onClick={() => setAgentSettingsOpen(true)}
+        >
+          <Sparkles size={20} />
+        </button>
+        <button
           className="rail-settings"
           aria-label="Настройки пространства"
           title="Настройки пространства"
           onClick={() => setSettingsOpen(true)}
         >
           <Settings2 size={19} />
-        </button>
-        <button
-          aria-label="Правила тем аналитики"
-          title="Правила тем аналитики"
-          onClick={() => setRulesOpen(true)}
-        >
-          <Tags size={19} />
         </button>
         <button
           aria-label="Напоминания"
@@ -370,6 +421,13 @@ export function DesktopWorkspace() {
         enabled={Boolean(accountId)}
         date={date}
         setDate={setDate}
+        participation={participation}
+        toggleParticipation={(type) =>
+          setParticipation((current) => ({
+            ...current,
+            [type]: !current[type],
+          }))
+        }
       />
       {filtersOpen && (
         <button
@@ -436,6 +494,14 @@ export function DesktopWorkspace() {
                 !calendar.issues.length && (
                   <p className="calendar-warning" role="status">
                     В этом периоде встреч нет.
+                  </p>
+                )}
+              {!unavailable &&
+                calendar.my &&
+                calendar.events.length > 0 &&
+                !shownEvents.length && (
+                  <p className="calendar-warning" role="status">
+                    Нет встреч выбранных типов.
                   </p>
                 )}
 
@@ -508,7 +574,25 @@ export function DesktopWorkspace() {
         </footer>
       </main>
       {remindersOpen && <Reminders close={() => setRemindersOpen(false)} />}
-      {rulesOpen && <AnalyticsRules close={() => setRulesOpen(false)} />}
+      {memoryOpen && (
+        <MemorySettings
+          key={accountId ?? "signed-out"}
+          account={account?.status === "signed-in" ? account.profile : null}
+          close={() => setMemoryOpen(false)}
+        />
+      )}
+      {agentSettingsOpen && (
+        <AgentSettings
+          close={() => setAgentSettingsOpen(false)}
+          update={(state) =>
+            window.dispatchEvent(
+              new CustomEvent("small:agent-settings-changed", {
+                detail: state,
+              }),
+            )
+          }
+        />
+      )}
       {creating && account?.status === "signed-in" && (
         <NewMeeting
           key={account.profile.id}

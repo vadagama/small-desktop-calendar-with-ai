@@ -2,8 +2,6 @@ import { _electron, expect, test } from "@playwright/test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createHash } from "node:crypto";
-import { AsyncEntry } from "@napi-rs/keyring";
 import { mockSmall } from "./fixtures/small-api.js";
 import { calendarToday } from "../../src/shared/calendar-time.js";
 
@@ -302,13 +300,24 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
           syntheticEventExtra: Record<string, unknown>;
         }
       ).syntheticEventExtra = {
-        description:
-          "1. Обсудить варианты размещения сервисов.\n2. Согласовать ответственных участников.\n3. Определить сроки и следующие шаги.",
+        description: Array.from(
+          { length: 12 },
+          (_, index) => `${index + 1}. Обсудить пункт повестки.`,
+        ).join("\n"),
       };
     });
     await block.click();
     const agenda = details.getByRole("region", { name: "Повестка" });
     const collapsedHeight = (await agenda.locator("p").boundingBox())!.height;
+    const typography = await agenda.locator("p").evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        fontSize: style.fontSize,
+        lineHeight: Number.parseFloat(style.lineHeight),
+      };
+    });
+    expect(typography.fontSize).toBe("14px");
+    expect(collapsedHeight).toBeCloseTo(typography.lineHeight * 10, 0);
     await agenda.getByRole("button", { name: "Показать полностью" }).click();
     await expect(
       agenda.getByRole("button", { name: "Свернуть" }),
@@ -317,6 +326,9 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
       collapsedHeight,
     );
     await agenda.getByRole("button", { name: "Свернуть" }).click();
+    expect((await agenda.locator("p").boundingBox())!.height).toBe(
+      collapsedHeight,
+    );
     expect((await agenda.boundingBox())!.y).toBeLessThan(
       (await details.locator(".event-card-date").boundingBox())!.y,
     );
@@ -380,7 +392,7 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
       exact: true,
     });
     const personal = page.getByRole("checkbox", {
-      name: "Мой календарь",
+      name: "Мои встречи",
       exact: true,
     });
     await expect(room).toHaveCount(0);
@@ -480,12 +492,6 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
     ).toBeVisible();
     expect(errors).toEqual([]);
   } finally {
-    const service = `kz.small.desktop-calendar.llm.${createHash("sha256").update(userData).digest("hex").slice(0, 24)}`;
-    try {
-      await new AsyncEntry(service, "small-auth-session-v1").deleteCredential();
-    } catch {
-      /* Missing after logout. */
-    }
     await app.close();
     await rm(userData, { recursive: true, force: true });
   }

@@ -3,7 +3,7 @@ import {
   TemplateMarkdown,
 } from "./AssistantPresentation";
 import type { AssistantTemplates } from "../shared/agent-settings.js";
-import { AgentSettings } from "./AgentSettings";
+import type { AgentSettingsState } from "../shared/agent-settings.js";
 import { createPortal } from "react-dom";
 import { useChat } from "@ai-sdk/react";
 import { ArrowUp, Settings2, Sparkles, Square, RotateCcw } from "lucide-react";
@@ -31,7 +31,16 @@ export function DesktopAssistant({
   const [profiles, setProfiles] = useState<ProfileState | null>(null);
   const [profileError, setProfileError] = useState("");
   const [settings, setSettings] = useState(false);
-  const [agentSettings, setAgentSettings] = useState(false);
+  useEffect(() => {
+    const update = (event: Event) => {
+      const state = (event as CustomEvent<AgentSettingsState>).detail;
+      setTemplates(state.templates);
+      setPromptTemplates(state.settings.promptTemplates ?? []);
+    };
+    window.addEventListener("small:agent-settings-changed", update);
+    return () =>
+      window.removeEventListener("small:agent-settings-changed", update);
+  }, []);
   const scroll = useRef<HTMLDivElement>(null);
   const { messages, sendMessage, status, stop, error, clearError } = useChat({
     transport,
@@ -107,13 +116,6 @@ export function DesktopAssistant({
               </button>
               <button
                 className="icon-button"
-                aria-label="Настройки AI-помощника"
-                onClick={() => setAgentSettings(true)}
-              >
-                <Sparkles size={18} />
-              </button>
-              <button
-                className="icon-button"
                 aria-label="Настройки модели"
                 disabled={!profiles}
                 onClick={() => setSettings(true)}
@@ -146,7 +148,9 @@ export function DesktopAssistant({
               <button
                 type="button"
                 className="text-button"
-                onClick={() => setAgentSettings(true)}
+                onClick={() =>
+                  window.dispatchEvent(new Event("small:open-ai-settings"))
+                }
               >
                 Настроить шаблоны
               </button>
@@ -236,15 +240,6 @@ export function DesktopAssistant({
             </div>
           </form>
         </div>
-        {agentSettings && (
-          <AgentSettings
-            close={() => setAgentSettings(false)}
-            update={(state) => {
-              setTemplates(state.templates);
-              setPromptTemplates(state.settings.promptTemplates ?? []);
-            }}
-          />
-        )}
         {settings && profiles && (
           <ModelSettings
             initial={profiles}

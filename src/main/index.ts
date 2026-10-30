@@ -1,5 +1,10 @@
 import { EventMutationJournal } from "./event-mutation-journal.js";
 import { ParticipantMemory } from "./participant-memory.js";
+import { AssistantMemoryStore } from "./assistant-memory.js";
+import { useMemorySelection } from "./memory-tools.js";
+import type { MemoryChange } from "../shared/assistant-memory.js";
+import { MemoryProposals } from "./memory-proposals.js";
+import { registerMemoryHandlers } from "./assistant-memory-ipc.js";
 import { AgentSettingsStore } from "./agent-settings.js";
 import { registerAgentSettingsHandlers } from "./agent-settings-ipc.js";
 import { EventRescheduleService } from "./event-reschedule.js";
@@ -8,6 +13,7 @@ import { TopicRuleStore } from "./topic-rules.js";
 import { registerTopicRuleHandlers } from "./analytics-ipc.js";
 import { SmallSeriesBackend } from "./series-backend.js";
 import { SeriesMutationService } from "./series-adapter.js";
+import { SeriesDeletionService } from "./series-deletion.js";
 import { SeriesController } from "./series-controller.js";
 import { registerSeriesHandlers } from "./series-ipc.js";
 import { EventChangeService } from "./event-change.js";
@@ -21,14 +27,13 @@ import { dirname, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { registerAssistantHandlers } from "./assistant.js";
 import { ProfileStore } from "./profiles.js";
-import { KeychainSecrets } from "./keychain.js";
+import { LocalCipher, LocalSecrets } from "./local-secrets.js";
 import { registerProfileHandlers } from "./profile-ipc.js";
 
 import { CalendarService } from "./calendar.js";
 import { CalendarSync } from "./calendar-sync.js";
 import { CachedCatalog, assistantCalendarSource } from "./calendar-catalog.js";
 import { EventCache } from "./event-cache.js";
-import { safeStorageCipher } from "./event-cache-cipher.js";
 import { calendarChannels, type CalendarChange } from "../shared/calendar.js";
 import type { MeetingWriter } from "./meeting-operations.js";
 import { meetingTarget } from "./write-target.js";
@@ -119,23 +124,51 @@ app.on("second-instance", () => {
 app.whenReady().then(async () => {
   if (!primaryInstance) return;
   app.dock?.setIcon(appIcon);
-  const participantMemory = new ParticipantMemory(app.getPath("userData"));
   const agentSettings = new AgentSettingsStore(app.getPath("userData"));
   const topicRules = new TopicRuleStore(app.getPath("userData"));
-  const profiles = new ProfileStore(
+  const vault = resolve(app.getPath("userData"), "local-vault");
+  const cipher = new LocalCipher(vault);
+  const secrets = new LocalSecrets(vault, cipher);
+  const memoryStore = new AssistantMemoryStore(
     app.getPath("userData"),
-    new KeychainSecrets(app.getPath("userData")),
+    secrets,
   );
-  const smallAuth = new SmallAuth(
-    createSmallSession(),
-    new KeychainSecrets(app.getPath("userData")),
+  const validateMemoryChange = async (
+    accountId: string,
+    change: MemoryChange,
+  ) => {
+    if (change.action !== "group" && change.action !== "preset") return;
+    const account = await smallAuth.read();
+    if (account.status !== "signed-in" || account.profile.id !== accountId)
+      throw new Error("Account changed");
+    const state = await memoryStore.read(accountId);
+    const people = await useMemorySelection(
+      change.value,
+      state,
+      accountId,
+      calendar,
+      AbortSignal.timeout(30000),
+      account.profile.participantId,
+    );
+    if (people && (change.action === "group" || change.value.participantIds))
+      change.value.people = people;
+  };
+  const memoryProposals = new MemoryProposals(
+    memoryStore,
+    validateMemoryChange,
   );
+  const participantMemory = new ParticipantMemory(
+    app.getPath("userData"),
+    memoryStore,
+  );
+  const profiles = new ProfileStore(app.getPath("userData"), secrets);
+  const smallAuth = new SmallAuth(createSmallSession(), secrets);
   const calendar = new CalendarService(smallAuth);
   const availability = new AvailabilityService(smallAuth);
   // One cache for events and catalogs, so sign-in and sign-out clear both.
   const eventCache = new EventCache(
     resolve(app.getPath("userData"), "event-cache"),
-    safeStorageCipher,
+    cipher,
   );
   const catalog = new CachedCatalog(calendar, eventCache);
   const calendarSync = new CalendarSync(
@@ -164,11 +197,13 @@ app.whenReady().then(async () => {
     smallAuth,
     calendar,
     availability,
+    memoryStore,
   );
   // Creating a meeting changes Small's calendar, so the cached copy is dropped.
   const writer: MeetingWriter = {
     preflight: (draft) => meetingWriter.preflight(draft),
     verify: (draft, eventId) => meetingWriter.verify(draft, eventId),
+    wasDeleted: (draft, eventId) => meetingWriter.wasDeleted(draft, eventId),
     create: async (draft) => {
       try {
         return await meetingWriter.create(draft);
@@ -186,12 +221,22 @@ app.whenReady().then(async () => {
     devUrl || localUrl,
     resolve(here, "agent-worker.js"),
     (signal) => profiles.resolveActive(signal),
-    async (prompt, signal, conversation) => {
+    async (prompt, signal, conversation, context) => {
+      const memoryEpoch = smallAuth.sessionRevision;
       const state = await smallAuth.read();
       signal.throwIfAborted();
       conversation.bindAccount(
         state.status === "signed-in" ? state.profile.id : null,
       );
+      if (state.status === "signed-in") {
+        try {
+          const memory = await memoryStore.read(state.profile.id);
+          signal.throwIfAborted();
+          conversation.forgetMemoryEvidence(memory.revision);
+        } catch {
+          conversation.forgetMemoryEvidence(undefined);
+        }
+      }
       return state.status === "signed-in"
         ? createCalendarToolExecutor(
             state.profile.id,
@@ -206,12 +251,27 @@ app.whenReady().then(async () => {
             state.profile.participantId,
             () => topicRules.read(),
             eventChanges,
+            {
+              store: memoryStore,
+              proposals: memoryProposals,
+              ownerId: context.ownerId,
+              epoch: memoryEpoch,
+              messageId: context.requestId,
+              directory: calendar,
+            },
           )
         : null;
     },
     () => agentSettings.read(),
   );
   registerAgentSettingsHandlers(agentSettings, assistant.trusted);
+  registerMemoryHandlers(
+    memoryStore,
+    memoryProposals,
+    smallAuth,
+    assistant.trusted,
+    validateMemoryChange,
+  );
   registerTopicRuleHandlers(topicRules, assistant.trusted);
   registerProfileHandlers(profiles, assistant.trusted, assistant.cancelActive);
   registerMeetingHandlers(meetings, smallAuth, assistant.trusted, availability);
@@ -230,13 +290,20 @@ app.whenReady().then(async () => {
     calendarSync,
     catalog,
   );
+  const seriesJournal = new EventMutationJournal(
+    resolve(app.getPath("userData"), "series-mutations"),
+  );
+  const seriesBackend = new SmallSeriesBackend(smallAuth, calendar);
   const series = new SeriesController(
     smallAuth,
-    new SeriesMutationService(
-      new SmallSeriesBackend(smallAuth, calendar),
-      new EventMutationJournal(
-        resolve(app.getPath("userData"), "series-mutations"),
-      ),
+    new SeriesMutationService(seriesBackend, seriesJournal),
+    undefined,
+    undefined,
+    new SeriesDeletionService(
+      seriesBackend,
+      calendar,
+      (accountId, eventId) => smallAuth.deleteCalendarEvent(accountId, eventId),
+      seriesJournal,
     ),
   );
   registerSeriesHandlers(

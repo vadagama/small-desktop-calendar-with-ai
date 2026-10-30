@@ -10,6 +10,7 @@ import { z } from "zod";
 import { SmallAuthError, type AuthTransport } from "./small-auth.js";
 
 import { isAvailabilityRequest } from "./availability-request.js";
+import { isSeriesDeletionRequest } from "./series-delete-request.js";
 import { isCalendarReadPath } from "./calendar.js";
 
 const origin = "https://team.small.kz";
@@ -72,7 +73,8 @@ export function createSmallSession(): AuthTransport {
           init.method === "POST" &&
           typeof init.body === "string" &&
           (isAvailabilityRequest(path, JSON.parse(init.body)) ||
-            isMeetingCreateRequest(path, JSON.parse(init.body)))
+            isMeetingCreateRequest(path, JSON.parse(init.body)) ||
+            isSeriesDeletionRequest(path, JSON.parse(init.body)))
         )
       )
         throw new SmallAuthError("Операция Small недоступна.");

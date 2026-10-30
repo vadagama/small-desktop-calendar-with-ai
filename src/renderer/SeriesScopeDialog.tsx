@@ -75,7 +75,10 @@ export function SeriesScopeDialog({
   const [date, setDate] = useState(calendarDateAt(event.startsAt));
   const [start, setStart] = useState(clock(event.startsAt));
   const [end, setEnd] = useState(clock(event.endsAt));
-  const [gate, setGate] = useState<SeriesGateState | null>(null);
+  const [gateReply, setGate] = useState<{
+    key: string;
+    value: SeriesGateState;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const target = useMemo(() => seriesTarget(event), [event]);
@@ -105,6 +108,7 @@ export function SeriesScopeDialog({
   }, []);
   // A stable key, so the gate is asked once per distinct request and never in a render loop.
   const requestKey = request ? JSON.stringify(request) : "";
+  const gate = gateReply?.key === requestKey ? gateReply.value : null;
   useEffect(() => {
     let active = true;
     setGate(null);
@@ -113,7 +117,7 @@ export function SeriesScopeDialog({
       .gate(JSON.parse(requestKey) as SeriesRequest)
       .then((reply) => {
         if (!active) return;
-        if (reply.ok) setGate(reply.data);
+        if (reply.ok) setGate({ key: requestKey, value: reply.data });
         else {
           setError(reply.error);
           if (reply.kind === "auth") expired();
@@ -136,7 +140,11 @@ export function SeriesScopeDialog({
       const reply = await window.smallDesktop.series.apply(request);
       if (reply.ok) {
         notifySuccess(
-          operation === "delete" ? "Вхождение удалено" : "Изменения сохранены",
+          operation === "delete"
+            ? scope === "following"
+              ? "Это и последующие встречи удалены"
+              : "Вхождение удалено"
+            : "Изменения сохранены",
         );
         done();
       } else {
@@ -190,7 +198,6 @@ export function SeriesScopeDialog({
       <fieldset className="series-scope-options" disabled={busy}>
         <legend>Область изменения</legend>
         {seriesScopes.map((value) => {
-          const unavailable = operation === "delete" && value === "following";
           return (
             <label key={value}>
               <input
@@ -198,13 +205,9 @@ export function SeriesScopeDialog({
                 name="series-scope"
                 value={value}
                 checked={scope === value}
-                disabled={unavailable}
                 onChange={() => setScope(value)}
               />
               {scopeLabels[value]}
-              {unavailable && (
-                <small> — для удаления доступно только одно вхождение</small>
-              )}
             </label>
           );
         })}

@@ -298,7 +298,11 @@ test("analytics reads only the signed-in account with its participant id and rej
     false,
   );
   assert.equal(calls.length, 0);
-  const result = await execute("meetingAnalytics", { period: "today" });
+  const result = await execute("meetingAnalytics", {
+    period: "custom",
+    from: "2026-10-29",
+    to: "2026-10-29",
+  });
   assert.ok(
     result.ok &&
       "kind" in result.data &&
@@ -356,7 +360,11 @@ test("analytics applies saved topic rules and reports an unreadable rules file",
     );
   const ok = await make(async () => [
     { topic: "Процесс", keywords: ["daily"] },
-  ])("meetingAnalytics", { period: "today" });
+  ])("meetingAnalytics", {
+    period: "custom",
+    from: "2026-10-29",
+    to: "2026-10-29",
+  });
   assert.ok(ok.ok && "kind" in ok.data && ok.data.kind === "analytics");
   assert.deepEqual(
     ok.data.byTopic.map((bucket) => bucket.name),

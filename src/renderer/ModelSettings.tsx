@@ -103,8 +103,8 @@ export function ModelSettings({
         </button>
       </div>
       <p className="modal-description">
-        Выберите сервис и сохраните ключ в Keychain этого Mac. Автоматического
-        переключения между моделями нет.
+        Выберите сервис и сохраните ключ в зашифрованном хранилище этого Mac.
+        Автоматического переключения между моделями нет.
       </p>
       <form
         className="meeting-form"

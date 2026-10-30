@@ -1,3 +1,4 @@
+import "./analytics.css";
 import { useEffect, useRef, useState } from "react";
 import {
   Menu,
@@ -6,14 +7,25 @@ import {
   Settings2,
   Plus,
   UsersRound,
+  Brain,
+  Sparkles,
 } from "lucide-react";
 import { Calendar } from "./CalendarView";
 import { Sidebar } from "./Sidebar";
 import { Assistant } from "./Assistant";
 import { Analytics } from "./Analytics";
 import { CreateDialog, EventDialog, SettingsDialog } from "./Dialogs";
+import { MemorySettings } from "./MemorySettings";
+import { createDemoMemory } from "./memory-demo";
+import {
+  AssistantSettingsDialog,
+  defaultAssistantSettings,
+} from "./AssistantSettingsDialog";
 import { conflicts, TODAY } from "./calendar";
-import { DEMO_EVENTS } from "./data";
+import { ANALYTICS_DEMO_EVENTS } from "./analytics-fixtures";
+import { dashboards } from "./analytics-model";
+import type { Dashboard, Panel, Period } from "./analytics-model";
+import { useAnalyticsSnapshot } from "./useAnalyticsSnapshot";
 import type {
   CalendarId,
   DataState,
@@ -22,6 +34,31 @@ import type {
   Meeting,
   View,
 } from "./types";
+const PANELS_KEY = "small-prototype-panels-v1";
+function readPanels(): {
+  main: "calendar" | Dashboard;
+  side: Exclude<Panel, "calendar"> | "closed";
+  linked: boolean;
+} {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PANELS_KEY) || "{}");
+    return {
+      main:
+        saved.main === "calendar" || Object.hasOwn(dashboards, saved.main)
+          ? saved.main
+          : "calendar",
+      side:
+        saved.side === "assistant" ||
+        saved.side === "closed" ||
+        Object.hasOwn(dashboards, saved.side)
+          ? saved.side
+          : "assistant",
+      linked: saved.linked === true,
+    };
+  } catch {
+    return { main: "calendar", side: "assistant", linked: false };
+  }
+}
 const LAYOUT_KEY = "small-ui-prototype-layout-v1";
 function readLayout(): { layout: Layout; ratio: number } {
   try {
@@ -46,7 +83,7 @@ export default function App({
   AssistantPanel?: typeof Assistant;
   ProfileControl?: React.ReactNode;
 } = {}) {
-  const [events, setEvents] = useState<Meeting[]>(DEMO_EVENTS);
+  const [events, setEvents] = useState<Meeting[]>(ANALYTICS_DEMO_EVENTS);
   const [date, setDate] = useState(TODAY);
   const [miniMonth, setMiniMonth] = useState(TODAY);
   const [view, setView] = useState<View>("week");
@@ -56,12 +93,45 @@ export default function App({
     "room",
   ]);
   const [settings, setSettings] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
+  const [memory, setMemory] = useState(createDemoMemory);
+  const [assistantSettingsOpen, setAssistantSettingsOpen] = useState(false);
+  const [assistantSettings, setAssistantSettings] = useState(
+    defaultAssistantSettings,
+  );
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState<Meeting | null>(null);
-  const [section, setSection] = useState("calendar");
+  const [panels, setPanels] = useState(readPanels);
+  const [section, setSection] = useState(
+    readPanels().main === "calendar" ? "calendar" : "analytics",
+  );
+  const [mainKind, setMainKind] = useState<Dashboard>(() => {
+    const main = readPanels().main;
+    return main === "calendar" ? "load" : main;
+  });
+  const [sharedPeriod, setSharedPeriod] = useState<Period>("week");
+  const [analysisContext, setAnalysisContext] = useState<{
+    id: number;
+    title: string;
+    text: string;
+  }>();
   const [sidebar, setSidebar] = useState(false);
   const [config, setConfig] = useState(readLayout);
   const [state, setState] = useState<DataState>("ready");
+  const analyticsData = useAnalyticsSnapshot(events, state);
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        PANELS_KEY,
+        JSON.stringify({
+          ...panels,
+          main: section === "calendar" ? "calendar" : mainKind,
+        }),
+      );
+    } catch {
+      /* In-memory composition remains available. */
+    }
+  }, [panels, section, mainKind]);
   const [notice, setNotice] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const workspace = useRef<HTMLDivElement>(null);
@@ -139,6 +209,53 @@ export default function App({
     const ratio = ((reversed ? size - offset : offset) / size) * 100;
     setConfig((c) => ({ ...c, ratio: Math.min(76, Math.max(35, ratio)) }));
   }
+  function preset(value: string) {
+    if (value === "planning") {
+      setSection("calendar");
+      setPanels((old) => ({ ...old, side: "load" }));
+    }
+    if (value === "review") {
+      setSection("analytics");
+      setMainKind("load");
+      setPanels((old) => ({ ...old, side: "assistant" }));
+    }
+    if (value === "overview") {
+      setSection("analytics");
+      setMainKind("calendars");
+      setPanels((old) => ({ ...old, side: "organizers" }));
+    }
+    setConfig((old) => ({ ...old, layout: "right", ratio: 58 }));
+  }
+  const explain = (title: string, text: string) => {
+    setPanels((old) => ({ ...old, side: "assistant" }));
+    setAnalysisContext({ id: Date.now(), title, text });
+  };
+  const dashboard = (
+    kind: Dashboard,
+    changeKind: (kind: Dashboard) => void,
+  ) => (
+    <Analytics
+      kind={kind}
+      changeKind={changeKind}
+      date={date}
+      linked={panels.linked}
+      sharedPeriod={sharedPeriod}
+      setSharedPeriod={setSharedPeriod}
+      setDate={updateDate}
+      data={analyticsData}
+      select={setSelected}
+      openCalendar={(event) => {
+        updateDate(event.date);
+        setView("day");
+        setSection("calendar");
+        setEnabled((old) =>
+          old.includes(event.calendar) ? old : [...old, event.calendar],
+        );
+      }}
+      explain={explain}
+      empty={state === "empty"}
+    />
+  );
   const visibleEvents =
     state === "empty" ? [] : events.filter((e) => enabled.includes(e.calendar));
   return (
@@ -156,10 +273,35 @@ export default function App({
         </button>
         <button
           className={section === "analytics" ? "active" : ""}
-          aria-label="Обзор недели"
+          aria-label="Аналитика"
+          title="Аналитика"
           onClick={() => setSection("analytics")}
         >
           <ChartNoAxesCombined size={19} />
+        </button>
+        <button
+          className={`rail-memory ${memoryOpen ? "active" : ""}`}
+          aria-label="Память ассистента"
+          title="Память ассистента"
+          aria-pressed={memoryOpen}
+          onClick={() => {
+            setSidebar(false);
+            setMemoryOpen(true);
+          }}
+        >
+          <Brain size={20} />
+        </button>
+        <button
+          className={assistantSettingsOpen ? "active" : ""}
+          aria-label="Настройки AI-помощника"
+          title="Настройки AI-помощника"
+          aria-pressed={assistantSettingsOpen}
+          onClick={() => {
+            setSidebar(false);
+            setAssistantSettingsOpen(true);
+          }}
+        >
+          <Sparkles size={20} />
         </button>
         <button
           className="rail-settings"
@@ -246,9 +388,75 @@ export default function App({
             </button>
           </div>
         </header>
+        <div className="panel-tools" aria-label="Состав рабочего пространства">
+          <label>
+            Основная панель
+            <select
+              aria-label="Основная панель"
+              value={section === "calendar" ? "calendar" : mainKind}
+              onChange={(e) => {
+                if (e.target.value === "calendar") setSection("calendar");
+                else {
+                  setMainKind(e.target.value as Dashboard);
+                  setSection("analytics");
+                }
+              }}
+            >
+              <option value="calendar">Календарь</option>
+              {Object.entries(dashboards).map(([id, title]) => (
+                <option value={id} key={id}>
+                  {title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Рядом
+            <select
+              aria-label="Соседняя панель"
+              value={panels.side}
+              onChange={(e) =>
+                setPanels((old) => ({
+                  ...old,
+                  side: e.target.value as typeof old.side,
+                }))
+              }
+            >
+              <option value="assistant">Ассистент</option>
+              {Object.entries(dashboards).map(([id, title]) => (
+                <option value={id} key={id}>
+                  {title}
+                </option>
+              ))}
+              <option value="closed">Скрыть панель</option>
+            </select>
+          </label>
+          <label className="linked-periods">
+            <input
+              type="checkbox"
+              checked={panels.linked}
+              onChange={(e) =>
+                setPanels((old) => ({ ...old, linked: e.target.checked }))
+              }
+            />
+            Связать периоды
+          </label>
+          <select
+            aria-label="Готовая раскладка"
+            value=""
+            onChange={(e) => preset(e.target.value)}
+          >
+            <option value="" disabled>
+              Раскладки
+            </option>
+            <option value="planning">Планирование</option>
+            <option value="review">Разбор недели</option>
+            <option value="overview">Обзор</option>
+          </select>
+        </div>
         <div
           ref={workspace}
-          className={`workspace ${vertical ? "vertical" : ""} ${reversed ? "reversed" : ""} ${dragOver ? "drop-active" : ""}`}
+          className={`workspace ${vertical ? "vertical" : ""} ${reversed ? "reversed" : ""} ${dragOver ? "drop-active" : ""} ${panels.side === "closed" ? "solo" : ""}`}
           data-layout={layout}
           style={
             { "--calendar-ratio": `${config.ratio}%` } as React.CSSProperties
@@ -267,7 +475,7 @@ export default function App({
             e.preventDefault();
             setDragOver(false);
             if (
-              ["calendar", "assistant"].includes(
+              ["calendar", "assistant", "analytics"].includes(
                 e.dataTransfer.getData("text/plain"),
               )
             )
@@ -276,11 +484,7 @@ export default function App({
         >
           <div className="calendar-container">
             {section === "analytics" ? (
-              <Analytics
-                events={visibleEvents}
-                date={date}
-                back={() => setSection("calendar")}
-              />
+              dashboard(mainKind, setMainKind)
             ) : (
               <Calendar
                 date={date}
@@ -313,61 +517,73 @@ export default function App({
               />
             )}
           </div>
-          <div
-            className="splitter"
-            role="separator"
-            tabIndex={0}
-            aria-label="Размер панелей"
-            aria-orientation={vertical ? "horizontal" : "vertical"}
-            aria-valuemin={35}
-            aria-valuemax={76}
-            aria-valuenow={Math.round(config.ratio)}
-            onPointerDown={(e) => {
-              if (window.innerWidth < 760) return;
-              moving.current = true;
-              e.currentTarget.setPointerCapture(e.pointerId);
-              e.preventDefault();
-            }}
-            onPointerMove={(e) => {
-              if (moving.current) resize(e.clientX, e.clientY);
-            }}
-            onPointerUp={(e) => {
-              moving.current = false;
-              if (e.currentTarget.hasPointerCapture(e.pointerId))
-                e.currentTarget.releasePointerCapture(e.pointerId);
-            }}
-            onPointerCancel={() => {
-              moving.current = false;
-            }}
-            onKeyDown={(e) => {
-              if (
-                !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
-                  e.key,
+          {panels.side !== "closed" && (
+            <div
+              className="splitter"
+              role="separator"
+              tabIndex={0}
+              aria-label="Размер панелей"
+              aria-orientation={vertical ? "horizontal" : "vertical"}
+              aria-valuemin={35}
+              aria-valuemax={76}
+              aria-valuenow={Math.round(config.ratio)}
+              onPointerDown={(e) => {
+                if (window.innerWidth < 760) return;
+                moving.current = true;
+                e.currentTarget.setPointerCapture(e.pointerId);
+                e.preventDefault();
+              }}
+              onPointerMove={(e) => {
+                if (moving.current) resize(e.clientX, e.clientY);
+              }}
+              onPointerUp={(e) => {
+                moving.current = false;
+                if (e.currentTarget.hasPointerCapture(e.pointerId))
+                  e.currentTarget.releasePointerCapture(e.pointerId);
+              }}
+              onPointerCancel={() => {
+                moving.current = false;
+              }}
+              onKeyDown={(e) => {
+                if (
+                  !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
+                    e.key,
+                  )
                 )
-              )
-                return;
-              e.preventDefault();
-              const increase = e.key === "ArrowRight" || e.key === "ArrowDown";
-              setConfig((c) => ({
-                ...c,
-                ratio: Math.min(
-                  76,
-                  Math.max(35, c.ratio + (increase !== reversed ? 3 : -3)),
-                ),
-              }));
-            }}
-          >
-            <span />
-          </div>
-          <div className="assistant-container">
-            <AssistantPanel
-              events={events}
-              add={add}
-              state={state}
-              swap={swap}
-              analytics={() => setSection("analytics")}
-            />
-          </div>
+                  return;
+                e.preventDefault();
+                const increase =
+                  e.key === "ArrowRight" || e.key === "ArrowDown";
+                setConfig((c) => ({
+                  ...c,
+                  ratio: Math.min(
+                    76,
+                    Math.max(35, c.ratio + (increase !== reversed ? 3 : -3)),
+                  ),
+                }));
+              }}
+            >
+              <span />
+            </div>
+          )}
+          {panels.side !== "closed" && (
+            <div className="assistant-container">
+              {panels.side === "assistant" ? (
+                <AssistantPanel
+                  events={events}
+                  add={add}
+                  state={state}
+                  swap={swap}
+                  analytics={() => setSection("analytics")}
+                  analysisContext={analysisContext}
+                />
+              ) : (
+                dashboard(panels.side, (kind) =>
+                  setPanels((old) => ({ ...old, side: kind })),
+                )
+              )}
+            </div>
+          )}
         </div>
         <footer className="workspace-footer">
           <span>
@@ -388,6 +604,23 @@ export default function App({
       )}
       {creating && (
         <CreateDialog close={() => setCreating(false)} add={add} date={date} />
+      )}
+      {memoryOpen && (
+        <MemorySettings
+          memory={memory}
+          change={setMemory}
+          close={() => setMemoryOpen(false)}
+        />
+      )}
+      {assistantSettingsOpen && (
+        <AssistantSettingsDialog
+          values={assistantSettings}
+          close={() => setAssistantSettingsOpen(false)}
+          save={(values) => {
+            setAssistantSettings(values);
+            setAssistantSettingsOpen(false);
+          }}
+        />
       )}
       {selected && (
         <EventDialog

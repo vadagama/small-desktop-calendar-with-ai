@@ -25,6 +25,8 @@ const query = z.strictObject({
   durationMinutes,
   includeWeekends: z.boolean().optional(),
   exactInterval: interval.optional(),
+  bufferMinutes: z.number().int().min(0).max(120).optional(),
+  organizerParticipantId: z.string().min(1).max(128).optional(),
   timeFrom: z
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
@@ -153,6 +155,59 @@ export class AvailabilityService {
           "invalid",
           "Нет полной занятости каждого участника. Свободное время не подтверждено.",
         );
+      const buffer = (q.bufferMinutes ?? 0) * 60000;
+      if (
+        buffer &&
+        (!q.organizerParticipantId ||
+          !q.participantIds.includes(q.organizerParticipantId))
+      )
+        throw new CalendarError(
+          "invalid",
+          "Не удалось проверить перерыв организатора.",
+        );
+      const range = calendarRange(q.date, "day");
+      if (buffer) {
+        const start = Date.parse(range.start),
+          end = Date.parse(range.end);
+        const sides = [
+          {
+            delta: -1,
+            needed: rawSlots.data.data.available_slots.some(
+              (s) => Date.parse(s.start) - buffer < start,
+            ),
+          },
+          {
+            delta: 1,
+            needed: rawSlots.data.data.available_slots.some(
+              (s) => Date.parse(s.end) + buffer > end,
+            ),
+          },
+        ];
+        for (const side of sides) {
+          if (!side.needed) continue;
+          const date = new Date(`${q.date}T12:00:00Z`);
+          date.setUTCDate(date.getUTCDate() + side.delta);
+          const neighbor = busyResponse.safeParse(
+            await calendarJson(
+              await request("/gate/team/api/calendar/events/busy-intervals", {
+                participant_ids: [q.organizerParticipantId],
+                timezone: "Asia/Almaty",
+                date: date.toISOString().slice(0, 10),
+              }),
+            ),
+          );
+          if (
+            !neighbor.success ||
+            neighbor.data.data.length !== 1 ||
+            neighbor.data.data[0]?.participant_id !== q.organizerParticipantId
+          )
+            throw new CalendarError(
+              "invalid",
+              "Нет полной занятости соседнего дня: перерыв не проверен.",
+            );
+          records.push(...neighbor.data.data);
+        }
+      }
       if (
         records.reduce((count, record) => count + record.busy_slots.length, 0) >
         5000
@@ -165,9 +220,10 @@ export class AvailabilityService {
         record.busy_slots.map((slot) => ({
           start: Date.parse(slot.start),
           end: Date.parse(slot.end),
+          padding:
+            record.participant_id === q.organizerParticipantId ? buffer : 0,
         })),
       );
-      const range = calendarRange(q.date, "day");
       const now = this.now();
       const slots = rawSlots.data.data.available_slots.filter((slot) => {
         const start = Date.parse(slot.start),
@@ -180,7 +236,11 @@ export class AvailabilityService {
           start >= Date.parse(range.start) &&
           end <= Date.parse(range.end) &&
           end - start === q.durationMinutes * 60000 &&
-          !busy.some((taken) => taken.start < end && taken.end > start)
+          !busy.some(
+            (taken) =>
+              taken.start - taken.padding < end &&
+              taken.end + taken.padding > start,
+          )
         );
       });
       return {

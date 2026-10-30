@@ -3,6 +3,7 @@ import { layoutEvents } from "./event-layout";
 import { useEventTooltip } from "./useEventTooltip";
 import {
   CalendarDays,
+  Repeat2,
   ChevronLeft,
   ChevronRight,
   Search,
@@ -287,7 +288,16 @@ export function Calendar(p: Props) {
                         p.select(e);
                       }}
                     >
-                      <span>{time(e.start)}</span> {e.title}
+                      <span>{time(e.start)}</span>{" "}
+                      {e.recurring && (
+                        <Repeat2
+                          className="event-repeat-indicator"
+                          size={12}
+                          role="img"
+                          aria-label="Повторяющееся событие"
+                        />
+                      )}{" "}
+                      {e.title}
                     </button>
                   ))}
               </div>
@@ -498,6 +508,14 @@ export function Calendar(p: Props) {
                             </>
                           )}
                           <strong>
+                            {e.recurring && (
+                              <Repeat2
+                                className="event-repeat-indicator"
+                                size={12}
+                                role="img"
+                                aria-label="Повторяющееся событие"
+                              />
+                            )}{" "}
                             {e.title}
                             {e.duration <= 30 && (
                               <>

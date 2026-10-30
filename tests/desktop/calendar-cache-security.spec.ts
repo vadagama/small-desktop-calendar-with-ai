@@ -37,12 +37,18 @@ test("on disk the cache is ciphertext with tight modes, and sign-out or another 
     env: { ...process.env, SMALL_TEST_SYNC_INTERVAL_MS: "600000" },
   });
   try {
-    // Without a usable keyring nothing is written (by design), so there is nothing to inspect.
-    const encrypted = await app.evaluate(({ safeStorage }) =>
-      safeStorage.isAsyncEncryptionAvailable(),
-    );
-    test.skip(!encrypted, "safeStorage is not available on this machine");
-
+    // Any accidental reintroduction of Electron's OS key storage must fail this flow.
+    await app.evaluate(({ safeStorage }) => {
+      const denied = () => {
+        throw Error("Native credential storage is forbidden in this test");
+      };
+      safeStorage.isAsyncEncryptionAvailable = denied;
+      safeStorage.encryptStringAsync = denied;
+      safeStorage.decryptStringAsync = denied;
+      safeStorage.isEncryptionAvailable = denied;
+      safeStorage.encryptString = denied;
+      safeStorage.decryptString = denied;
+    });
     const date = calendarToday();
     await mockSmall(app, date);
     await app.evaluate((_electron, day) => {

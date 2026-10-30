@@ -30,7 +30,7 @@ export function registerProfileHandlers(
             error:
               error instanceof ProfileError
                 ? error.message
-                : "Не удалось изменить настройки модели или получить доступ к Keychain",
+                : "Не удалось изменить настройки модели или получить доступ к локальному хранилищу",
           };
         }
       },

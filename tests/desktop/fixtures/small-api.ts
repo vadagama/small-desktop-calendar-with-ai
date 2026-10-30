@@ -38,6 +38,10 @@ export async function mockSmall(app: ElectronApplication, date: string) {
     inspection.syntheticEventMutations = 0;
     let movedTime: { starts_at: string; ends_at: string } | null = null;
     const deletedFor = new Set<string>();
+    let seriesMaterialized = false;
+    let seriesRemoved = false;
+    let seriesCancelled = false;
+    const deletedCreated = new Set<string>();
     const created: Array<{
       id: string;
       title: string;
@@ -132,6 +136,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
           ),
           participants: body.participant_ids.map((id: string) => ({ id })),
           creator_name: employee,
+          creator_id: "synthetic-organizer",
         };
         created.push(event);
         // Server applied the write but its response cannot establish the outcome.
@@ -142,8 +147,19 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       const savedEvent = created.find(
         (event) => path === `/gate/team/api/calendar/events/${event.id}`,
       );
+      if (savedEvent && request.method === "DELETE") {
+        deletedCreated.add(savedEvent.id);
+        return new Response(null, { status: 204 });
+      }
       if (savedEvent && request.method === "GET")
-        return Response.json({ data: savedEvent });
+        return Response.json({
+          data: {
+            ...savedEvent,
+            ...(deletedCreated.has(savedEvent.id)
+              ? { status: "cancelled" }
+              : {}),
+          },
+        });
       if (path.endsWith("/find-slots") || path.endsWith("/busy-intervals")) {
         if (request.method !== "POST")
           return new Response(null, { status: 405 });
@@ -243,6 +259,30 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         request.method === "DELETE"
       ) {
         deletedFor.add(employee);
+        return new Response(null, { status: 204 });
+      }
+      if (
+        path.endsWith("/calendar/events/from-template") &&
+        request.method === "POST"
+      ) {
+        const body = await request.json();
+        if (String(body.original_event_id) !== "43" || body.date !== date)
+          return new Response(null, { status: 422 });
+        seriesMaterialized = true;
+        return Response.json({ data: { id: 430 } });
+      }
+      if (
+        path.endsWith("/calendar/events/430") &&
+        request.method === "DELETE"
+      ) {
+        seriesRemoved = true;
+        return new Response(null, { status: 204 });
+      }
+      if (
+        path.endsWith("/calendar/events/430/cancel") &&
+        request.method === "POST"
+      ) {
+        seriesCancelled = true;
         return new Response(null, { status: 204 });
       }
       if (request.method !== "GET") return new Response(null, { status: 405 });
@@ -352,6 +392,10 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         starts_at: `${date}T11:00:00+05:00`,
         ends_at: `${date}T11:30:00+05:00`,
       };
+      if (path.endsWith("/calendar/events/430") && request.method === "GET")
+        return seriesRemoved || seriesCancelled
+          ? new Response(null, { status: 404 })
+          : Response.json({ data: { ...recurring, id: 430 } });
       if (path.endsWith("/calendar/events/42")) {
         if (inspection.syntheticDetailDelayMs)
           await new Promise((resolve) =>
@@ -362,7 +406,14 @@ export async function mockSmall(app: ElectronApplication, date: string) {
           : Response.json({ data: event });
       }
       if (path.endsWith("/calendar/events/generated"))
-        return Response.json({ data: recurring });
+        return seriesRemoved || seriesCancelled
+          ? new Response(null, { status: 404 })
+          : Response.json({
+              data: {
+                ...recurring,
+                ...(seriesMaterialized ? { id: 430 } : {}),
+              },
+            });
       if (path.endsWith("/events")) {
         inspection.syntheticListRequests =
           (inspection.syntheticListRequests ?? 0) + 1;
@@ -396,8 +447,10 @@ export async function mockSmall(app: ElectronApplication, date: string) {
                     ...inspection.syntheticListApplied,
                   },
                 ]),
-            recurring,
-            ...created,
+            ...(seriesRemoved || seriesCancelled
+              ? []
+              : [{ ...recurring, ...(seriesMaterialized ? { id: 430 } : {}) }]),
+            ...created.filter((event) => !deletedCreated.has(event.id)),
           ].filter(
             (entry) =>
               Date.parse(entry.starts_at) < Date.parse(end) &&
