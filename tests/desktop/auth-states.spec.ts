@@ -6,6 +6,7 @@ import { mockSmall } from "./fixtures/small-api.js";
 import { calendarToday } from "../../src/shared/calendar-time.js";
 type Inspection = typeof globalThis & {
   syntheticAuthStatus?: number;
+  syntheticAuthOffline?: boolean;
   syntheticAuthDelayMs?: number;
 };
 
@@ -66,13 +67,36 @@ test("authentication UI distinguishes verified, offline and expired sessions and
       (globalThis as Inspection).syntheticAuthStatus = 503;
     });
     await profile.getByRole("button", { name: "Проверить доступ" }).click();
-    await expect(profile).toContainText("Не удалось проверить сессию");
+    await expect(profile).toContainText("Small временно недоступен");
+    await expect(profile.locator("h2")).toHaveText("Профиль Small");
+    await expect(profile.getByRole("alert")).toHaveCount(1);
+    await expect(profile.getByRole("status")).toHaveCount(0);
     await expect(profile.locator(".small-account-name")).toHaveText(
       "employee-a",
     );
     await expect(profile.getByLabel("Пароль", { exact: true })).toHaveCount(0);
     await app.evaluate(() => {
       delete (globalThis as Inspection).syntheticAuthStatus;
+    });
+    await profile.getByRole("button", { name: "Повторить проверку" }).click();
+    await expect(profile.getByRole("status")).toContainText("Вход подтверждён");
+    await app.evaluate(() => {
+      (globalThis as Inspection).syntheticAuthOffline = true;
+    });
+    await profile.getByRole("button", { name: "Проверить доступ" }).click();
+    await expect(profile.getByRole("alert")).toContainText("Нет связи с Small");
+    await expect(profile.getByRole("alert")).toContainText("VPN");
+    await expect(profile.getByRole("alert")).toHaveCount(1);
+    await expect(profile.getByRole("status")).toHaveCount(0);
+    await expect(profile.getByLabel("Пароль", { exact: true })).toHaveCount(0);
+    await expect(profile.locator(".small-account-name")).toHaveText(
+      "employee-a",
+    );
+    await profile.screenshot({
+      path: "test-results/desktop/auth-network-only.png",
+    });
+    await app.evaluate(() => {
+      delete (globalThis as Inspection).syntheticAuthOffline;
     });
     await profile.getByRole("button", { name: "Повторить проверку" }).click();
     await expect(profile.getByRole("status")).toContainText("Вход подтверждён");
@@ -113,6 +137,15 @@ test("authentication UI distinguishes verified, offline and expired sessions and
       })
       .click();
     await expect(profile).toContainText("Сессия Small завершена");
+    await expect(profile.getByRole("status")).toHaveCount(1);
+    await expect(profile.getByRole("alert")).toHaveCount(0);
+    await expect(profile.getByLabel("Логин", { exact: true })).toHaveValue(
+      "employee-a",
+    );
+    await expect(profile.getByLabel("Пароль", { exact: true })).toBeVisible();
+    await profile.screenshot({
+      path: "test-results/desktop/auth-required-fields.png",
+    });
     await app.evaluate(() => {
       delete (globalThis as Inspection).syntheticAuthStatus;
     });

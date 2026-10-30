@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   SmallAuthReply,
+  SmallAuthFailureKind,
   SmallAuthState,
   SmallAuthStatus,
 } from "../shared/small-auth.js";
@@ -18,8 +19,9 @@ export function useSmallAccount(
   const [status, setStatus] = useState<SmallAuthStatus>("checking");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [errorKind, setErrorKind] = useState<SmallAuthFailureKind | null>(null);
   const [checkedAt, setCheckedAt] = useState<number | null>(null);
-  const [needsLogin, setNeedsLogin] = useState(true);
+  const [needsLogin, setNeedsLogin] = useState(false);
   const profile = useRef<SmallAuthState>({ status: "signed-out" });
   const running = useRef(false);
   const mounted = useRef(false);
@@ -35,6 +37,7 @@ export function useSmallAccount(
   const required = useCallback(() => {
     generation.current++;
     setError("");
+    setErrorKind(null);
     setNeedsLogin(true);
     updateStatus(
       profile.current.status === "signed-in" ? "required" : "signed-out",
@@ -51,6 +54,7 @@ export function useSmallAccount(
       lastAttempt.current = Date.now();
       setBusy(true);
       setError("");
+      setErrorKind(null);
       updateStatus("checking");
       try {
         const reply = await action();
@@ -79,7 +83,9 @@ export function useSmallAccount(
             updateStatus("required");
           }
         } else {
+          if (reply.kind === "auth" || intent !== "check") setNeedsLogin(true);
           setError(reply.error);
+          setErrorKind(reply.kind ?? "network");
           updateStatus(
             intent === "login" &&
               reply.kind === "auth" &&
@@ -93,6 +99,8 @@ export function useSmallAccount(
         }
       } catch {
         if (mounted.current) {
+          if (intent !== "check") setNeedsLogin(true);
+          setErrorKind("network");
           setError(
             "Не удалось связаться с Small. Проверьте подключение и повторите проверку.",
           );
@@ -139,5 +147,15 @@ export function useSmallAccount(
       window.clearInterval(timer);
     };
   }, [check, required]);
-  return { state, status, busy, error, checkedAt, needsLogin, perform, check };
+  return {
+    state,
+    status,
+    busy,
+    error,
+    errorKind,
+    checkedAt,
+    needsLogin,
+    perform,
+    check,
+  };
 }

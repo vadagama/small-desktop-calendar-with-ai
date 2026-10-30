@@ -72,8 +72,10 @@ export function DesktopWorkspace() {
   const [initialSlot, setInitialSlot] = useState<Slot | null>(null);
   const [creating, setCreating] = useState(false);
   const [account, setAccount] = useState<SmallAuthState | null>(null);
-  const [needsAuth, setNeedsAuth] = useState(true);
+  const [needsAuth, setNeedsAuth] = useState(false);
+  const [authStatus, setAuthStatus] = useState<SmallAuthStatus>("checking");
   const updateAuthStatus = useCallback((status: SmallAuthStatus) => {
+    setAuthStatus(status);
     if (status === "required" || status === "signed-out") setNeedsAuth(true);
     else if (status === "verified") setNeedsAuth(false);
   }, []);
@@ -368,7 +370,11 @@ export function DesktopWorkspace() {
     (calendar.issues.length > 0 && calendar.events.length === 0) ||
     (!calendar.my && !calendar.ids.length);
   const status = !accountId
-    ? "Войдите в Small через кнопку профиля внизу слева."
+    ? authStatus === "checking"
+      ? "Проверяю доступ к Small…"
+      : !needsAuth
+        ? "Не удалось проверить доступ к Small. Проверьте подключение через профиль."
+        : "Войдите в Small через кнопку профиля внизу слева."
     : calendar.loading
       ? "Загружаю календарь Small…"
       : calendar.error ||

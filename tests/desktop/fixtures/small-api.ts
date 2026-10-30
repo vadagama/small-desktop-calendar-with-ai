@@ -9,6 +9,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       syntheticMeetingWrites: number;
       syntheticCreateRejection?: number;
       syntheticAuthStatus?: number;
+      syntheticAuthOffline?: boolean;
       syntheticAuthDelayMs?: number;
       /**
        * reject: 409 without applying; lose: 503 without applying; lose-applied: 503, and
@@ -56,6 +57,11 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       if (url.origin !== "https://team.small.kz")
         return new Response(null, { status: 403 });
       const path = url.pathname;
+      if (
+        inspection.syntheticAuthOffline &&
+        (path.endsWith("/info") || path.endsWith("/refresh"))
+      )
+        return Response.error();
       if (inspection.syntheticAuthDelayMs && path.endsWith("/info"))
         await new Promise((resolve) =>
           setTimeout(resolve, inspection.syntheticAuthDelayMs),

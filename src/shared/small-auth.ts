@@ -17,7 +17,9 @@ export type SmallAuthState =
     };
 export type SmallAuthReply =
   | { ok: true; state: SmallAuthState }
-  | { ok: false; error: string; kind?: "auth" | "network" };
+  | { ok: false; error: string; kind?: SmallAuthFailureKind };
+export type SmallAuthFailureKind =
+  "auth" | "network" | "service" | "denied" | "storage" | "invalid";
 export type SmallAuthStatus =
   "checking" | "verified" | "signed-out" | "required" | "unknown";
 export interface SmallAuthBridge {

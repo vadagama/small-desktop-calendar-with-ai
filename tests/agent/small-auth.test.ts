@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SmallAuth, type AuthTransport } from "../../src/main/small-auth.js";
+import { SmallAuthError } from "../../src/main/small-auth.js";
 import type { SecretStore } from "../../src/main/profiles.js";
 
 const token = (name: string) =>
@@ -83,6 +84,44 @@ function setup() {
   };
 }
 const login = { username: "employee-a", password: "synthetic-password" };
+
+test("auth failures distinguish credentials, connectivity, service and permissions", async () => {
+  for (const [status, kind] of [
+    [403, "denied"],
+    [503, "service"],
+  ] as const) {
+    const f = setup();
+    await f.auth.login(login);
+    const saved = f.saved();
+    let required = false;
+    f.auth.subscribeRequired(() => {
+      required = true;
+    });
+    const request = f.transport.request;
+    f.transport.request = (path, init) =>
+      path.endsWith("/info")
+        ? Promise.resolve(new Response(null, { status }))
+        : request(path, init);
+    await assert.rejects(
+      f.auth.read(),
+      (error) => error instanceof SmallAuthError && error.kind === kind,
+    );
+    assert.equal(required, false);
+    assert.equal(f.saved(), saved);
+  }
+  const offline = setup();
+  await offline.auth.login(login);
+  offline.offline();
+  await assert.rejects(
+    offline.auth.read(),
+    (error) => error instanceof SmallAuthError && error.kind === "network",
+  );
+  const badLogin = setup();
+  await assert.rejects(
+    badLogin.auth.login({ ...login, password: "wrong" }),
+    (error) => error instanceof SmallAuthError && error.kind === "auth",
+  );
+});
 
 test("session expiry notifies all consumers, but offline checks and refresh recovery do not", async () => {
   const f = setup();

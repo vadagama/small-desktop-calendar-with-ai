@@ -6,7 +6,10 @@ import { z } from "zod";
 import { CalendarError } from "./calendar.js";
 import { isAvailabilityRequest } from "./availability-request.js";
 import type { SecretStore } from "./profiles.js";
-import type { SmallAuthState } from "../shared/small-auth.js";
+import type {
+  SmallAuthFailureKind,
+  SmallAuthState,
+} from "../shared/small-auth.js";
 
 export interface AuthTransport {
   request(path: string, init: RequestInit): Promise<Response>;
@@ -18,6 +21,7 @@ export class SmallAuthError extends Error {
   constructor(
     message: string,
     public code: "auth" | "network" = "network",
+    public kind: SmallAuthFailureKind = code,
   ) {
     super(message);
   }
@@ -80,6 +84,8 @@ export class SmallAuth {
     } catch {
       throw new SmallAuthError(
         "Не удалось получить доступ к локальному хранилищу. Повторите операцию.",
+        "network",
+        "storage",
       );
     }
   }
@@ -116,10 +122,20 @@ export class SmallAuth {
   }
   private async accept(response: Response) {
     if (!response.ok)
-      throw new SmallAuthError("Small временно недоступен. Повторите позже.");
-    const parsed = tokenResponse.safeParse(await response.json());
+      throw new SmallAuthError(
+        "Small временно недоступен. Повторите позже.",
+        "network",
+        "service",
+      );
+    const parsed = tokenResponse.safeParse(
+      await response.json().catch(() => null),
+    );
     if (!parsed.success)
-      throw new SmallAuthError("Small вернул неизвестный формат сессии.");
+      throw new SmallAuthError(
+        "Small вернул неизвестный формат сессии.",
+        "network",
+        "invalid",
+      );
     // Only session cookies are persisted; passwords and access tokens are not.
     const snapshot = await this.transport.snapshot();
     await this.storedSecret(() => this.secrets.set(account, snapshot));
@@ -168,14 +184,26 @@ export class SmallAuth {
     const response = await this.authorized("/gate/team/api/user/info");
     if (response.status === 401) return this.requireSignIn();
     if (response.status === 403)
-      throw new SmallAuthError("Нет доступа к профилю Small.");
+      throw new SmallAuthError(
+        "Нет доступа к профилю Small.",
+        "network",
+        "denied",
+      );
     if (!response.ok)
-      throw new SmallAuthError("Не удалось прочитать профиль Small.");
+      throw new SmallAuthError(
+        "Small временно недоступен. Повторите проверку позже.",
+        "network",
+        "service",
+      );
     const info = z
       .object({ data: z.record(z.string(), z.unknown()) })
-      .safeParse(await response.json());
+      .safeParse(await response.json().catch(() => null));
     if (!info.success)
-      throw new SmallAuthError("Small вернул неизвестный формат профиля.");
+      throw new SmallAuthError(
+        "Small вернул неизвестный формат профиля.",
+        "network",
+        "invalid",
+      );
     // Same display claims used by the official client. They never grant permissions.
     let claims: z.infer<typeof identity>;
     try {
@@ -185,7 +213,11 @@ export class SmallAuth {
         ),
       );
     } catch {
-      throw new SmallAuthError("Small вернул неизвестный формат пользователя.");
+      throw new SmallAuthError(
+        "Small вернул неизвестный формат пользователя.",
+        "network",
+        "invalid",
+      );
     }
     return {
       status: "signed-in",

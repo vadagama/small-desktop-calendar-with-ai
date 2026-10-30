@@ -8,7 +8,11 @@ import {
   WifiOff,
   X,
 } from "lucide-react";
-import type { SmallAuthState, SmallAuthStatus } from "../shared/small-auth.js";
+import type {
+  SmallAuthFailureKind,
+  SmallAuthState,
+  SmallAuthStatus,
+} from "../shared/small-auth.js";
 import { useSmallAccount } from "./useSmallAccount";
 import { SmallLoginForm } from "./SmallLoginForm";
 
@@ -19,6 +23,24 @@ export const smallAuthLabels: Record<SmallAuthStatus, string> = {
   required: "Требуется вход",
   unknown: "Сессия не проверена",
 };
+const failureCopy: Record<
+  SmallAuthFailureKind,
+  { title: string; instruction?: string }
+> = {
+  auth: { title: "Не удалось войти в Small" },
+  network: {
+    title: "Нет связи с Small",
+    instruction:
+      "Проверьте подключение к сети Small или VPN и повторите проверку.",
+  },
+  service: {
+    title: "Small временно недоступен",
+    instruction: "Сервер Small вернул ошибку. Повторите проверку позже.",
+  },
+  denied: { title: "Нет доступа к Small" },
+  storage: { title: "Не удалось открыть хранилище сессии" },
+  invalid: { title: "Не удалось проверить сессию" },
+};
 
 export function SmallAccount({
   onChange,
@@ -27,12 +49,44 @@ export function SmallAccount({
   onChange?: (state: SmallAuthState) => void;
   onStatusChange?: (status: SmallAuthStatus) => void;
 }) {
-  const { state, status, busy, error, checkedAt, needsLogin, perform, check } =
-    useSmallAccount(onChange, onStatusChange);
+  const {
+    state,
+    status,
+    busy,
+    error,
+    errorKind,
+    checkedAt,
+    needsLogin,
+    perform,
+    check,
+  } = useSmallAccount(onChange, onStatusChange);
   const [open, setOpen] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const profile = state.status === "signed-in" ? state.profile : null;
   const showProfile = profile && !needsLogin;
+  const warning = state.status === "signed-out" ? state.warning : undefined;
+  const showNotice = Boolean(
+    error ||
+    warning ||
+    status === "checking" ||
+    status === "verified" ||
+    status === "required",
+  );
+  const noticeTitle = error
+    ? failureCopy[errorKind ?? "network"].title
+    : warning
+      ? "Выход из Small"
+      : status === "required"
+        ? "Сессия Small завершена"
+        : smallAuthLabels[status];
+  const noticeText =
+    (error && (failureCopy[errorKind ?? "network"].instruction ?? error)) ||
+    warning ||
+    (status === "verified"
+      ? "Сессия проверена сервером Small."
+      : status === "required"
+        ? "Войдите повторно, чтобы обновлять календарь и изменять встречи."
+        : "Проверяем доступ к Small…");
   useEffect(() => {
     const show = () => setOpen(true);
     window.addEventListener("small:open-account", show);
@@ -45,12 +99,12 @@ export function SmallAccount({
     setOpen(false);
   }
   const StatusIcon =
-    status === "verified"
-      ? CircleCheck
-      : status === "checking"
-        ? LoaderCircle
-        : status === "unknown"
-          ? WifiOff
+    errorKind === "network"
+      ? WifiOff
+      : status === "verified"
+        ? CircleCheck
+        : status === "checking"
+          ? LoaderCircle
           : CircleAlert;
   return (
     <>
@@ -74,7 +128,11 @@ export function SmallAccount({
         >
           <div className="modal-header">
             <h2 id="small-account-title">
-              {showProfile ? "Профиль Small" : "Вход в Small"}
+              {showProfile
+                ? "Профиль Small"
+                : needsLogin
+                  ? "Вход в Small"
+                  : "Подключение к Small"}
             </h2>
             <button
               className="icon-button"
@@ -84,39 +142,17 @@ export function SmallAccount({
               <X size={20} />
             </button>
           </div>
-          {status !== "signed-out" &&
-            (profile || status === "checking" || status === "unknown") && (
-              <div className={`small-account-status ${status}`} role="status">
-                <StatusIcon size={18} aria-hidden="true" />
-                <div>
-                  <strong>
-                    {status === "required"
-                      ? "Сессия Small завершена"
-                      : status === "unknown"
-                        ? "Не удалось проверить сессию"
-                        : smallAuthLabels[status]}
-                  </strong>
-                  <p>
-                    {status === "verified"
-                      ? "Сессия проверена сервером Small."
-                      : status === "required"
-                        ? "Войдите повторно, чтобы обновлять календарь и изменять встречи."
-                        : status === "unknown"
-                          ? "Проверьте подключение и повторите проверку."
-                          : "Проверяем доступ к Small…"}
-                  </p>
-                </div>
+          {showNotice && (
+            <div
+              className={`small-account-status ${error && status === "signed-out" ? "error" : status}`}
+              role={error ? "alert" : "status"}
+            >
+              <StatusIcon size={18} aria-hidden="true" />
+              <div>
+                <strong>{noticeTitle}</strong>
+                <p>{noticeText}</p>
               </div>
-            )}
-          {error && (
-            <p className="form-error" role="alert">
-              {error}
-            </p>
-          )}
-          {state.status === "signed-out" && state.warning && (
-            <p className="form-note" role="status">
-              {state.warning}
-            </p>
+            </div>
           )}
           {showProfile ? (
             <>
@@ -165,9 +201,9 @@ export function SmallAccount({
                 </button>
               </div>
             </>
-          ) : (
+          ) : needsLogin ? (
             <>
-              {status !== "required" && (
+              {!showNotice && (
                 <p className="modal-description">
                   Войдите с рабочей учётной записью Team Small, чтобы работать с
                   календарём.
@@ -186,7 +222,15 @@ export function SmallAccount({
                 }}
               />
             </>
-          )}
+          ) : status === "unknown" ? (
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() => void check()}
+            >
+              Повторить проверку
+            </button>
+          ) : null}
           <footer className="small-account-security">
             <ShieldCheck size={16} aria-hidden="true" />
             <p>

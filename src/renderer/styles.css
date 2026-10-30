@@ -1769,6 +1769,10 @@
   color: var(--auth-warning);
   background: var(--auth-warning-bg);
 }
+.small-account-status.error {
+  color: #a53f2e;
+  background: #fff2ee;
+}
 .small-account-identity {
   display: flex;
   gap: 12px;

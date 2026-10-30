@@ -37,7 +37,7 @@ export function registerSmallAuthHandlers(
         } catch (error) {
           return {
             ok: false,
-            kind: error instanceof SmallAuthError ? error.code : "network",
+            kind: error instanceof SmallAuthError ? error.kind : "network",
             error:
               error instanceof SmallAuthError
                 ? error.message

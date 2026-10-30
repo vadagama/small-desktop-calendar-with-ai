@@ -5,6 +5,7 @@ import { MemoryEntries } from "../../prototype/src/MemoryEntries";
 import { MemoryPreferences } from "../../prototype/src/MemoryPreferences";
 import { MemoryCollections } from "./MemoryCollections";
 import { SmallAuthNotice } from "./SmallAuthNotice";
+import { openSmallAccount } from "./useSmallAccount";
 import type {
   AssistantMemoryState,
   MemoryChange,
@@ -144,7 +145,23 @@ export function MemorySettings({
           запомнить.
         </p>
         {!account ? (
-          <SmallAuthNotice />
+          authRequired ? (
+            <SmallAuthNotice />
+          ) : (
+            <div>
+              <p className="form-note">
+                Не удалось подтвердить аккаунт Small. Откройте профиль, чтобы
+                проверить доступ.
+              </p>
+              <button
+                className="secondary"
+                type="button"
+                onClick={openSmallAccount}
+              >
+                Проверить доступ
+              </button>
+            </div>
+          )
         ) : (
           <>
             {busy && !state && <p role="status">Загружаю память…</p>}
