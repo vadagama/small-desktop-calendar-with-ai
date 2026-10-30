@@ -51,6 +51,32 @@ const participant = z.strictObject({
   organizer: z.boolean(),
 });
 const calendarEvent = z.strictObject({
+  attachments: z
+    .array(
+      z.strictObject({
+        id: z.string(),
+        name: z.string(),
+        size: z.number().optional(),
+        url: z.string().optional(),
+      }),
+    )
+    .optional(),
+  notificationRecipients: z
+    .array(
+      z.strictObject({
+        id: z.string(),
+        name: z.string(),
+      }),
+    )
+    .optional(),
+  recurrenceRule: z
+    .strictObject({
+      FREQ: z.string(),
+      INTERVAL: z.number().int().positive().optional(),
+      BYDAY: z.array(z.string()).optional(),
+      UNTIL: z.string().optional(),
+    })
+    .optional(),
   participants: z.array(participant).optional(),
   recurring: z.boolean().optional(),
   originalEventId: z.string().optional(),
