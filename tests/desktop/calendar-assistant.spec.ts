@@ -152,6 +152,9 @@ test("calendar tools cross utility/main boundary and render trusted results", as
       await page
         .getByRole("textbox", { name: "Сообщение ассистенту" })
         .fill(prompt);
+      await page
+        .getByRole("textbox", { name: "Сообщение ассистенту" })
+        .press("Tab");
       await expect(
         page.getByRole("textbox", { name: "Сообщение ассистенту" }),
       ).toHaveValue(prompt);
