@@ -11,6 +11,7 @@ function setup() {
   let cookie = "";
   let user = "Employee A";
   let revoked = false;
+  let passwordChanged = false;
   let expired = false;
   let offline = false;
   let denied = false;
@@ -43,8 +44,10 @@ function setup() {
       if (offline) throw Error("sensitive network detail");
       if (path.endsWith("/login")) {
         const body = JSON.parse(String(init.body));
-        if (body.password !== "synthetic-password")
+        if (passwordChanged || body.password !== "synthetic-password")
           return new Response(null, { status: 401 });
+        revoked = false;
+        expired = false;
         user = body.username;
         cookie = `synthetic-cookie-${user}`;
         return Response.json({ data: { access_token: token(user) } });
@@ -70,6 +73,10 @@ function setup() {
     saved: () => saved,
     expire: () => {
       expired = true;
+    },
+    changePassword: () => {
+      passwordChanged = true;
+      revoked = true;
     },
     revoke: () => {
       revoked = true;
@@ -131,7 +138,7 @@ test("session expiry notifies all consumers, but offline checks and refresh reco
   f.expire();
   await f.auth.read();
   assert.equal(required, 0);
-  f.revoke();
+  f.changePassword();
   assert.equal((await f.auth.read()).status, "signed-out");
   assert.ok(required > 0);
   unsubscribe();
@@ -145,7 +152,7 @@ test("session expiry notifies all consumers, but offline checks and refresh reco
   await assert.rejects(offline.auth.read());
 });
 
-test("unauthorized writes notify expiry and are never replayed", async () => {
+test("unauthorized writes recover the session without replay or sign-out", async () => {
   const f = setup();
   await f.auth.login(login);
   const original = f.transport.request;
@@ -162,12 +169,14 @@ test("unauthorized writes notify expiry and are never replayed", async () => {
     required = true;
   });
   assert.equal(
-    (await f.auth.deleteCalendarEvent("employee-a", "42")).status,
-    401,
+    (await f.auth.deleteCalendarEvent("employee-a", "42")).headers.get(
+      "X-Small-Session-Recovered",
+    ),
+    "true",
   );
-  assert.equal(required, true);
+  assert.equal(required, false);
   assert.equal(writes, 1);
-  assert.equal(f.saved(), null);
+  assert.equal((await f.auth.read()).status, "signed-in");
 });
 
 test("login verifies profile and returns only display identity, then restores through refresh", async () => {
@@ -184,15 +193,15 @@ test("login verifies profile and returns only display identity, then restores th
   assert.equal(f.refreshes(), 1);
 });
 
-test("expired access refreshes once; revoked refresh clears saved session", async () => {
+test("expired access refreshes once; changed password clears saved session", async () => {
   const f = setup();
   await f.auth.login(login);
   f.expire();
   assert.equal((await f.auth.read()).status, "signed-in");
   assert.equal(f.refreshes(), 1);
-  f.revoke();
+  f.changePassword();
   assert.equal((await f.auth.read()).status, "signed-out");
-  assert.equal(f.saved(), null);
+  assert.equal(JSON.parse(f.saved()!).session, null);
 });
 
 test("logout clears local access even when the server is unavailable", async () => {
@@ -202,7 +211,7 @@ test("logout clears local access even when the server is unavailable", async () 
   const state = await f.auth.logout();
   assert.equal(state.status, "signed-out");
   assert.ok(state.warning);
-  assert.equal(f.saved(), null);
+  assert.equal(JSON.parse(f.saved()!).session, null);
   assert.equal((await f.restart().read()).status, "signed-out");
 });
 
@@ -216,7 +225,7 @@ test("switching accounts and invalid login cannot retain previous profile", asyn
     /Логин или пароль/,
   );
   assert.equal((await f.auth.read()).status, "signed-out");
-  assert.equal(f.saved(), null);
+  assert.equal(JSON.parse(f.saved()!).session, null);
 });
 
 test("local storage refusal blocks login and hides internal errors", async () => {
@@ -252,7 +261,7 @@ test("local logout invalidates persisted credentials even if cookie cleanup fail
     throw Error("synthetic cookie cleanup failure");
   };
   await assert.rejects(f.auth.logout());
-  assert.equal(f.saved(), null);
+  assert.equal(JSON.parse(f.saved()!).session, null);
 });
 
 test("queued logout cannot be undone by an earlier profile refresh", async () => {
@@ -262,7 +271,7 @@ test("queued logout cannot be undone by an earlier profile refresh", async () =>
   const [read, logout] = await Promise.all([f.auth.read(), f.auth.logout()]);
   assert.equal(read.status, "signed-in");
   assert.equal(logout.status, "signed-out");
-  assert.equal(f.saved(), null);
+  assert.equal(JSON.parse(f.saved()!).session, null);
   assert.equal((await f.auth.read()).status, "signed-out");
 });
 
@@ -358,7 +367,7 @@ test("calendar domain failures retain safe kinds and messages across session bou
   );
 });
 
-test("calendar creation checks the account and never refreshes/replays a rejected POST", async () => {
+test("calendar creation checks the account and never replays a rejected POST", async () => {
   const { meetingCreatePath } =
     await import("../../src/main/meeting-request.js");
   const f = setup();
@@ -391,11 +400,13 @@ test("calendar creation checks the account and never refreshes/replays a rejecte
   await assert.rejects(f.auth.createCalendarEvent("other", body));
   assert.equal(writes, 0);
   assert.equal(
-    (await f.auth.createCalendarEvent("employee-a", body)).status,
-    401,
+    (await f.auth.createCalendarEvent("employee-a", body)).headers.get(
+      "X-Small-Session-Recovered",
+    ),
+    "true",
   );
   assert.equal(writes, 1);
-  assert.ok(!f.calls.includes("/gate/auth/refresh"));
+  assert.equal(f.refreshes(), 1);
   await assert.rejects(
     f.auth.createCalendarEvent("employee-a", { ...body, force: true }),
   );
@@ -436,13 +447,23 @@ test("calendar updates and replies send JSON bodies once without replaying an un
     notification_recipient_ids: [],
     attachments: [],
   };
-  await f.auth.updateCalendarEvent("employee-a", "42", body);
+  assert.equal(
+    (await f.auth.updateCalendarEvent("employee-a", "42", body)).headers.get(
+      "X-Small-Session-Recovered",
+    ),
+    "true",
+  );
   await f.auth.login(login);
-  await f.auth.respondCalendarEvent("employee-a", "42", "accepted");
+  assert.equal(
+    (
+      await f.auth.respondCalendarEvent("employee-a", "42", "accepted")
+    ).headers.get("X-Small-Session-Recovered"),
+    "true",
+  );
   assert.equal(received.length, 2);
   assert.deepEqual(received[0]?.body, body);
   assert.deepEqual(received[1]?.body, { status: "accepted" });
-  assert.equal(f.refreshes(), 0);
+  assert.equal(f.refreshes(), 2);
 });
 
 test("series writes are validated, sent once with exact routes and never replayed on 401", async () => {
@@ -485,11 +506,26 @@ test("series writes are validated, sent once with exact routes and never replaye
     notification_recipient_ids: [],
     attachments: [],
   };
-  await f.auth.materializeCalendarEvent("employee-a", "43", "2099-10-29");
+  assert.equal(
+    (
+      await f.auth.materializeCalendarEvent("employee-a", "43", "2099-10-29")
+    ).headers.get("X-Small-Session-Recovered"),
+    "true",
+  );
   await f.auth.login(login);
-  await f.auth.updateSeriesCalendarEvent("employee-a", "900", body);
+  assert.equal(
+    (
+      await f.auth.updateSeriesCalendarEvent("employee-a", "900", body)
+    ).headers.get("X-Small-Session-Recovered"),
+    "true",
+  );
   await f.auth.login(login);
-  await f.auth.cancelCalendarEvent("employee-a", "900", "Отмена");
+  assert.equal(
+    (
+      await f.auth.cancelCalendarEvent("employee-a", "900", "Отмена")
+    ).headers.get("X-Small-Session-Recovered"),
+    "true",
+  );
   assert.deepEqual(
     received.map((r) => [r.method, r.path]),
     [
@@ -504,7 +540,7 @@ test("series writes are validated, sent once with exact routes and never replaye
   });
   assert.deepEqual(received[1]?.body, body);
   assert.deepEqual(received[2]?.body, { reason: "Отмена" });
-  assert.equal(f.refreshes(), 0);
+  assert.equal(f.refreshes(), 3);
   const before = received.length;
   for (const bad of [
     () => f.auth.materializeCalendarEvent("employee-a", "a/b", "2099-10-29"),
@@ -527,4 +563,215 @@ test("series writes are validated, sent once with exact routes and never replaye
   ])
     await assert.rejects(bad());
   assert.equal(received.length, before);
+});
+
+test("expired refresh requires a password once and stays signed out after restart", async () => {
+  const f = setup();
+  await f.auth.login(login);
+  f.revoke();
+  let required = 0;
+  const restarted = f.restart();
+  restarted.subscribeRequired(() => required++);
+  assert.equal((await restarted.read()).status, "signed-out");
+  assert.equal(f.calls.filter((p) => p.endsWith("/login")).length, 1);
+  assert.ok(required > 0);
+  const calls = f.calls.length;
+  assert.equal((await f.restart().read()).status, "signed-out");
+  assert.equal(f.calls.length, calls);
+});
+
+test("refresh server failures never trigger password login or delete saved credentials", async () => {
+  const f = setup();
+  await f.auth.login(login);
+  f.expire();
+  const before = f.saved();
+  const request = f.transport.request;
+  f.transport.request = (path, init) =>
+    path.endsWith("/refresh")
+      ? Promise.resolve(new Response(null, { status: 503 }))
+      : request(path, init);
+  await assert.rejects(f.auth.read());
+  assert.equal(f.saved(), before);
+  assert.equal(f.calls.filter((p) => p.endsWith("/login")).length, 1);
+});
+
+test("refresh refuses a changed account identity and drops the session", async () => {
+  const f = setup();
+  await f.auth.login(login);
+  f.expire();
+  const request = f.transport.request;
+  f.transport.request = async (path, init) =>
+    path.endsWith("/refresh")
+      ? Response.json({ data: { access_token: token("other") } })
+      : request(path, init);
+  await assert.rejects(f.auth.read(), /аккаунт/);
+  assert.equal(JSON.parse(f.saved()!).session, null);
+});
+
+test("legacy cookie-only sessions restore without inventing saved credentials", async () => {
+  const f = setup();
+  await f.auth.login(login);
+  const legacy = JSON.parse(f.saved()!).session;
+  await f.secrets.set("small-auth-session-v1", legacy);
+  const restarted = f.restart();
+  assert.equal((await restarted.read()).status, "signed-in");
+  f.revoke();
+  assert.equal((await restarted.read()).status, "signed-out");
+  assert.equal(f.calls.filter((p) => p.endsWith("/login")).length, 1);
+});
+
+test("concurrent reads stop after rejected refresh and never try password login", async () => {
+  const f = setup();
+  await f.auth.login(login);
+  f.revoke();
+  const states = await Promise.all([
+    f.auth.read(),
+    f.auth.read(),
+    f.auth.read(),
+  ]);
+  assert.ok(states.every((state) => state.status === "signed-out"));
+  assert.equal(f.calls.filter((p) => p.endsWith("/login")).length, 1);
+  f.revoke();
+  const [, loggedOut] = await Promise.all([f.auth.read(), f.auth.logout()]);
+  assert.equal(loggedOut.status, "signed-out");
+  assert.equal(JSON.parse(f.saved()!).session, null);
+  assert.equal((await f.restart().read()).status, "signed-out");
+});
+
+test("a write rejected before a failed refresh retains explicit rejection and recoverable credentials", async () => {
+  const { calendarJson, CalendarError } =
+    await import("../../src/main/calendar.js");
+  const f = setup();
+  await f.auth.login(login);
+  const saved = f.saved();
+  const original = f.transport.request;
+  f.transport.request = (path, init) =>
+    init.method === "DELETE"
+      ? Promise.resolve(new Response(null, { status: 401 }))
+      : path.endsWith("/refresh")
+        ? Promise.resolve(new Response(null, { status: 503 }))
+        : original(path, init);
+  const response = await f.auth.deleteCalendarEvent("employee-a", "42");
+  assert.equal(response.status, 401);
+  await assert.rejects(
+    calendarJson(response),
+    (error: unknown) =>
+      error instanceof CalendarError &&
+      error.kind === "network" &&
+      /Повторите действие/.test(error.message),
+  );
+  assert.equal(f.saved(), saved);
+});
+
+test("password is never persisted; expired refresh preserves username without automatic login", async () => {
+  const f = setup();
+  await f.auth.login(login);
+  assert.equal(f.saved()?.includes(login.password), false);
+  f.revoke();
+  assert.deepEqual(await f.restart().read(), {
+    status: "signed-out",
+    username: "employee-a",
+    reason: "expired",
+  });
+  assert.equal(f.calls.filter((p) => p.endsWith("/login")).length, 1);
+  assert.equal(JSON.parse(f.saved()!).session, null);
+  assert.deepEqual(await f.restart().read(), {
+    status: "signed-out",
+    username: "employee-a",
+    reason: "expired",
+  });
+});
+
+test("legacy password is removed before an offline refresh while cookies and username survive", async () => {
+  const f = setup();
+  await f.auth.login(login);
+  const session = JSON.parse(f.saved()!).session;
+  await f.secrets.set(
+    "small-auth-session-v1",
+    JSON.stringify({
+      version: 2,
+      session,
+      login: { ...login, accountId: "employee-a" },
+    }),
+  );
+  f.offline();
+  await assert.rejects(f.restart().read());
+  const saved = JSON.parse(f.saved()!);
+  assert.equal(saved.version, 3);
+  assert.equal(saved.username, "employee-a");
+  assert.equal(saved.session, session);
+  assert.equal(f.saved()?.includes(login.password), false);
+});
+
+test("logout before restoration removes legacy password but remembers username across restart", async () => {
+  const f = setup();
+  await f.auth.login(login);
+  await f.secrets.set(
+    "small-auth-session-v1",
+    JSON.stringify({
+      version: 2,
+      session: JSON.parse(f.saved()!).session,
+      login: { ...login, accountId: "employee-a" },
+    }),
+  );
+  await f.restart().logout();
+  assert.deepEqual(await f.restart().read(), {
+    status: "signed-out",
+    username: "employee-a",
+  });
+  assert.equal(JSON.parse(f.saved()!).session, null);
+  assert.equal(f.saved()?.includes(login.password), false);
+});
+
+test("no intermediate login snapshot contains the password, even if profile verification fails", async () => {
+  const f = setup();
+  const set = f.secrets.set;
+  const snapshots: string[] = [];
+  f.secrets.set = async (key, value) => {
+    snapshots.push(value);
+    await set(key, value);
+  };
+  const request = f.transport.request;
+  f.transport.request = (path, init) =>
+    path.endsWith("/info")
+      ? Promise.resolve(new Response(null, { status: 503 }))
+      : request(path, init);
+  await assert.rejects(f.auth.login(login));
+  assert.ok(snapshots.length > 0);
+  assert.ok(
+    snapshots.every(
+      (value) =>
+        !value.includes(login.password) && !value.includes('"password"'),
+    ),
+  );
+  assert.deepEqual(await f.restart().read(), {
+    status: "signed-out",
+    username: login.username,
+  });
+});
+
+test("failed legacy migration blocks the network and can be retried without losing the session", async () => {
+  const f = setup();
+  await f.auth.login(login);
+  const legacy = JSON.stringify({
+    version: 2,
+    session: JSON.parse(f.saved()!).session,
+    login: { ...login, accountId: "employee-a" },
+  });
+  await f.secrets.set("small-auth-session-v1", legacy);
+  const set = f.secrets.set;
+  f.secrets.set = async () => {
+    throw Error("synthetic disk failure");
+  };
+  const before = f.calls.length;
+  const restarted = f.restart();
+  await assert.rejects(
+    restarted.read(),
+    (error) => error instanceof SmallAuthError && error.kind === "storage",
+  );
+  assert.equal(f.calls.length, before);
+  assert.equal(f.saved(), legacy);
+  f.secrets.set = set;
+  assert.equal((await restarted.read()).status, "signed-in");
+  assert.equal(f.saved()?.includes(login.password), false);
 });

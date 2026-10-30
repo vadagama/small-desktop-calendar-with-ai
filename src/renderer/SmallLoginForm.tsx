@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import type { SmallAuthStatus } from "../shared/small-auth.js";
 
@@ -16,6 +16,10 @@ export function SmallLoginForm({
   check: () => Promise<void>;
 }) {
   const [username, setUsername] = useState(initialUsername);
+  const editedUsername = useRef(false);
+  useEffect(() => {
+    if (!editedUsername.current) setUsername(initialUsername);
+  }, [initialUsername]);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   return (
@@ -46,7 +50,10 @@ export function SmallLoginForm({
           value={username}
           placeholder="Ваш рабочий логин"
           disabled={busy}
-          onChange={(e) => setUsername(e.target.value)}
+          onChange={(e) => {
+            editedUsername.current = true;
+            setUsername(e.target.value);
+          }}
         />
       </label>
       <label htmlFor="small-account-password">Пароль</label>

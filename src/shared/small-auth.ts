@@ -5,7 +5,12 @@ export const smallAuthChannels = {
   required: "small-auth:required",
 } as const;
 export type SmallAuthState =
-  | { status: "signed-out"; warning?: string }
+  | {
+      status: "signed-out";
+      warning?: string;
+      username?: string;
+      reason?: "expired";
+    }
   | {
       status: "signed-in";
       profile: {

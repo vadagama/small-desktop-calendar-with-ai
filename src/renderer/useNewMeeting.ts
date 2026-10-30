@@ -33,7 +33,7 @@ export function useNewMeeting({
 }: {
   account: { id: string; name: string; participantId?: string };
   initialDate: string;
-  initialSlot?: import("../../prototype/src/types.js").Slot;
+  initialSlot?: import("./ui/types.js").Slot;
   initialPeople?: import("../shared/calendar.js").CalendarPerson[];
   close: () => void;
   expired: () => void;

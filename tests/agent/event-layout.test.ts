@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { layoutEvents } from "../../prototype/src/event-layout.js";
+import { layoutEvents } from "../../src/renderer/ui/event-layout.js";
 test("overlapping events share columns; touching intervals use full width", () => {
   const events = [
     { id: "a", start: 600, duration: 60 },

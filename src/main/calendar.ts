@@ -1,3 +1,4 @@
+import { sessionRecoveryMessage } from "./session-recovery.js";
 import { z } from "zod";
 import { attachmentName, attachmentUrl } from "../shared/event-attachment.js";
 import type {
@@ -175,6 +176,8 @@ function normalize(value: unknown, participantId?: string): CalendarEvent {
 }
 export async function calendarJson(response: Response): Promise<unknown> {
   if (!response.ok) {
+    const recovery = sessionRecoveryMessage(response);
+    if (recovery) throw new CalendarError("network", recovery);
     const kind =
       response.status === 401
         ? "auth"

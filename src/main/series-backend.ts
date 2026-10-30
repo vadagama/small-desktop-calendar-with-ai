@@ -1,3 +1,4 @@
+import { sessionRecoveryMessage } from "./session-recovery.js";
 import { z } from "zod";
 import { calendarDateAt } from "../shared/calendar-time.js";
 import type { CalendarEvent } from "../shared/calendar.js";
@@ -160,7 +161,9 @@ export class SmallSeriesBackend implements SeriesBackend {
     request: () => Promise<Response>,
   ): Promise<Response | null> {
     try {
-      return await request();
+      const response = await request();
+      // Explicit auth rejection: session is recovered, but this write was not applied.
+      return sessionRecoveryMessage(response) ? null : response;
     } catch (error) {
       if (error instanceof SmallAuthError) return null;
       throw error;

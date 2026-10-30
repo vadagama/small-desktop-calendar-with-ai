@@ -1,3 +1,4 @@
+import { sessionRecoveryMessage } from "./session-recovery.js";
 import { MeetingCreateRejected } from "./meeting-create-error.js";
 import { meetingOccurrences } from "./meeting-occurrences.js";
 import { recurrenceRule } from "../shared/meeting-options.js";
@@ -150,7 +151,10 @@ export class SmallMeetingWriter implements MeetingWriter {
       meetingPayload(d),
     );
     if ([400, 401, 403, 404, 409, 422].includes(response.status))
-      throw new MeetingCreateRejected(response.status);
+      throw new MeetingCreateRejected(
+        response.status,
+        sessionRecoveryMessage(response),
+      );
     const body = await calendarJson(response);
     return z.object({ data: z.object({ id }) }).parse(body).data.id;
   }

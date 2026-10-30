@@ -30,13 +30,8 @@ export function registerCalendarHandlers(
       action: (input: unknown) => Promise<T>,
       target: (input: unknown) => WriteTarget | null,
     ) =>
-    async (input: unknown) => {
-      try {
-        return await action(input);
-      } finally {
-        await sync.invalidate(target(input) ?? undefined);
-      }
-    };
+    (input: unknown) =>
+      sync.write(() => action(input), target(input) ?? undefined);
   const handle = <T>(
     channel: string,
     action: (input: unknown) => Promise<T>,

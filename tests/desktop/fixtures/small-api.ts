@@ -9,6 +9,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       syntheticMeetingWrites: number;
       syntheticCreateRejection?: number;
       syntheticAuthStatus?: number;
+      syntheticSessionExpired?: boolean;
       syntheticAuthOffline?: boolean;
       syntheticAuthDelayMs?: number;
       /**
@@ -58,6 +59,11 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         return new Response(null, { status: 403 });
       const path = url.pathname;
       if (
+        inspection.syntheticSessionExpired &&
+        (path.endsWith("/info") || path.endsWith("/refresh"))
+      )
+        return new Response(null, { status: 401 });
+      if (
         inspection.syntheticAuthOffline &&
         (path.endsWith("/info") || path.endsWith("/refresh"))
       )
@@ -82,6 +88,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         const input = await request.json();
         if (input.password !== "synthetic-password")
           return new Response(null, { status: 401 });
+        inspection.syntheticSessionExpired = false;
         employee = input.username;
         await isolated.cookies.set({
           url: "https://team.small.kz",

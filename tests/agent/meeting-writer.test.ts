@@ -314,3 +314,33 @@ test("memory change invalidates a draft both before preflight and immediately be
   await assert.rejects(writer.create(d), /Память изменилась/);
   assert.equal(writes, 0);
 });
+
+test("recovered session rejection keeps creation retryable and does not ask for login", async () => {
+  const { MeetingCreateRejected } =
+    await import("../../src/main/meeting-create-error.js");
+  const service = new SmallMeetingWriter(
+    {
+      createCalendarEvent: async () =>
+        new Response(null, {
+          status: 401,
+          headers: { "X-Small-Session-Recovered": "true" },
+        }),
+      readCalendar: async () => {
+        throw Error("unused");
+      },
+    },
+    { events: async () => ({ events: [], issues: [] }) },
+    {
+      find: async () => {
+        throw Error("unused");
+      },
+    },
+  );
+  await assert.rejects(
+    service.create(draft()),
+    (error: unknown) =>
+      error instanceof MeetingCreateRejected &&
+      error.status === 401 &&
+      /Повторите действие/.test(error.message),
+  );
+});

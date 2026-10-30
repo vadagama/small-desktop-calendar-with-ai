@@ -1,6 +1,6 @@
 import { Check, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
-import { dateLabel, monthDays, shiftMonth } from "../../prototype/src/calendar";
+import { dateLabel, monthDays, shiftMonth } from "./ui/calendar";
 import { calendarToday } from "../shared/calendar-time.js";
 import type { useSmallCalendar } from "./useSmallCalendar";
 

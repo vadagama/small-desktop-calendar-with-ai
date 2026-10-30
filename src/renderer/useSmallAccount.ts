@@ -21,6 +21,7 @@ export function useSmallAccount(
   const [error, setError] = useState("");
   const [errorKind, setErrorKind] = useState<SmallAuthFailureKind | null>(null);
   const [checkedAt, setCheckedAt] = useState<number | null>(null);
+  const [username, setUsername] = useState("");
   const [needsLogin, setNeedsLogin] = useState(false);
   const profile = useRef<SmallAuthState>({ status: "signed-out" });
   const running = useRef(false);
@@ -60,6 +61,11 @@ export function useSmallAccount(
         const reply = await action();
         if (!mounted.current) return;
         if (reply.ok) {
+          setUsername(
+            reply.state.status === "signed-in"
+              ? reply.state.profile.username
+              : (reply.state.username ?? ""),
+          );
           if (reply.state.status === "signed-in") {
             // A newer expiry wins over an old check still in flight.
             if (intent === "check" && generation.current !== version) return;
@@ -77,7 +83,9 @@ export function useSmallAccount(
             setNeedsLogin(true);
             setState(reply.state);
             onChange?.(reply.state);
-            updateStatus("signed-out");
+            updateStatus(
+              reply.state.reason === "expired" ? "required" : "signed-out",
+            );
           } else {
             setNeedsLogin(true);
             updateStatus("required");
@@ -155,6 +163,8 @@ export function useSmallAccount(
     errorKind,
     checkedAt,
     needsLogin,
+    username,
+    setUsername,
     perform,
     check,
   };

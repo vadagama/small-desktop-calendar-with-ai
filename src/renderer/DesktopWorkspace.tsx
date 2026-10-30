@@ -12,8 +12,8 @@ import {
 import { NewMeeting } from "./NewMeeting";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarDays, Settings2, UsersRound, Plus } from "lucide-react";
-import { Calendar } from "../../prototype/src/CalendarView";
-import type { Meeting, Slot } from "../../prototype/src/types";
+import { Calendar } from "./ui/CalendarView";
+import type { Meeting, Slot } from "./ui/types";
 import { DesktopAssistant } from "./Assistant";
 import { DockWorkspace } from "./DockWorkspace";
 import { SmallAccount } from "./SmallAccount";

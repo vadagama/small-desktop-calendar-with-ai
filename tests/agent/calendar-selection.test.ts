@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { calendarSelection } from "../../prototype/src/calendar-selection.js";
+import { calendarSelection } from "../../src/renderer/ui/calendar-selection.js";
 
 test("cell click starts on a half hour and lasts thirty minutes", () => {
   assert.deepEqual(calendarSelection(615), { start: 600, duration: 30 });

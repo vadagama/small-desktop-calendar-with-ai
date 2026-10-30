@@ -1,4 +1,5 @@
 import { MeetingCreateRejected } from "./meeting-create-error.js";
+import { CalendarWriteNotStarted } from "./calendar-write-error.js";
 import { CalendarError } from "./calendar.js";
 import { createHash } from "node:crypto";
 import {
@@ -177,7 +178,12 @@ export class MeetingOperations {
       entry.phase = "succeeded";
       entry.message = "Встреча создана и проверена.";
     } catch (error) {
-      if (claimed && !entry.eventId && error instanceof MeetingCreateRejected) {
+      if (
+        claimed &&
+        !entry.eventId &&
+        (error instanceof MeetingCreateRejected ||
+          error instanceof CalendarWriteNotStarted)
+      ) {
         try {
           await this.journal.releaseRejected(this.operationKey(entry));
           entry.phase = "preview";

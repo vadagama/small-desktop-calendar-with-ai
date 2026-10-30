@@ -3,65 +3,17 @@ import {
   Clock3,
   MapPin,
   Users,
-  X,
   Columns2,
   Rows2,
   ArrowLeftRight,
   Check,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { DataState, Draft, Layout, Meeting } from "./types";
 import { dateLabel, time, TODAY } from "./calendar";
 import { PEOPLE } from "./data";
-import type { ReactNode } from "react";
-export function Modal({
-  children,
-  close,
-  label,
-}: {
-  children: ReactNode;
-  close: () => void;
-  label: string;
-}) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const before = document.activeElement as HTMLElement | null;
-    const dialog = ref.current;
-    dialog?.showModal();
-    return () => {
-      dialog?.close();
-      before?.focus();
-    };
-  }, []);
-  return (
-    <dialog
-      ref={ref}
-      className="modal"
-      aria-label={label}
-      onCancel={close}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          const rect = e.currentTarget.getBoundingClientRect();
-          if (
-            e.clientX < rect.left ||
-            e.clientX > rect.right ||
-            e.clientY < rect.top ||
-            e.clientY > rect.bottom
-          )
-            close();
-        }
-      }}
-    >
-      <div className="modal-header">
-        <h2>{label}</h2>
-        <button className="icon-button" aria-label="Закрыть" onClick={close}>
-          <X size={19} />
-        </button>
-      </div>
-      {children}
-    </dialog>
-  );
-}
+import { Modal } from "../../src/renderer/ui/Modal";
+export { Modal } from "../../src/renderer/ui/Modal";
 export function EventDialog({
   event,
   close,

@@ -10,7 +10,7 @@ import {
   stat,
   utimes,
 } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { z } from "zod";
 import type { CalendarEvent, CalendarQuery } from "../shared/calendar.js";
 import type { CalendarSnapshot } from "../shared/calendar-diff.js";
@@ -153,6 +153,11 @@ export class EventCache {
   private memory = new Map<string, Entry>();
   // Grows on every clear or invalidation; a write that began earlier must not land after it.
   private epoch = 0;
+  private writes = 0;
+  private diskDisabled = false;
+  private initialized: Promise<void> | undefined;
+  private barrierQueue: Promise<unknown> = Promise.resolve();
+  private persisting = new Set<Promise<void>>();
   private now: () => number;
   private eventsMaxAgeMs: number;
   private catalogMaxAgeMs: number;
@@ -179,12 +184,98 @@ export class EventCache {
   private memoryKey(kind: Kind, account: string, key: string) {
     return [account, kind, key].join("\0");
   }
+  // Kept beside the cache so deleting cache entries cannot delete the crash guard.
+  private get dirtyPath() {
+    return this.directory + ".dirty";
+  }
+  private async syncParent() {
+    const folder = await open(dirname(this.directory), "r");
+    try {
+      await folder.sync();
+    } finally {
+      await folder.close();
+    }
+  }
+  private initialize() {
+    return (this.initialized ??= (async () => {
+      try {
+        await stat(this.dirtyPath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+          this.diskDisabled = true;
+        return;
+      }
+      // A previous write crashed or cleanup failed. Never resurrect its disk data.
+      this.diskDisabled = true;
+      try {
+        await rm(this.directory, { recursive: true, force: true });
+        await rm(this.dirtyPath);
+        await this.syncParent();
+        this.diskDisabled = false;
+      } catch {
+        // Fresh in-memory data remains usable while disk recovery is unavailable.
+      }
+    })());
+  }
+  private barrier<T>(action: () => Promise<T>) {
+    const result = this.barrierQueue.then(action);
+    this.barrierQueue = result.catch(() => {});
+    return result;
+  }
+  /** Must finish durably BEFORE any server mutation; failure prevents the mutation. */
+  beginWrite() {
+    this.writes++;
+    this.epoch++;
+    return this.barrier(async () => {
+      try {
+        await this.initialize();
+        // Drain writes started before the epoch changed: none may land after cleanup.
+        await Promise.allSettled([...this.persisting]);
+        await mkdir(dirname(this.directory), { recursive: true, mode: 0o700 });
+        const file = await open(this.dirtyPath, "a", 0o600);
+        try {
+          await file.sync();
+        } finally {
+          await file.close();
+        }
+        await this.syncParent();
+      } catch (error) {
+        this.writes--;
+        this.diskDisabled = true;
+        this.memory.clear();
+        throw error;
+      }
+    });
+  }
+  /** Never throws after a server mutation. A failed cleanup leaves the crash guard. */
+  endWrite(clean: boolean) {
+    return this.barrier(async () => {
+      this.writes--;
+      this.epoch++;
+      if (!clean) {
+        this.diskDisabled = true;
+        this.memory.clear();
+      }
+      if (!this.writes && !this.diskDisabled) {
+        try {
+          await rm(this.dirtyPath, { force: true });
+          await this.syncParent();
+        } catch {
+          this.diskDisabled = true;
+        }
+      }
+      return !this.diskDisabled;
+    });
+  }
   private async load(
     kind: Kind,
     account: string,
     key: string,
     maxAgeMs: number,
   ): Promise<Entry | null> {
+    await this.initialize();
+    if (this.writes) return null;
+    const epoch = this.epoch;
     const id = this.memoryKey(kind, account, key);
     const cached = this.memory.get(id);
     if (cached) {
@@ -195,6 +286,7 @@ export class EventCache {
       }
       this.memory.delete(id);
     }
+    if (this.diskDisabled) return null;
     const path = this.path(kind, account, key);
     const drop = () => rm(path, { force: true });
     let text: string;
@@ -221,12 +313,14 @@ export class EventCache {
         fetchedAt: body.fetchedAt,
         json: JSON.stringify(body.value),
       };
+      if (epoch !== this.epoch || this.writes || this.diskDisabled) return null;
       this.remember(id, entry);
       const stamp = this.now() / 1000;
       await utimes(path, stamp, stamp).catch(() => {});
+      if (epoch !== this.epoch || this.writes || this.diskDisabled) return null;
       return entry;
     } catch {
-      await drop();
+      await drop().catch(() => {});
       return null;
     }
   }
@@ -242,12 +336,20 @@ export class EventCache {
     key: string,
     value: unknown,
   ): Promise<boolean> {
+    await this.initialize();
+    if (this.writes) return false;
     const json = JSON.stringify(value);
     if (json === undefined || Buffer.byteLength(json) > MAX_VALUE_BYTES)
       return false;
     const entry = { fetchedAt: this.now(), json };
     this.remember(this.memoryKey(kind, account, key), entry);
-    await this.persist(kind, account, key, entry).catch(() => {});
+    const persisted = this.persist(kind, account, key, entry).catch(() => {});
+    this.persisting.add(persisted);
+    try {
+      await persisted;
+    } finally {
+      this.persisting.delete(persisted);
+    }
     return true;
   }
   private async persist(
@@ -257,6 +359,7 @@ export class EventCache {
     entry: Entry,
   ) {
     const epoch = this.epoch;
+    if (this.diskDisabled || this.writes) return;
     if (!(await this.cipher.isAvailable())) return;
     if (epoch !== this.epoch) return;
     const directory = this.accountDirectory(account);
@@ -413,8 +516,9 @@ export class EventCache {
       names = (await readdir(directory)).filter((name) =>
         name.endsWith(".json"),
       );
-    } catch {
-      return;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+      throw error;
     }
     const readable = await this.cipher.isAvailable().catch(() => false);
     for (const name of names) {
@@ -439,6 +543,12 @@ export class EventCache {
       }
       await rm(path, { force: true });
     }
+    const folder = await open(directory, "r");
+    try {
+      await folder.sync();
+    } finally {
+      await folder.close();
+    }
   }
   async clear(account: string) {
     this.epoch++;
@@ -460,5 +570,6 @@ export class EventCache {
       maxRetries: 3,
       retryDelay: 50,
     });
+    await this.syncParent();
   }
 }

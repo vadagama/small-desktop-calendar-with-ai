@@ -1,4 +1,5 @@
-import { CalendarConversation } from "./calendar-conversation.js";
+import type { CalendarConversation } from "./calendar-conversation.js";
+import { WindowConversations } from "./window-conversations.js";
 import type { AgentHistoryEvent } from "../shared/assistant.js";
 import type { AgentSettingsState } from "../shared/agent-settings.js";
 import type {
@@ -51,10 +52,7 @@ export function registerAssistantHandlers(
   ) => Promise<CalendarToolExecutor | null>,
   resolveSettings: () => Promise<AgentSettingsState>,
 ) {
-  const conversations = new Map<
-    number,
-    { id: string; state: CalendarConversation }
-  >();
+  const conversations = new WindowConversations();
   const jobs = new Map<number, Job>();
   const workers = new Set<UtilityProcess>();
   const trusted = (event: IpcMainInvokeEvent) =>
@@ -101,17 +99,9 @@ export function registerAssistantHandlers(
       const ownerId = owner.id;
       if (jobs.has(ownerId))
         return { ok: false, error: "Дождитесь ответа или остановите запрос" };
-      let conversation = conversations.get(ownerId);
       const conversationId =
         parsed.data.conversationId ?? parsed.data.requestId;
-      if (!conversation || conversation.id !== conversationId) {
-        conversation = {
-          id: conversationId,
-          state: new CalendarConversation(),
-        };
-        conversations.set(ownerId, conversation);
-      }
-      const state = conversation.state;
+      const state = conversations.get(owner, conversationId);
       const job: Job = {
         ownerId,
         requestId: parsed.data.requestId,

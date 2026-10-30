@@ -1,0 +1,53 @@
+name: Desktop quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  desktop:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.23.2
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            prototype/package-lock.json
+      - name: Install locked packages without dependency scripts
+        run: |
+          npm install --global npm@10.9.8 --ignore-scripts
+          npm ci --ignore-scripts
+          npm ci --prefix prototype --ignore-scripts
+      - name: Install the pinned Electron binary
+        run: node node_modules/electron/install.js
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run check --prefix prototype
+      - run: npm test --prefix prototype
+      - run: npm run build:desktop
+      - run: npm run check:size
+      - run: npm audit --audit-level=high
+      - run: npm audit --prefix prototype --audit-level=high
+      - name: Electron integration tests with synthetic services
+        run: ./node_modules/.bin/playwright test -c playwright.desktop.config.ts
+      - name: Package with production fuses and a temporary local signature
+        run: node scripts/package-mac.mjs --local-sign --hardened --out release/ci
+      - name: Verify archive, utility process and tamper rejection
+        run: |
+          node scripts/check-package.mjs 'release/ci/Small Calendar-darwin-arm64/Small Calendar.app/Contents/Resources/app.asar'
+          node scripts/smoke-package.mjs 'release/ci/Small Calendar-darwin-arm64/Small Calendar.app/Contents/MacOS/Small Calendar'
+          node scripts/test-package-integrity.mjs 'release/ci/Small Calendar-darwin-arm64/Small Calendar.app'

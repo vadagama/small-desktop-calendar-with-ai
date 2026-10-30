@@ -371,3 +371,20 @@ test("an occurrence moved to another day stays a separate view", async () => {
   ]);
   assert.equal(views.length, 2);
 });
+
+test("recovered session write refusal remains retryable without reporting expired auth", async () => {
+  const backend = new SmallSeriesBackend(
+    session({
+      cancelCalendarEvent: async () =>
+        new Response(null, {
+          status: 401,
+          headers: { "X-Small-Session-Recovered": "true" },
+        }),
+    }).value,
+    calendarWith([]),
+  );
+  assert.deepEqual(await backend.cancel("acc", "901", "reason"), {
+    status: 0,
+    notSent: true,
+  });
+});

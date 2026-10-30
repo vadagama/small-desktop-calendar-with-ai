@@ -33,9 +33,13 @@ export default defineConfig({
   },
   renderer: {
     root: "src/renderer",
-    publicDir: resolve("prototype/public"),
+    publicDir: resolve("resources/renderer"),
     resolve: { dedupe: ["react", "react-dom"] },
     server: { host: "127.0.0.1", port: 5174, strictPort: true },
-    build: { rollupOptions: { input: resolve("src/renderer/index.html") } },
+    build: {
+      minify: true,
+      cssMinify: true,
+      rollupOptions: { input: resolve("src/renderer/index.html") },
+    },
   },
 });
