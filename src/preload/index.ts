@@ -81,6 +81,12 @@ const bridge: DesktopBridge = {
     },
   },
   smallAuth: {
+    subscribeRequired: (listener) => {
+      const handler = () => listener();
+      ipcRenderer.on(smallAuthChannels.required, handler);
+      return () =>
+        ipcRenderer.removeListener(smallAuthChannels.required, handler);
+    },
     read: () => ipcRenderer.invoke(smallAuthChannels.read),
     login: (input) => ipcRenderer.invoke(smallAuthChannels.login, input),
     logout: () => ipcRenderer.invoke(smallAuthChannels.logout),

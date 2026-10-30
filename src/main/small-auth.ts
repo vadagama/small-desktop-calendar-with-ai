@@ -47,6 +47,17 @@ export class SmallAuth {
   private token: string | null = null;
   private version = 0;
   private restored = false;
+  private requiredListeners = new Set<() => void>();
+  subscribeRequired(listener: () => void) {
+    this.requiredListeners.add(listener);
+    return () => {
+      this.requiredListeners.delete(listener);
+    };
+  }
+  private requireSignIn(): SmallAuthState {
+    for (const listener of this.requiredListeners) listener();
+    return signedOut;
+  }
   constructor(
     private transport: AuthTransport,
     private secrets: SecretStore,
@@ -114,24 +125,48 @@ export class SmallAuth {
     await this.storedSecret(() => this.secrets.set(account, snapshot));
     this.token = parsed.data.data.access_token;
   }
+  /** Writes are never replayed, even after a 401. */
+  private async write(path: string, method: string, body?: unknown) {
+    return this.checkWrite(await this.request(path, method, body));
+  }
+  private async checkWrite(response: Response) {
+    if (response.status === 401) {
+      try {
+        await this.clear();
+      } finally {
+        this.requireSignIn();
+      }
+    }
+    return response;
+  }
   private async authorized(path: string, body?: unknown): Promise<Response> {
     const method = body === undefined ? "GET" : "POST";
     let response = await this.request(path, method, body);
     if (response.status === 401) {
       const refreshed = await this.request("/gate/auth/refresh");
       if (refreshed.status === 401 || refreshed.status === 403) {
-        await this.clear();
+        try {
+          await this.clear();
+        } finally {
+          this.requireSignIn();
+        }
         return new Response(null, { status: 401 });
       }
       await this.accept(refreshed);
       response = await this.request(path, method, body);
-      if (response.status === 401) await this.clear();
+      if (response.status === 401) {
+        try {
+          await this.clear();
+        } finally {
+          this.requireSignIn();
+        }
+      }
     }
     return response;
   }
   private async profile(): Promise<SmallAuthState> {
     const response = await this.authorized("/gate/team/api/user/info");
-    if (response.status === 401) return signedOut;
+    if (response.status === 401) return this.requireSignIn();
     if (response.status === 403)
       throw new SmallAuthError("Нет доступа к профилю Small.");
     if (!response.ok)
@@ -167,18 +202,22 @@ export class SmallAuth {
       const saved = await this.storedSecret(() => this.secrets.get(account));
       if (!saved) {
         this.restored = true;
-        return signedOut;
+        return this.requireSignIn();
       }
       await this.transport.restore(saved);
       const response = await this.request("/gate/auth/refresh");
       if (response.status === 401 || response.status === 403) {
-        await this.clear();
+        try {
+          await this.clear();
+        } finally {
+          this.requireSignIn();
+        }
         return signedOut;
       }
       await this.accept(response);
       this.restored = true;
     }
-    return this.token ? this.profile() : signedOut;
+    return this.token ? this.profile() : this.requireSignIn();
   }
   get sessionRevision() {
     return this.version;
@@ -247,7 +286,7 @@ export class SmallAuth {
         state.profile.id !== accountId
       )
         throw new SmallAuthError("Изменился аккаунт Small.", "auth");
-      return this.request(meetingCreatePath, "POST", body.data);
+      return this.write(meetingCreatePath, "POST", body.data);
     });
   }
   respondCalendarEvent(
@@ -271,7 +310,7 @@ export class SmallAuth {
         state.profile.id !== accountId
       )
         throw new SmallAuthError("Изменился аккаунт Small.", "auth");
-      return this.request(
+      return this.write(
         `/gate/team/api/calendar/events/${eventId}/participant-status`,
         "PATCH",
         { status },
@@ -290,10 +329,7 @@ export class SmallAuth {
         state.profile.id !== accountId
       )
         throw new SmallAuthError("Изменился аккаунт Small.", "auth");
-      return this.request(
-        `/gate/team/api/calendar/events/${eventId}`,
-        "DELETE",
-      );
+      return this.write(`/gate/team/api/calendar/events/${eventId}`, "DELETE");
     });
   }
   updateCalendarEvent(
@@ -315,7 +351,7 @@ export class SmallAuth {
         state.profile.id !== accountId
       )
         throw new SmallAuthError("Изменился аккаунт Small.", "auth");
-      return this.request(
+      return this.write(
         `/gate/team/api/calendar/events/${eventId}?force=false`,
         "PUT",
         body.data,
@@ -341,7 +377,7 @@ export class SmallAuth {
         state.profile.id !== accountId
       )
         throw new SmallAuthError("Изменился аккаунт Small.", "auth");
-      return this.request(path, method, body);
+      return this.write(path, method, body);
     });
   }
   /** Field names of the from-template body come from the client bundle and are unconfirmed (A2). */
@@ -415,13 +451,15 @@ export class SmallAuth {
         state.profile.id !== accountId
       )
         throw new SmallAuthError("Изменился аккаунт Small.", "auth");
-      return this.transport.request(attachmentPath, {
-        method: "POST",
-        body,
-        headers: { Authorization: `Bearer ${this.token}` },
-        redirect: "error",
-        signal: AbortSignal.timeout(30000),
-      });
+      return this.checkWrite(
+        await this.transport.request(attachmentPath, {
+          method: "POST",
+          body,
+          headers: { Authorization: `Bearer ${this.token}` },
+          redirect: "error",
+          signal: AbortSignal.timeout(30000),
+        }),
+      );
     });
   }
   login(input: unknown) {
@@ -438,7 +476,7 @@ export class SmallAuth {
           remember_me: true,
         });
         if (response.status === 401 || response.status === 403)
-          throw new SmallAuthError("Логин или пароль не подошли.");
+          throw new SmallAuthError("Логин или пароль не подошли.", "auth");
         await this.accept(response);
         return await this.profile();
       } catch (error) {
