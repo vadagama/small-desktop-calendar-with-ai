@@ -17,15 +17,15 @@ function setup() {
   const calls: string[] = [];
   const secrets: SecretStore = {
     get: async () => {
-      if (denied) throw Error("sensitive keychain detail");
+      if (denied) throw Error("sensitive storage detail");
       return saved;
     },
     set: async (_key, value) => {
-      if (denied) throw Error("sensitive keychain detail");
+      if (denied) throw Error("sensitive storage detail");
       saved = value;
     },
     remove: async () => {
-      if (denied) throw Error("sensitive keychain detail");
+      if (denied) throw Error("sensitive storage detail");
       saved = null;
     },
   };
@@ -133,10 +133,10 @@ test("switching accounts and invalid login cannot retain previous profile", asyn
   assert.equal(f.saved(), null);
 });
 
-test("Keychain refusal blocks login and hides internal errors", async () => {
+test("local storage refusal blocks login and hides internal errors", async () => {
   const f = setup();
   f.deny();
-  await assert.rejects(f.auth.login(login), /Keychain/);
+  await assert.rejects(f.auth.login(login), /локальн/);
   assert.equal(f.calls.length, 0);
 });
 

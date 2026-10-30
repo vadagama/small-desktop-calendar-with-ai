@@ -14,6 +14,7 @@ export async function prepareMeetingDraft(
   availability: Pick<AvailabilityService, "find">,
   signal: AbortSignal,
   includeWeekends = false,
+  policy?: NonNullable<MeetingDraft["memoryPolicy"]>,
 ): Promise<MeetingDraft> {
   signal.throwIfAborted();
   const parsed = meetingDraftInput.safeParse(input);
@@ -34,6 +35,14 @@ export async function prepareMeetingDraft(
     participantIds: q.participantIds,
     date: calendarDateAt(q.startsAt),
     durationMinutes: q.durationMinutes,
+    ...(policy
+      ? {
+          bufferMinutes: policy.bufferMinutes,
+          organizerParticipantId: policy.organizerParticipantId,
+          timeFrom: policy.timeFrom,
+          timeTo: policy.timeTo,
+        }
+      : {}),
     ...(includeWeekends
       ? {
           includeWeekends: true,
@@ -78,5 +87,6 @@ export async function prepareMeetingDraft(
     recurrence: "none",
     visibility: "private",
     availabilityCheckedAt: new Date().toISOString(),
+    ...(policy ? { memoryPolicy: policy } : {}),
   };
 }

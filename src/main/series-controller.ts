@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { SeriesDeletionService } from "./series-deletion.js";
 import { validCalendarDate } from "../shared/calendar-time.js";
 import {
   describeScope,
@@ -54,6 +55,7 @@ export class SeriesController {
     private evidence: Parameters<
       typeof gateSeriesOperation
     >[1] = seriesContractEvidence,
+    private deletions?: Pick<SeriesDeletionService, "preview" | "apply">,
   ) {}
   private gateFor(input: unknown) {
     const r = request.parse(input);
@@ -91,6 +93,8 @@ export class SeriesController {
   async gate(input: unknown): Promise<SeriesGateState> {
     const { r, gate } = this.gateFor(input);
     await this.participant(r.accountId);
+    if (r.operation === "delete" && this.deletions)
+      return this.deletions.preview(r);
     const summary = describeScope(r.scope, r.originalDate);
     return gate.open
       ? { open: true, message: "Действие можно выполнить.", summary }
@@ -99,6 +103,8 @@ export class SeriesController {
   async apply(input: unknown): Promise<SeriesApplyResult> {
     const { r, gate } = this.gateFor(input);
     const participantId = await this.participant(r.accountId);
+    if (r.operation === "delete" && this.deletions)
+      return this.deletions.apply(r);
     if (!gate.open)
       throw new CalendarError(
         gate.reason === "contract-unverified" ? "denied" : "invalid",

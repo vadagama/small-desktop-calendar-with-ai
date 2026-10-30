@@ -63,7 +63,6 @@ test("series operations stay closed through the real preload and IPC, with no wr
 
     for (const input of [
       request,
-      { ...request, operation: "delete", title: undefined },
       {
         ...request,
         operation: "move",

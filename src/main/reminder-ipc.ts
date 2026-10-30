@@ -70,9 +70,7 @@ export function registerReminders(
       },
     );
   };
-  handle(reminderChannels.read, async () => {
-    await reminders.tick();
-  });
+  handle(reminderChannels.read, async () => {});
   handle(reminderChannels.save, async (input) => {
     await reminders.save(input);
   });

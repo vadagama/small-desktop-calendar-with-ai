@@ -109,6 +109,36 @@ test("events survive a restart", async () => {
   });
 });
 
+test("event attachments, notification recipients and recurrence survive a restart", async () => {
+  await withCache(async ({ open }) => {
+    const enriched: CalendarEvent = {
+      ...event(),
+      attachments: [
+        {
+          id: "attachment-1",
+          name: "agenda.pdf",
+          size: 128,
+          url: "https://team.small.kz/agenda.pdf",
+        },
+      ],
+      notificationRecipients: [{ id: "p-b", name: "Beta" }],
+      recurrenceRule: {
+        FREQ: "WEEKLY",
+        INTERVAL: 2,
+        BYDAY: ["MO"],
+        UNTIL: "2026-12-31",
+      },
+    };
+    assert.equal(
+      await open().putEvents("a", "week-1", complete(enriched)),
+      true,
+    );
+    assert.deepEqual((await open().getEvents("a", "week-1"))?.events, [
+      enriched,
+    ]);
+  });
+});
+
 test("disk holds ciphertext only and no account, key or title in names or bytes", async () => {
   await withCache(async ({ dir, open }) => {
     await open().putEvents("account-secret", "range-secret", complete(event()));

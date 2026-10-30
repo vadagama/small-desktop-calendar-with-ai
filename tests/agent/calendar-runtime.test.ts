@@ -45,9 +45,9 @@ test("calendar SDK loop returns a service result to the model and rejects arbitr
       },
     );
     await result.consumeStream();
-    assert.equal(calls, name === "searchPeople" ? 20 : 0);
+    assert.equal(calls, name === "searchPeople" ? 21 : 1);
     assert.equal((await result.steps).length, 20);
-    if (calls)
+    if (name === "searchPeople")
       assert.ok(
         model.doStreamCalls[1]?.prompt.some(
           (message) => message.role === "tool",
@@ -117,7 +117,7 @@ test("custom instructions reach the model, skills load on demand, disabled tools
       configuration,
     );
     await result.consumeStream();
-    assert.equal(calls, 0);
+    assert.equal(calls, 1);
     const first = model.doStreamCalls[0]!;
     assert.ok(
       JSON.stringify(first.prompt).includes("Предпочитай краткие ответы."),
@@ -182,8 +182,105 @@ test("enabled analytics skill exposes meetingAnalytics and routes it to the exec
     configuration,
   );
   await result.consumeStream();
-  assert.deepEqual(called[0], ["meetingAnalytics", { period: "this-week" }]);
+  assert.deepEqual(called[0], ["assistantMemory", { action: "recall" }]);
+  assert.deepEqual(called[1], ["meetingAnalytics", { period: "this-week" }]);
   assert.ok(
     model.doStreamCalls[0]!.tools?.some((t) => t.name === "meetingAnalytics"),
   );
+});
+
+test("failed memory recall is passed to the model as an error rather than empty memory", async () => {
+  const failure = {
+    ok: false as const,
+    kind: "denied" as const,
+    error: "Synthetic memory unavailable",
+  };
+  const model = new MockLanguageModelV4({
+    doStream: async () => ({
+      stream: simulateReadableStream({
+        initialDelayInMs: null,
+        chunkDelayInMs: null,
+        chunks: [
+          {
+            type: "finish",
+            finishReason: { unified: "stop", raw: undefined },
+            usage: {
+              inputTokens: {
+                total: 1,
+                noCache: 1,
+                cacheRead: undefined,
+                cacheWrite: undefined,
+              },
+              outputTokens: { total: 1, text: 1, reasoning: undefined },
+            },
+          },
+        ],
+      }),
+    }),
+  });
+  const result = await streamCalendarTurn(
+    model,
+    {
+      prompt: "Назначь встречу с командой",
+      abortSignal: new AbortController().signal,
+    },
+    async (name, input) => {
+      assert.equal(name, "assistantMemory");
+      assert.deepEqual(input, { action: "recall" });
+      return failure;
+    },
+  );
+  await result.consumeStream();
+  assert.ok(
+    JSON.stringify(model.doStreamCalls[0]!.prompt).includes(failure.error),
+  );
+});
+
+test("copy selection cannot reread meetings when the schedule skill is disabled", async () => {
+  const { loadAgentDefaults } =
+    await import("../../src/agent/agent-content.js");
+  const configuration = await loadAgentDefaults();
+  configuration.settings.skills.find((s) => s.id === "schedule")!.enabled =
+    false;
+  const called: string[] = [];
+  const model = new MockLanguageModelV4({
+    doStream: async () => ({
+      stream: simulateReadableStream({
+        initialDelayInMs: null,
+        chunkDelayInMs: null,
+        chunks: [
+          {
+            type: "tool-call",
+            toolCallId: "copy",
+            toolName: "selectParticipants",
+            input: '{"participantIds":[],"sourceEventKey":"event:synthetic"}',
+          },
+          {
+            type: "finish",
+            finishReason: { unified: "tool-calls", raw: undefined },
+            usage: {
+              inputTokens: {
+                total: 1,
+                noCache: 1,
+                cacheRead: undefined,
+                cacheWrite: undefined,
+              },
+              outputTokens: { total: 1, text: 1, reasoning: undefined },
+            },
+          },
+        ],
+      }),
+    }),
+  });
+  const result = await streamCalendarTurn(
+    model,
+    { prompt: "Копия", abortSignal: new AbortController().signal },
+    async (name) => {
+      called.push(name);
+      return { ok: false, kind: "denied", error: "synthetic" };
+    },
+    configuration,
+  );
+  await result.consumeStream();
+  assert.deepEqual(called, ["assistantMemory"]);
 });

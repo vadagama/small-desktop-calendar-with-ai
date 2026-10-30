@@ -12,7 +12,7 @@ export type SeriesOperation = (typeof seriesOperations)[number];
 export type ContractAssumption =
   "A2" | "A3" | "A4" | "A5" | "A6" | "A7" | "A8" | "A9";
 
-/** First version: whole-series and "delete the following" are not offered. */
+/** Legacy rename/move adapter policy. Production deletion uses SeriesDeletionService. */
 export const seriesOperationMatrix: {
   operation: SeriesOperation;
   scope: SeriesScope;

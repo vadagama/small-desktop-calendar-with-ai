@@ -1,0 +1,71 @@
+.icon-rail > .rail-memory {
+  margin-top: auto;
+}
+.icon-rail:has(.rail-memory) .rail-settings {
+  margin-top: 0;
+}
+.modal:has(.assistant-settings-prototype) {
+  width: min(560px, calc(100vw - 32px));
+  font-size: var(--font-body);
+}
+.modal:has(.assistant-settings-prototype) .modal-header h2 {
+  font-size: var(--font-dialog-title);
+}
+.assistant-settings-prototype {
+  display: grid;
+  gap: 16px;
+}
+.assistant-settings-prototype label {
+  display: grid;
+  gap: 8px;
+  font-size: var(--font-body);
+}
+.assistant-settings-prototype input,
+.assistant-settings-prototype textarea,
+.assistant-settings-prototype select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: var(--font-body);
+  background: var(--surface);
+  color: var(--ink);
+}
+.assistant-settings-prototype textarea {
+  resize: vertical;
+}
+.ai-settings-description,
+.ai-settings-note {
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: var(--font-compact);
+}
+.ai-settings-description {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.ai-settings-description svg {
+  margin-top: 2px;
+}
+.ai-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ai-settings-actions button {
+  font-size: var(--font-body);
+}
+@media (max-width: 759px) {
+  .sidebar-open .icon-rail {
+    z-index: 11;
+  }
+  .sidebar-open .sidebar,
+  .sidebar-open .sidebar-scrim {
+    left: 64px;
+  }
+  .sidebar-open .sidebar {
+    max-width: calc(100vw - 64px);
+  }
+}

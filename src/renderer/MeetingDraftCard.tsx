@@ -106,6 +106,9 @@ export function MeetingDraftCard({ draft: initial }: { draft: MeetingDraft }) {
             agenda: draft.agenda || "",
           }}
         />
+        {draft.memoryPolicy && (
+          <p className="form-note">{draft.memoryPolicy.summary}</p>
+        )}
         {draft.conferenceUrl && (
           <p className="meeting-draft-url">
             Ссылка на конференцию

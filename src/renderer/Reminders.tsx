@@ -2,7 +2,6 @@ import { NotificationCheck } from "./NotificationCheck";
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import type { ReminderReply, ReminderState } from "../shared/reminders.js";
-import { calendarTimeZone } from "../shared/calendar-time.js";
 export function Reminders({ close }: { close: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [state, setState] = useState<ReminderState | null>(null);
@@ -33,7 +32,8 @@ export function Reminders({ close }: { close: () => void }) {
         }
       })
       .catch(() => {
-        if (mounted.current) setError("Не удалось загрузить напоминания.");
+        if (mounted.current)
+          setError("Не удалось загрузить настройки напоминаний.");
       });
     return () => {
       mounted.current = false;
@@ -56,12 +56,6 @@ export function Reminders({ close }: { close: () => void }) {
       if (mounted.current) setBusy(false);
     }
   };
-  const format = (date: string) =>
-    new Intl.DateTimeFormat("ru", {
-      timeZone: calendarTimeZone,
-      dateStyle: "short",
-      timeStyle: "short",
-    }).format(new Date(date));
   return (
     <dialog
       ref={dialog}
@@ -88,7 +82,7 @@ export function Reminders({ close }: { close: () => void }) {
       )}
       {notice && <p role="status">{notice}</p>}
       {!state ? (
-        <p role="status">Загружаю напоминания…</p>
+        <p role="status">Загружаю настройки напоминаний…</p>
       ) : (
         <>
           <form
@@ -133,45 +127,6 @@ export function Reminders({ close }: { close: () => void }) {
             После пробуждения напомним об ещё идущих встречах. Закрытие окна не
             отключает напоминания; полный выход из приложения останавливает их.
           </p>
-          {state.warning && <p role="status">{state.warning}</p>}
-          <div className="reminder-heading">
-            <h3>Текущие напоминания</h3>
-            <button
-              className="secondary"
-              disabled={busy}
-              onClick={() =>
-                void action(() => window.smallDesktop.reminders.read())
-              }
-            >
-              Обновить напоминания
-            </button>
-          </div>
-          {!state.items.length && <p>Сейчас напоминаний нет.</p>}
-          {state.items.map((item) => (
-            <article className="reminder-item" key={item.id}>
-              <h3>{item.event.title}</h3>
-              <p>
-                {format(item.event.startsAt)} — {format(item.event.endsAt)} ·{" "}
-                {calendarTimeZone}
-              </p>
-              <p>Организатор: {item.event.organizer || "не указан"}</p>
-              {item.canJoin ? (
-                <button
-                  className="primary"
-                  disabled={busy}
-                  onClick={() =>
-                    void action(() =>
-                      window.smallDesktop.reminders.join(item.id),
-                    )
-                  }
-                >
-                  Подключиться
-                </button>
-              ) : (
-                <p>Ссылка на встречу отсутствует</p>
-              )}
-            </article>
-          ))}
         </>
       )}
     </dialog>

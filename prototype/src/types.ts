@@ -3,6 +3,8 @@ export type View = "day" | "week" | "month";
 export type Layout = "right" | "left" | "bottom" | "top";
 export type DataState = "ready" | "loading" | "empty" | "error" | "denied";
 export interface Meeting {
+  recurring?: boolean;
+  kind?: "meeting" | "focus";
   participation?: "organizer" | "invited" | "informed" | "unknown";
   accepted?: boolean;
   organizer: string;

@@ -1,11 +1,6 @@
 import type { ElectronApplication } from "@playwright/test";
 
-/**
- * Every sign-in in a test stores a session in the real macOS Keychain. The entry is owned
- * by the Electron process, so a test runner cannot delete it from outside ("Invalid
- * attempt to change the owner of this item"); only the app can, by signing out. Call this
- * before closing the app so test runs do not pile up credentials.
- */
+/** Signs out of the isolated test profile before removing it. */
 export async function signOutOfApp(app: ElectronApplication) {
   try {
     const page = await app.firstWindow();

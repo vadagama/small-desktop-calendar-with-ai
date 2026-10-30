@@ -2641,3 +2641,10 @@ select:focus-visible,
   cursor: default;
   opacity: 1;
 }
+
+.event-repeat-indicator {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 3px;
+  flex-shrink: 0;
+}

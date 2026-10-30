@@ -21,7 +21,6 @@
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "3.0.80",
-    "@napi-rs/keyring": "2.1.2",
     "ai": "7.0.155",
     "react-markdown": "10.1.0",
     "zod": "4.6.7"

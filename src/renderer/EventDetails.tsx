@@ -11,6 +11,9 @@ import {
   X,
   MoreVertical,
   Users,
+  User,
+  DoorOpen,
+  Repeat2,
   Copy,
   Link as LinkIcon,
   Pencil,
@@ -20,7 +23,13 @@ import {
   Check,
   HelpCircle,
 } from "lucide-react";
-import type { CalendarEvent, EventLookup } from "../shared/calendar.js";
+import { EventAttachments } from "./EventAttachments.js";
+import { recurrenceSummary } from "../shared/recurrence-summary.js";
+import type {
+  SmallCalendar,
+  CalendarEvent,
+  EventLookup,
+} from "../shared/calendar.js";
 import {
   seriesInvalidation,
   type EventInvalidation,
@@ -65,6 +74,8 @@ export function EventDetails({
   const [notice, setNotice] = useState("");
   const [retry, setRetry] = useState(0);
   const [allPeople, setAllPeople] = useState(false);
+  const [allInformed, setAllInformed] = useState(false);
+  const [calendars, setCalendars] = useState<SmallCalendar[]>([]);
   const [editing, setEditing] = useState<"rename" | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [seriesOperation, setSeriesOperation] =
@@ -129,6 +140,27 @@ export function EventDetails({
       active = false;
     };
   }, [accountId, lookup, retry, expired]);
+  useEffect(() => {
+    if (!event?.calendarIds.length) return;
+    let active = true;
+    void window.smallDesktop.calendar
+      .calendars({ accountId })
+      .then((reply) => {
+        if (!active) return;
+        if (reply.ok) setCalendars(reply.data);
+        else if (reply.kind === "auth") expired();
+      })
+      .catch(() => {
+        /* Only confirmed room names are shown. */
+      });
+    return () => {
+      active = false;
+    };
+  }, [accountId, event, expired]);
+  const rooms = calendars.filter((calendar) =>
+    event?.calendarIds.includes(calendar.id),
+  );
+  const informed = event?.notificationRecipients ?? [];
   const date = (value: string) =>
     new Intl.DateTimeFormat("ru", {
       timeZone: calendarTimeZone,
@@ -447,6 +479,60 @@ export function EventDetails({
               </button>
             )}
           </section>
+          {informed.length > 0 && (
+            <section className="event-people-card" aria-label="Информировать">
+              <div className="event-section-label">
+                <User size={20} />
+                Информировать
+              </div>
+              <ul>
+                {(allInformed ? informed : informed.slice(0, 5)).map(
+                  (person) => (
+                    <li key={person.id}>
+                      <span className="event-avatar" aria-hidden="true">
+                        {(person.name || "?")
+                          .split(/\s+/)
+                          .slice(0, 2)
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()}
+                      </span>
+                      <span>{person.name || "Сотрудник без имени"}</span>
+                    </li>
+                  ),
+                )}
+              </ul>
+              {informed.length > 5 && (
+                <button
+                  className="event-show-all"
+                  aria-expanded={allInformed}
+                  onClick={() => setAllInformed((v) => !v)}
+                >
+                  {allInformed
+                    ? "Свернуть"
+                    : `Показать всех (${informed.length})`}
+                </button>
+              )}
+            </section>
+          )}
+          {rooms.length > 0 && (
+            <section className="event-metadata-card" aria-label="Переговорные">
+              <div className="event-section-label">
+                <DoorOpen size={20} />
+                Переговорные
+              </div>
+              <p>{rooms.map((room) => room.name).join(", ")}</p>
+            </section>
+          )}
+          {event.recurring === true && (
+            <section className="event-metadata-card" aria-label="Повторяется">
+              <div className="event-section-label">
+                <Repeat2 size={20} />
+                Повторяется
+              </div>
+              <p>{recurrenceSummary(event.recurrenceRule)}</p>
+            </section>
+          )}
           {link && (
             <div className="event-link-card">
               <LinkIcon size={20} />
@@ -473,6 +559,9 @@ export function EventDetails({
                 <Copy size={20} />
               </button>
             </div>
+          )}
+          {!!event.attachments?.length && (
+            <EventAttachments files={event.attachments} notice={setNotice} />
           )}
           {event.location && !onlyLink(event.location) && (
             <p className="event-card-location">{event.location}</p>

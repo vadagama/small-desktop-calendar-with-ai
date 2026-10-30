@@ -14,7 +14,7 @@ import type { DataState, Draft, Layout, Meeting } from "./types";
 import { dateLabel, time, TODAY } from "./calendar";
 import { PEOPLE } from "./data";
 import type { ReactNode } from "react";
-function Modal({
+export function Modal({
   children,
   close,
   label,
@@ -26,8 +26,10 @@ function Modal({
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;
-    ref.current?.showModal();
+    const dialog = ref.current;
+    dialog?.showModal();
     return () => {
+      dialog?.close();
       before?.focus();
     };
   }, []);

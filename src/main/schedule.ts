@@ -68,6 +68,7 @@ export async function readSchedule(
   now?: string,
 ): Promise<ScheduleResult> {
   const period = schedulePeriod(input, now);
+  const includeDetails = scheduleToolInput.parse(input).includeDetails;
   const { events: all, issues } = await collectEvents(
     accountId,
     period,
@@ -75,13 +76,25 @@ export async function readSchedule(
     signal,
   );
   const sorted = all.map(
-    ({ key, title, startsAt, endsAt, location, organizer }) => ({
+    ({
       key,
       title,
       startsAt,
       endsAt,
       location,
       organizer,
+      description,
+      participants,
+    }) => ({
+      key,
+      title,
+      startsAt,
+      endsAt,
+      location,
+      organizer,
+      ...(includeDetails
+        ? { description, ...(participants ? { participants } : {}) }
+        : {}),
     }),
   );
   if (sorted.length > 200)

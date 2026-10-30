@@ -4,8 +4,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:http";
 import { once } from "node:events";
-import { createHash } from "node:crypto";
-import { AsyncEntry } from "@napi-rs/keyring";
 import { mockSmall } from "./fixtures/small-api.js";
 import { calendarToday } from "../../src/shared/calendar-time.js";
 
@@ -20,6 +18,11 @@ test("calendar tools cross utility/main boundary and render trusted results", as
   let plan: Step[] = [
     { name: "loadSkill", input: { name: "people-search" } },
     { name: "loadReference", input: { name: "people" } },
+    { name: "searchPeople", input: { query: "Синтетический", page: 1 } },
+    {
+      name: "selectParticipants",
+      input: { participantIds: ["missing-synthetic"] },
+    },
     { name: "searchPeople", input: { query: "Тест", page: 1 } },
   ];
   let answer =
@@ -133,6 +136,19 @@ test("calendar tools cross utility/main boundary and render trusted results", as
       await expect(
         page.getByRole("button", { name: "Отправить сообщение" }),
       ).toBeVisible();
+      // The preceding write can still be committing a React view transition.
+      // Wait for its rendering/animations before synthesizing the next input event.
+      await page.evaluate(async () => {
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        );
+        await Promise.all(
+          document
+            .getAnimations()
+            .filter((a) => a.effect?.getTiming().iterations !== Infinity)
+            .map((a) => a.finished.catch(() => {})),
+        );
+      });
       await page
         .getByRole("textbox", { name: "Сообщение ассистенту" })
         .fill(prompt);
@@ -169,6 +185,67 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     const log = page.getByRole("log");
     await expect(log).toContainText("Отдел A");
     await expect(log).toContainText("Отдел B");
+    const skillContext = log
+      .locator("details")
+      .filter({ hasText: "Команда: loadSkill" })
+      .first();
+    await expect(skillContext).not.toHaveAttribute("open", "");
+    await skillContext.locator("summary").click();
+    await expect(skillContext).toContainText('"name": "people-search"');
+    await expect(skillContext.locator("pre").last()).toContainText(
+      "# Участники\n",
+    );
+    await expect(skillContext.locator("pre").first()).toHaveCSS(
+      "font-size",
+      "13px",
+    );
+    const searchGroup = log.locator(".assistant-search-group").first();
+    await expect(searchGroup).not.toHaveAttribute("open", "");
+    await expect(searchGroup.locator(":scope > summary")).toHaveText(
+      "Поиск участников · Завершён · Шагов: 3",
+    );
+    await expect(
+      searchGroup.locator(".assistant-tool-detail > summary").first(),
+    ).not.toBeVisible();
+    await expect(searchGroup.locator(":scope > summary")).toHaveCSS(
+      "font-size",
+      "12px",
+    );
+    await page.screenshot({
+      path: "test-results/desktop/search-group-collapsed.png",
+    });
+    await searchGroup.locator(":scope > summary").focus();
+    await page.keyboard.press("Enter");
+    await expect(searchGroup).toHaveAttribute("open", "");
+    await expect(searchGroup.locator(".assistant-tool-detail")).toHaveCount(3);
+    await expect(searchGroup).toContainText("Участники · Ошибка");
+    const searchContext = searchGroup
+      .locator(".assistant-tool-detail")
+      .filter({ hasText: '"query": "Тест"' })
+      .first();
+    await searchContext.locator("summary").click();
+    await expect(searchContext).toContainText('"query": "Тест"');
+    await expect(searchContext.locator("pre").last()).toContainText(
+      "synthetic-a",
+    );
+    const referenceContext = log
+      .locator("details")
+      .filter({ hasText: "Команда: loadReference" })
+      .first();
+    await referenceContext.locator("summary").focus();
+    await page.keyboard.press("Enter");
+    await expect(referenceContext).toHaveAttribute("open", "");
+    await expect(referenceContext.locator("pre").first()).toContainText(
+      '"name": "people"',
+    );
+    await expect(referenceContext.locator("pre").last()).toContainText(
+      "# Разрешение участников\n",
+    );
+    await page.screenshot({ path: "test-results/desktop/tool-context.png" });
+    await referenceContext.locator("summary").click();
+    await skillContext.locator("summary").click();
+    await searchContext.locator("summary").click();
+    await searchGroup.locator(":scope > summary").click();
     await expect(
       log.locator("strong").filter({ hasText: "Уточните участников." }),
     ).toBeVisible();
@@ -209,6 +286,17 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     await send(clarification);
     await expect(log).toContainText("14:00–14:30");
     await expect(log).not.toContainText("09:00–09:30");
+    const participantsGroup = log.locator(".assistant-search-group").last();
+    await participantsGroup.locator(":scope > summary").click();
+    const participantsContext = participantsGroup
+      .locator(".assistant-tool-detail")
+      .filter({ hasText: "Команда: selectParticipants" })
+      .first();
+    await participantsContext.locator("summary").click();
+    await expect(participantsContext.locator("pre").last()).toContainText(
+      "synthetic-b",
+    );
+    await participantsContext.locator("summary").click();
     const followupRequest = requests.find(
       (messages) =>
         messages.at(-1)?.role === "user" &&
@@ -396,7 +484,7 @@ test("calendar tools cross utility/main boundary and render trusted results", as
         exact: true,
       }),
     ).toBeVisible();
-    expect(outputs).toHaveLength(12);
+    expect(outputs).toHaveLength(14);
     expect(
       outputs.some(
         (output) =>
@@ -593,6 +681,44 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     expect((await readEvent()).ok).toBe(false);
     await expect(deletion.getByRole("button")).toHaveCount(0);
     expect(errors).toEqual([]);
+    turn++;
+    plan = [
+      { name: "loadSkill", input: { name: "meeting-delete" } },
+      { name: "listMeetings", input: { period: "today" } },
+      {
+        name: "prepareMeetingDeletion",
+        input: {
+          key: `series:43:${Date.parse(`${calendarToday()}T11:00:00+05:00`)}`,
+          date: calendarToday(),
+          scope: "following",
+        },
+      },
+    ];
+    answer = "";
+    await send("Удали серию Синтетическая серия A начиная с сегодня");
+    const seriesDeletion = page
+      .getByRole("region", { name: "Удаление встречи", exact: true })
+      .filter({ hasText: "Синтетическая серия A" });
+    await expect(
+      seriesDeletion.getByRole("radio", {
+        name: "Это и последующие",
+        exact: true,
+      }),
+    ).toBeChecked();
+    await seriesDeletion.screenshot({
+      path: "test-results/desktop/assistant-series-delete-preview.png",
+    });
+    await seriesDeletion
+      .getByRole("button", { name: "Удалить это и последующие", exact: true })
+      .click();
+    await expect(seriesDeletion.getByRole("status")).toHaveText(
+      "Это и последующие встречи удалены",
+    );
+    await expect(
+      page
+        .locator(".calendar-event")
+        .filter({ hasText: "Синтетическая серия A" }),
+    ).toHaveCount(0);
     // Three adjacent meetings in one assistant turn are separate operations.
     turn++;
     const batchSlots = [
@@ -607,19 +733,26 @@ test("calendar tools cross utility/main boundary and render trusted results", as
         }
       ).syntheticAvailableSlots = slots;
     }, batchSlots);
-    plan = batchSlots.map((slot, index) => ({
-      name: "prepareMeetingDraft",
-      input: {
-        ...draftInput,
-        title: `Последовательно ${index + 1}`,
-        startsAt: slot.start,
-        participantIds: [],
+    const batchPrompt =
+      "Подготовь три личные встречи подряд по полчаса второго ноября с 13:00";
+    plan = [
+      {
+        name: "assistantMemory",
+        input: { action: "task", resetTask: true, evidence: batchPrompt },
       },
-    }));
+      { name: "selectParticipants", input: { participantIds: [] } },
+      ...batchSlots.map((slot, index) => ({
+        name: "prepareMeetingDraft",
+        input: {
+          ...draftInput,
+          title: `Последовательно ${index + 1}`,
+          startsAt: slot.start,
+          participantIds: [],
+        },
+      })),
+    ];
     const writesBeforeBatch = await writes();
-    await send(
-      "Подготовь три личные встречи подряд по полчаса второго ноября с 13:00",
-    );
+    await send(batchPrompt);
     for (const index of [1, 2, 3]) {
       const card = page
         .getByRole("region", { name: "Черновик встречи", exact: true })
@@ -737,6 +870,119 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     answer = "Связь восстановлена";
     await send("Проверь снова");
     await expect(page.getByText(answer, { exact: true })).toBeVisible();
+    const savedMemory = await page.evaluate(() =>
+      window.smallDesktop.memory.read(),
+    );
+    if (!savedMemory.ok) throw new Error(savedMemory.error);
+    const savedDefault = await page.evaluate(
+      (revision) =>
+        window.smallDesktop.memory.write({
+          revision,
+          requestId: crypto.randomUUID(),
+          change: { action: "preferences", value: { durationMinutes: 25 } },
+        }),
+      savedMemory.state.revision,
+    );
+    expect(savedDefault.ok).toBe(true);
+    await app.evaluate(() => {
+      (
+        globalThis as typeof globalThis & {
+          syntheticAvailableSlots: { start: string; end: string }[];
+        }
+      ).syntheticAvailableSlots = [
+        {
+          start: "2099-11-03T12:00:00+05:00",
+          end: "2099-11-03T13:00:00+05:00",
+        },
+      ];
+    });
+    turn++;
+    plan = [
+      {
+        name: "listMeetings",
+        input: { period: "today", includeDetails: true },
+      },
+      {
+        name: "selectParticipants",
+        input: { participantIds: [], sourceEventKey: "event:42" },
+      },
+      {
+        name: "findSlots",
+        input: {
+          participantIds: ["synthetic-b"],
+          date: "2099-11-03",
+          includeWeekends: true,
+        },
+      },
+    ];
+    answer = "Выберите время для копии.";
+    await send(
+      "Сделай копию синтетической встречи A на 3 ноября 2099, тот же состав и часовая длительность",
+    );
+    await expect(log).toContainText("60 мин");
+    turn++;
+    plan = [
+      {
+        name: "assistantMemory",
+        input: {
+          action: "offerTask",
+          options: [
+            { label: "Оставить час", preferences: { durationMinutes: 60 } },
+            {
+              label: "Сократить до 55 минут",
+              preferences: { durationMinutes: 55 },
+            },
+          ],
+        },
+      },
+    ];
+    answer = "1. Оставить час.\n2. Сократить до 55 минут.";
+    await send("Предложи варианты длительности");
+    await expect(
+      log.getByRole("listitem").filter({ hasText: "Сократить до 55 минут." }),
+    ).toBeVisible();
+    await app.evaluate(() => {
+      (
+        globalThis as typeof globalThis & {
+          syntheticAvailableSlots: { start: string; end: string }[];
+        }
+      ).syntheticAvailableSlots = [
+        {
+          start: "2099-11-03T12:00:00+05:00",
+          end: "2099-11-03T12:55:00+05:00",
+        },
+      ];
+    });
+    turn++;
+    plan = [
+      {
+        name: "prepareMeetingDraft",
+        input: {
+          participantIds: ["synthetic-b"],
+          startsAt: "2099-11-03T12:00:00+05:00",
+          conference: { mode: "none" },
+        },
+      },
+    ];
+    answer = "";
+    await send("2");
+    const copiedDraft = page
+      .getByRole("region", { name: "Черновик встречи", exact: true })
+      .filter({ hasText: "Синтетическая встреча A" });
+    await expect(copiedDraft).toContainText("12:00–12:55");
+    await expect(copiedDraft).toContainText("55 мин");
+    await expect(copiedDraft).toContainText("Синтетическая повестка");
+    await expect(copiedDraft).toContainText("Тестовая переговорная");
+    await expect(copiedDraft).not.toContainText("25 мин");
+    const finalMemory = await page.evaluate(() =>
+      window.smallDesktop.memory.read(),
+    );
+    expect(
+      finalMemory.ok && finalMemory.state.preferences.durationMinutes,
+    ).toBe(25);
+    await page.screenshot({
+      path: "test-results/desktop/memory-task-copy.png",
+    });
   } finally {
     const cleanupPage = await app.firstWindow();
     const removed = await cleanupPage.evaluate(() =>
@@ -744,14 +990,6 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     );
     expect(removed.ok).toBe(true);
     await app.close();
-    const service = `kz.small.desktop-calendar.llm.${createHash("sha256").update(userData).digest("hex").slice(0, 24)}`;
-    for (const account of ["small-auth-session-v1"]) {
-      try {
-        await new AsyncEntry(service, account).deleteCredential();
-      } catch {
-        /* May already be removed. */
-      }
-    }
     api.closeAllConnections();
     await new Promise<void>((resolve) => api.close(() => resolve()));
     await rm(userData, { recursive: true, force: true });

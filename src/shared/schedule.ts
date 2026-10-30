@@ -5,9 +5,15 @@ const date = z.string().refine(validCalendarDate);
 export const scheduleToolInput = z.discriminatedUnion("period", [
   z.strictObject({
     period: z.enum(["today", "tomorrow", "this-week", "next-week"]),
+    includeDetails: z.boolean().optional(),
   }),
   z
-    .strictObject({ period: z.literal("custom"), from: date, to: date })
+    .strictObject({
+      period: z.literal("custom"),
+      from: date,
+      to: date,
+      includeDetails: z.boolean().optional(),
+    })
     .refine(
       (q) =>
         q.to >= q.from && Date.parse(q.to) - Date.parse(q.from) < 31 * 86400000,
@@ -19,9 +25,10 @@ export interface ScheduleResult {
   to: string;
   timezone: "Asia/Almaty";
   complete: boolean;
-  events: Pick<
+  events: (Pick<
     CalendarEvent,
     "key" | "title" | "startsAt" | "endsAt" | "location" | "organizer"
-  >[];
+  > &
+    Partial<Pick<CalendarEvent, "description" | "participants">>)[];
   issues: CalendarIssue[];
 }

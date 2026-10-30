@@ -3,7 +3,22 @@ import type { EventChangeQuery, EventChangePreview } from "./event-change.js";
 export type CalendarView = "day" | "week" | "month";
 export type EventLookup =
   { id: string } | { originalEventId: string; date: string };
+export interface CalendarRecurrenceRule {
+  FREQ: string;
+  INTERVAL?: number | undefined;
+  BYDAY?: string[] | undefined;
+  UNTIL?: string | undefined;
+}
+export interface CalendarAttachment {
+  id: string;
+  name: string;
+  size?: number;
+  url?: string;
+}
 export interface CalendarEvent {
+  attachments?: CalendarAttachment[];
+  notificationRecipients?: { id: string; name: string }[];
+  recurrenceRule?: CalendarRecurrenceRule;
   participants?: {
     id: string;
     name: string;

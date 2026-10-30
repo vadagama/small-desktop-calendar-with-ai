@@ -79,11 +79,15 @@ export class CachedCatalog {
  * meetings always come from Small, because a free slot must be judged on live data.
  */
 export function assistantCalendarSource(
-  service: Pick<CalendarService, "events">,
+  service: Pick<CalendarService, "events"> &
+    Partial<Pick<CalendarService, "detail">>,
   catalog: Pick<CachedCatalog, "searchPeople">,
 ) {
   return {
     events: (input: unknown) => service.events(input),
+    ...(service.detail
+      ? { detail: (input: unknown) => service.detail!(input) }
+      : {}),
     searchPeople: (input: unknown) => catalog.searchPeople(input),
   };
 }

@@ -5,8 +5,8 @@ import { join } from "node:path";
 import { createServer } from "node:http";
 import { once } from "node:events";
 
-test("model settings persist only metadata and use a real Keychain key through the provider", async () => {
-  const userData = await mkdtemp(join(tmpdir(), "small-keychain-test-"));
+test("model settings persist only metadata and use a locally encrypted key through the provider", async () => {
+  const userData = await mkdtemp(join(tmpdir(), "small-local-vault-test-"));
   const key = `synthetic-${crypto.randomUUID()}`;
   let calls = 0;
   let reject = false;

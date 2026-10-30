@@ -2,12 +2,10 @@ import { _electron, expect, test } from "@playwright/test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createHash } from "node:crypto";
-import { AsyncEntry } from "@napi-rs/keyring";
 import { mockSmall } from "./fixtures/small-api.js";
 import { calendarToday } from "../../src/shared/calendar-time.js";
 
-test("Small account uses isolated session and Keychain, restores after restart and logs out", async () => {
+test("Small account uses isolated session and encrypted local storage, restores after restart and logs out", async () => {
   const userData = await mkdtemp(join(tmpdir(), "small-auth-e2e-"));
   const executablePath = process.env.SMALL_APP_EXECUTABLE;
   const launch = () =>
@@ -94,13 +92,6 @@ test("Small account uses isolated session and Keychain, restores after restart a
       ),
     ).toBe(0);
   } finally {
-    // Remove only the synthetic credential in this test's namespace.
-    const service = `kz.small.desktop-calendar.llm.${createHash("sha256").update(userData).digest("hex").slice(0, 24)}`;
-    try {
-      await new AsyncEntry(service, "small-auth-session-v1").deleteCredential();
-    } catch {
-      /* Missing after logout. */
-    }
     await app.close();
     await rm(userData, { recursive: true, force: true });
   }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { attachmentName, attachmentUrl } from "../shared/event-attachment.js";
 import type {
   CalendarEvent,
   CalendarIssue,
@@ -55,6 +56,11 @@ const lookupSchema = z.union([
 ]);
 const text = z.string().max(20000).nullish();
 const timestamp = z.iso.datetime({ offset: true });
+const attachmentSchema = z.object({
+  id,
+  path: z.string().max(4000).nullish(),
+  size: z.number().int().nonnegative().nullish(),
+});
 const eventSchema = z
   .object({
     id: id.nullish(),
@@ -67,9 +73,20 @@ const eventSchema = z
     creator_id: id.nullish(),
     is_informed: z.boolean().nullish(),
     participants: z.array(z.object({ id, name: text, status: text })).nullish(),
+    notification_recipients: z.array(z.object({ id, name: text })).nullish(),
+    recurrence_rule: z
+      .object({
+        FREQ: z.string().max(50),
+        INTERVAL: z.number().int().positive().optional(),
+        BYDAY: z.array(z.string().max(10)).max(7).optional(),
+        UNTIL: z.string().max(100).optional(),
+      })
+      .nullish()
+      .catch(undefined),
     is_recurring: z.boolean().nullish(),
     description: text,
     location: text,
+    attachments: z.array(z.unknown()).max(100).nullish(),
   })
   .refine(
     (e) =>
@@ -131,6 +148,26 @@ function normalize(value: unknown, participantId?: string): CalendarEvent {
         status: p.status ?? "unknown",
         organizer: p.id === e.creator_id,
       })) ?? [],
+    notificationRecipients:
+      e.notification_recipients?.map((p) => ({
+        id: p.id,
+        name: p.name ?? "",
+      })) ?? [],
+    ...(e.recurrence_rule ? { recurrenceRule: e.recurrence_rule } : {}),
+    attachments: (e.attachments ?? []).flatMap((value) => {
+      const result = attachmentSchema.safeParse(value);
+      if (!result.success) return [];
+      const file = result.data;
+      const url = file.path ? attachmentUrl(file.path) : undefined;
+      return [
+        {
+          id: file.id,
+          name: attachmentName(file.path ?? ""),
+          ...(file.size != null ? { size: file.size } : {}),
+          ...(url ? { url } : {}),
+        },
+      ];
+    }),
     organizer: e.creator_name ?? "",
     description: e.description ?? "",
     location: e.location ?? "",
@@ -361,7 +398,40 @@ export class CalendarService {
           "Карточка Small не совпадает с запрошенным событием.",
         );
       }
-      return normalize(raw, participantId);
+      const detail = normalize(raw, participantId);
+      // Generated/materialized occurrences may omit the template's rule.
+      // Keep the occurrence's own rooms, participants and files.
+      if (
+        detail.recurring &&
+        !detail.recurrenceRule &&
+        raw.original_event_id &&
+        raw.original_event_id !== raw.id
+      ) {
+        try {
+          const parent = parse(
+            eventSchema,
+            parse(
+              z.object({ data: z.unknown() }),
+              await calendarJson(
+                await get(
+                  `/gate/team/api/calendar/events/${raw.original_event_id}`,
+                ),
+              ),
+            ).data,
+          );
+          if (
+            parent.id === raw.original_event_id &&
+            parent.is_recurring &&
+            parent.recurrence_rule
+          )
+            detail.recurrenceRule = parent.recurrence_rule;
+        } catch (error) {
+          if (error instanceof CalendarError && error.kind === "auth")
+            throw error;
+          // The occurrence stays readable when the series is unavailable.
+        }
+      }
+      return detail;
     });
   }
 }

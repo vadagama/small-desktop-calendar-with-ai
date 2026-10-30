@@ -415,3 +415,136 @@ test("missing recurrence metadata stays unknown rather than blocking single-even
   assert.equal(result.events[0]?.participation, "organizer");
   assert.equal(result.events[0]?.recurring, undefined);
 });
+
+test("event details retain informed people and recurrence independently of attendees", async () => {
+  const f = setup(() =>
+    Response.json({
+      data: {
+        ...event,
+        is_recurring: true,
+        participants: [
+          { id: "attendee", name: "Synthetic attendee", status: "pending" },
+        ],
+        notification_recipients: [{ id: 91, name: "Synthetic informed" }],
+        recurrence_rule: {
+          FREQ: "WEEKLY",
+          INTERVAL: 2,
+          BYDAY: ["FR"],
+          UNTIL: "2026-12-31",
+        },
+      },
+    }),
+  );
+  const detail = await f.service.detail({
+    accountId: "account-a",
+    lookup: { id: "42" },
+  });
+  assert.deepEqual(detail.notificationRecipients, [
+    { id: "91", name: "Synthetic informed" },
+  ]);
+  assert.deepEqual(detail.recurrenceRule, {
+    FREQ: "WEEKLY",
+    INTERVAL: 2,
+    BYDAY: ["FR"],
+    UNTIL: "2026-12-31",
+  });
+  assert.deepEqual(
+    detail.participants?.map((p) => p.id),
+    ["attendee"],
+  );
+});
+
+test("generated occurrence reads missing recurrence from its series without inheriting rooms", async () => {
+  const f = setup((path) =>
+    Response.json({
+      data: path.includes("generated")
+        ? {
+            ...event,
+            id: null,
+            original_event_id: 88,
+            is_recurring: true,
+            calendar_ids: [25],
+          }
+        : {
+            ...event,
+            id: 88,
+            is_recurring: true,
+            calendar_ids: [7],
+            recurrence_rule: { FREQ: "WEEKLY", BYDAY: ["SA"] },
+          },
+    }),
+  );
+  const detail = await f.service.detail({
+    accountId: "account-a",
+    lookup: { originalEventId: "88", date: "2026-10-29" },
+  });
+  assert.deepEqual(detail.recurrenceRule, { FREQ: "WEEKLY", BYDAY: ["SA"] });
+  assert.deepEqual(detail.calendarIds, ["25"]);
+  assert.equal(f.calls.length, 2);
+});
+
+test("attachments retain names, size and a safe Small storage URL", async () => {
+  const f = setup(() =>
+    Response.json({
+      data: {
+        ...event,
+        attachments: [
+          { id: 1, path: "calendar/test/План встречи.pdf", size: 2048 },
+          { id: 2, path: "https://untrusted.test/file.pdf", size: 1 },
+        ],
+      },
+    }),
+  );
+  const detail = await f.service.detail({
+    accountId: "account-a",
+    lookup: { id: "42" },
+  });
+  assert.equal(detail.attachments?.[0]?.name, "План встречи.pdf");
+  assert.equal(detail.attachments?.[0]?.size, 2048);
+  assert.equal(
+    detail.attachments?.[0]?.url,
+    "https://minio.skiftrade.kz:9000/team/calendar/test/%D0%9F%D0%BB%D0%B0%D0%BD%20%D0%B2%D1%81%D1%82%D1%80%D0%B5%D1%87%D0%B8.pdf",
+  );
+  assert.equal(detail.attachments?.[1]?.url, undefined);
+});
+
+test("unavailable or unrelated series keeps the occurrence readable without inventing recurrence", async () => {
+  for (const parent of [
+    new Response(null, { status: 403 }),
+    Response.json({
+      data: {
+        ...event,
+        id: 99,
+        is_recurring: true,
+        recurrence_rule: { FREQ: "DAILY" },
+      },
+    }),
+  ]) {
+    const f = setup((path) =>
+      path.includes("generated")
+        ? Response.json({ data: { ...event, id: null, original_event_id: 88 } })
+        : parent,
+    );
+    const detail = await f.service.detail({
+      accountId: "account-a",
+      lookup: { originalEventId: "88", date: "2026-10-29" },
+    });
+    assert.equal(detail.recurring, true);
+    assert.equal(detail.recurrenceRule, undefined);
+  }
+});
+
+test("auth expiry while reading a recurrence template is reported", async () => {
+  const f = setup((path) =>
+    path.includes("generated")
+      ? Response.json({ data: { ...event, id: null, original_event_id: 88 } })
+      : new Response(null, { status: 401 }),
+  );
+  await assert.rejects(
+    f.service.detail({
+      accountId: "account-a",
+      lookup: { originalEventId: "88", date: "2026-10-29" },
+    }),
+    { kind: "auth" },
+  );
+});

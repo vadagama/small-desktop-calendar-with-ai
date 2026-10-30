@@ -22,6 +22,7 @@ interface Props {
   state: DataState;
   swap: () => void;
   analytics: () => void;
+  analysisContext?: { id: number; title: string; text: string };
 }
 interface Message {
   id: number;
@@ -55,6 +56,26 @@ export function Assistant(p: Props) {
         behavior: "smooth",
       });
   }, [messages, slots, draft, busy]);
+  useEffect(() => {
+    if (!p.analysisContext) return;
+    if (timer.current) clearTimeout(timer.current);
+    setBusy(false);
+    setSlots([]);
+    setDraft(null);
+    setMessages((old) => [
+      ...old,
+      {
+        id: p.analysisContext!.id,
+        role: "user",
+        text: `Объясни дэшборд «${p.analysisContext!.title}»`,
+      },
+      {
+        id: p.analysisContext!.id + 1,
+        role: "assistant",
+        text: `Демонстрационный разбор выбранного снимка. ${p.analysisContext!.text}\n\nЧисла рассчитаны кодом. Для реального диалога потребуется подключение AI-харнесса.`,
+      },
+    ]);
+  }, [p.analysisContext]);
   function send(text: string) {
     if (!text.trim() || busy) return;
     setInput("");

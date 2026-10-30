@@ -4,18 +4,36 @@ import { dateLabel, monthDays, shiftMonth } from "../../prototype/src/calendar";
 import { calendarToday } from "../shared/calendar-time.js";
 import type { useSmallCalendar } from "./useSmallCalendar";
 
+export const participationFilters = [
+  { id: "organizer", label: "Мои встречи" },
+  { id: "invited", label: "Я участник" },
+  { id: "informed", label: "Я информирован" },
+] as const;
+export type ParticipationFilter = (typeof participationFilters)[number]["id"];
+
 export function CalendarFilters({
   calendar,
   enabled,
   date,
   setDate,
+  participation,
+  toggleParticipation,
 }: {
   calendar: ReturnType<typeof useSmallCalendar>;
   enabled: boolean;
   date: string;
   setDate: (date: string) => void;
+  participation: Record<ParticipationFilter, boolean>;
+  toggleParticipation: (type: ParticipationFilter) => void;
 }) {
   const [month, setMonth] = useState(date);
+  const [refreshFeedback, setRefreshFeedback] = useState(false);
+  useEffect(() => {
+    if (!refreshFeedback) return;
+    const timer = window.setTimeout(() => setRefreshFeedback(false), 700);
+    return () => window.clearTimeout(timer);
+  }, [refreshFeedback]);
+  const refreshing = refreshFeedback || calendar.refreshing;
   useEffect(() => setMonth(date), [date]);
   const today = calendarToday();
   return (
@@ -93,22 +111,23 @@ export function CalendarFilters({
         </section>
         <section className="calendar-filters" aria-label="Выбор календарей">
           <h2>{calendar.my ? "Мои календари" : "Переговорные"}</h2>
-          {calendar.my && (
-            <label>
-              <input
-                type="checkbox"
-                checked={calendar.my}
-                onChange={(event) => calendar.setMy(event.target.checked)}
-              />
-              <span
-                className={`custom-check calendar-personal ${calendar.my ? "checked" : ""}`}
-                aria-hidden="true"
-              >
-                <Check size={11} />
-              </span>
-              Мой календарь
-            </label>
-          )}
+          {calendar.my &&
+            participationFilters.map((filter) => (
+              <label key={filter.id}>
+                <input
+                  type="checkbox"
+                  checked={participation[filter.id]}
+                  onChange={() => toggleParticipation(filter.id)}
+                />
+                <span
+                  className={`custom-check participation-${filter.id} ${participation[filter.id] ? "checked" : ""}`}
+                  aria-hidden="true"
+                >
+                  <Check size={11} />
+                </span>
+                {filter.label}
+              </label>
+            ))}
           {!calendar.my &&
             calendar.calendars.map((entry) => {
               const checked = !calendar.my && calendar.ids.includes(entry.id);
@@ -150,11 +169,18 @@ export function CalendarFilters({
       <div className="small-sidebar-footer">
         <button
           className="settings-link"
-          disabled={!enabled}
-          onClick={calendar.refresh}
+          disabled={!enabled || refreshing}
+          aria-busy={refreshing}
+          onClick={() => {
+            setRefreshFeedback(true);
+            calendar.refresh();
+          }}
         >
-          <RefreshCw size={14} />
-          Обновить
+          <RefreshCw
+            size={14}
+            className={refreshing ? "spinning" : undefined}
+          />
+          {refreshing ? "Обновление…" : "Обновить"}
         </button>
       </div>
     </aside>

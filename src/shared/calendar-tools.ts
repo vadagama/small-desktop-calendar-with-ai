@@ -11,9 +11,21 @@ import type {
 export const meetingDeletionInput = z.strictObject({
   key: z.string().min(1).max(300),
   date: z.string().refine(validCalendarDate),
+  scope: z.enum(["occurrence", "following"]).optional(),
 });
 export const meetingDeletionSchema = z.strictObject({
   kind: z.literal("meeting-delete"),
+  series: z
+    .strictObject({
+      scope: z.enum(["occurrence", "following"]),
+      seriesId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
+      originalDate: z.string().refine(validCalendarDate),
+      eventId: z
+        .string()
+        .regex(/^[A-Za-z0-9_-]{1,128}$/)
+        .optional(),
+    })
+    .optional(),
   accountId: z.string().min(1),
   eventId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
   title: z.string(),
@@ -45,6 +57,23 @@ export const slotsToolInput = z.strictObject({
   durationMinutes: z.number().int().min(1).max(480),
 });
 export type CalendarToolResult = CalendarReply<
+  | {
+      kind: "task-options";
+      message: string;
+      options: import("./assistant-memory.js").TaskOption[];
+    }
+  | {
+      kind: "memory-review";
+      ready: boolean;
+      questions: string[];
+      message: string;
+    }
+  | import("./assistant-memory.js").MemoryProposal
+  | {
+      kind: "assistant-memory";
+      state: import("./assistant-memory.js").AssistantMemoryState;
+    }
+  | { kind: "memory-selection"; message: string; people?: CalendarPerson[] }
   | import("./schedule.js").ScheduleResult
   | import("./analytics.js").AnalyticsResult
   | PeoplePage
@@ -82,6 +111,7 @@ export interface CalendarToolReply {
 
 export const selectParticipantsInput = z.strictObject({
   participantIds: slotsToolInput.shape.participantIds,
+  sourceEventKey: z.string().min(1).max(300).optional(),
   rememberedAliases: z
     .array(
       z.strictObject({

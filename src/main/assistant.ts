@@ -47,6 +47,7 @@ export function registerAssistantHandlers(
     prompt: string,
     signal: AbortSignal,
     conversation: CalendarConversation,
+    context: { ownerId: number; requestId: string },
   ) => Promise<CalendarToolExecutor | null>,
   resolveSettings: () => Promise<AgentSettingsState>,
 ) {
@@ -148,6 +149,7 @@ export function registerAssistantHandlers(
             parsed.data.prompt,
             job.controller.signal,
             state,
+            { ownerId, requestId: parsed.data.requestId },
           );
         if (!calendar) state.bindAccount(null);
         if (jobs.get(ownerId) !== job) return { ok: true };
@@ -208,15 +210,26 @@ export function registerAssistantHandlers(
               searchPeople: "people-search",
               selectParticipants: "people-search",
               participantMemory: "people-search",
+              assistantMemory: "people-search",
               findSlots: "availability",
               prepareMeetingDraft: "meeting-draft",
               prepareMeetingDeletion: "meeting-delete",
             } as const;
             const skillId = skillForTool[message.name];
+            const copiesMeeting =
+              message.name === "selectParticipants" &&
+              typeof message.input === "object" &&
+              message.input !== null &&
+              "sourceEventKey" in message.input;
             if (
-              !configuration.settings.skills.some(
-                (skill) => skill.id === skillId && skill.enabled,
-              )
+              (message.name !== "assistantMemory" &&
+                !configuration.settings.skills.some(
+                  (skill) => skill.id === skillId && skill.enabled,
+                )) ||
+              (copiesMeeting &&
+                !configuration.settings.skills.some(
+                  (skill) => skill.id === "schedule" && skill.enabled,
+                ))
             ) {
               worker.postMessage({
                 type: "calendar-result",

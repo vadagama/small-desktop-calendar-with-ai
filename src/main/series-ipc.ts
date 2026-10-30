@@ -27,6 +27,9 @@ export function registerSeriesHandlers(
             error instanceof CalendarError || error instanceof SmallAuthError;
           return {
             ok: false,
+            ...(error instanceof CalendarError && error.unknownOutcome
+              ? { unknownOutcome: true as const }
+              : {}),
             kind:
               error instanceof CalendarError
                 ? error.kind

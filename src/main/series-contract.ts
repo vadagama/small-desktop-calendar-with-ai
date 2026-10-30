@@ -12,10 +12,11 @@ import {
 
 /**
  * Server behaviour confirmed by a recorded run of docs/research/series-contract-probe.md.
- * Empty until then: series writes stay closed. Add an entry only together with a line
+ * Empty until then: the legacy mutation adapter stays closed. Add an entry only together with a line
  * "A<n>: подтверждено" in docs/research/series-contract-results.md.
  *
- * This gate covers new series operations only. Moving an occurrence that has its own id
+ * Deletion uses the separate series-deletion.ts flow matching Small’s delete dialog.
+ * This gate covers the legacy adapter only. Moving an occurrence that has its own id
  * with `recurring_edit_type: single` (T10, event-reschedule.ts) is earlier, separately
  * agreed behaviour and is not routed through here.
  */
