@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Sparkles } from "lucide-react";
+import { VoiceSettings } from "./VoiceInput";
 import { Modal } from "./Dialogs";
 import "./assistant-settings.css";
 
@@ -66,6 +67,7 @@ export function AssistantSettingsDialog({
           Предпочтения встреч и сохранённый контекст находятся в разделе
           «Память» с иконкой мозга.
         </p>
+        <VoiceSettings />
         <div className="ai-settings-actions">
           <button className="primary" type="submit">
             Сохранить

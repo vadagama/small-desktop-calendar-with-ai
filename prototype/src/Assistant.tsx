@@ -1,3 +1,4 @@
+import { VoiceControl, useVoiceDemo } from "./VoiceInput";
 import { resolveListSearch, type PendingListSearch } from "./list-search";
 import type { ListFilter } from "./event-list";
 import {
@@ -44,6 +45,9 @@ export function Assistant(p: Props) {
   const [pendingSearch, setPendingSearch] = useState<PendingListSearch | null>(
     null,
   );
+  const voice = useVoiceDemo();
+  const voiceBusy = !!voice && voice.capture !== "idle";
+  const voiceSelection = useRef({ start: 0, end: 0 });
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const appliedPrompt = useRef<number | undefined>(undefined);
@@ -96,7 +100,7 @@ export function Assistant(p: Props) {
     ]);
   }, [p.analysisContext]);
   function send(text: string) {
-    if (!text.trim() || busy) return;
+    if (!text.trim() || busy || voiceBusy) return;
     setInput("");
     setDraft(null);
     setSlots([]);
@@ -348,7 +352,7 @@ export function Assistant(p: Props) {
           className="composer"
           onSubmit={(e) => {
             e.preventDefault();
-            send(input);
+            if (!voiceBusy) send(input);
           }}
         >
           <textarea
@@ -356,6 +360,7 @@ export function Assistant(p: Props) {
             aria-label="Сообщение ассистенту"
             placeholder="Например, собери команду завтра…"
             value={input}
+            readOnly={voiceBusy}
             rows={2}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
@@ -365,7 +370,7 @@ export function Assistant(p: Props) {
                 !e.nativeEvent.isComposing
               ) {
                 e.preventDefault();
-                send(input);
+                if (!voiceBusy) send(input);
               }
             }}
           />
@@ -374,16 +379,45 @@ export function Assistant(p: Props) {
               <Sparkles size={13} />
               Демо-ассистент
             </span>
+            <VoiceControl
+              disabled={busy}
+              onStart={() => {
+                const field = inputRef.current;
+                voiceSelection.current = {
+                  start: field?.selectionStart ?? input.length,
+                  end: field?.selectionEnd ?? input.length,
+                };
+              }}
+              onResult={(text) => {
+                const { start, end } = voiceSelection.current;
+                setInput((old) => {
+                  const before = old.slice(0, start);
+                  const after = old.slice(end);
+                  return (
+                    before +
+                    (before && !/\s$/.test(before) ? " " : "") +
+                    text +
+                    (after && !/^\s/.test(after) ? " " : "") +
+                    after
+                  );
+                });
+                requestAnimationFrame(() => inputRef.current?.focus());
+              }}
+            />
             <button
               aria-label="Отправить сообщение"
               type="submit"
-              disabled={!input.trim() || busy}
+              disabled={!input.trim() || busy || voiceBusy}
             >
               <ArrowUp size={17} />
             </button>
           </div>
         </form>
-        <p>Демо-режим · без отправки приглашений</p>
+        <p>
+          {voice?.model === "ready"
+            ? "Демо-диктовка · вставляется пример, микрофон выключен"
+            : "Демо-режим · без отправки приглашений"}
+        </p>
       </div>
     </section>
   );

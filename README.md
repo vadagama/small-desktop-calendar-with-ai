@@ -23,7 +23,11 @@ streaming и отменой. Упакованная arm64 `.app` провере�
 Все люди, встречи и ответы ассистента в стенде демонстрационные.
 
 Из корня репозитория на Node.js ≥22.12.0: `npm ci`, затем `npm run dev`
-для запуска Electron. Локальная упаковка: `npm run package:mac`; результат —
+для запуска Electron. Перед первой упаковкой соберите локальный движок речи:
+`npm run voice:build` (CMake и Xcode Command Line Tools).
+Веса Whisper скачиваются пользователем отдельно в настройках AI-помощника;
+[голосовой ввод: устройство и проверка](docs/implementation/voice-input.md).
+Локальная упаковка: `npm run package:mac`; результат —
 `release/Small Calendar-darwin-arm64/Small Calendar.app`.
 Установщик для локальной проверки на Apple Silicon: `npm run package:dmg:local`.
 Результат — `release/Small-Calendar-0.1.0-arm64-local.dmg` (версия берётся из
