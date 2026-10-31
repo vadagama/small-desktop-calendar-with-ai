@@ -1,4 +1,5 @@
 import "./analytics.css";
+import { Help } from "./Help";
 import { groupListEvents, type ListFilter } from "./event-list";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -10,6 +11,7 @@ import {
   UsersRound,
   Brain,
   Sparkles,
+  CircleHelp,
 } from "lucide-react";
 import { Calendar } from "./CalendarView";
 import { Sidebar } from "./Sidebar";
@@ -94,6 +96,8 @@ export default function App({
     "team",
     "room",
   ]);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [helpPrompt, setHelpPrompt] = useState<{ id: number; text: string }>();
   const [settings, setSettings] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [memory, setMemory] = useState(createDemoMemory);
@@ -261,23 +265,31 @@ export default function App({
   const visibleEvents =
     state === "empty" ? [] : events.filter((e) => enabled.includes(e.calendar));
   return (
-    <div className={`app-shell ${sidebar ? "sidebar-open" : ""}`}>
+    <div
+      className={`app-shell ${helpOpen ? "help-active" : ""} ${sidebar ? "sidebar-open" : ""}`}
+    >
       <nav className="icon-rail" aria-label="Разделы Small">
         <div className="small-emblem" title="Small">
           <UsersRound size={22} />
         </div>
         <button
-          className={section === "calendar" ? "active" : ""}
+          className={!helpOpen && section === "calendar" ? "active" : ""}
           aria-label="Календарь"
-          onClick={() => setSection("calendar")}
+          onClick={() => {
+            setHelpOpen(false);
+            setSection("calendar");
+          }}
         >
           <CalendarDays size={19} />
         </button>
         <button
-          className={section === "analytics" ? "active" : ""}
+          className={!helpOpen && section === "analytics" ? "active" : ""}
           aria-label="Аналитика"
           title="Аналитика"
-          onClick={() => setSection("analytics")}
+          onClick={() => {
+            setHelpOpen(false);
+            setSection("analytics");
+          }}
         >
           <ChartNoAxesCombined size={19} />
         </button>
@@ -312,6 +324,19 @@ export default function App({
           onClick={() => setSettings(true)}
         >
           <Settings2 size={19} />
+        </button>
+        <button
+          aria-label="Помощь"
+          title="Помощь"
+          className={helpOpen ? "active" : ""}
+          aria-current={helpOpen ? "page" : undefined}
+          aria-pressed={helpOpen}
+          onClick={() => {
+            setHelpOpen(true);
+            setSidebar(false);
+          }}
+        >
+          <CircleHelp size={20} />
         </button>
         {ProfileControl ?? (
           <>
@@ -377,10 +402,10 @@ export default function App({
             >
               <Menu size={20} />
             </button>
-            <h1>Календарь Small</h1>
+            <h1>{helpOpen ? "Помощь" : "Календарь Small"}</h1>
             <span className="prototype-tag">Демо-прототип</span>
           </div>
-          <div className="inline">
+          <div className="inline" hidden={helpOpen}>
             <button
               className="primary header-create"
               aria-label="Новая встреча"
@@ -390,221 +415,242 @@ export default function App({
             </button>
           </div>
         </header>
-        <div className="panel-tools" aria-label="Состав рабочего пространства">
-          <label>
-            Основная панель
-            <select
-              aria-label="Основная панель"
-              value={section === "calendar" ? "calendar" : mainKind}
-              onChange={(e) => {
-                if (e.target.value === "calendar") setSection("calendar");
-                else {
-                  setMainKind(e.target.value as Dashboard);
-                  setSection("analytics");
-                }
-              }}
-            >
-              <option value="calendar">Календарь</option>
-              {Object.entries(dashboards).map(([id, title]) => (
-                <option value={id} key={id}>
-                  {title}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Рядом
-            <select
-              aria-label="Соседняя панель"
-              value={panels.side}
-              onChange={(e) =>
-                setPanels((old) => ({
-                  ...old,
-                  side: e.target.value as typeof old.side,
-                }))
-              }
-            >
-              <option value="assistant">Ассистент</option>
-              {Object.entries(dashboards).map(([id, title]) => (
-                <option value={id} key={id}>
-                  {title}
-                </option>
-              ))}
-              <option value="closed">Скрыть панель</option>
-            </select>
-          </label>
-          <label className="linked-periods">
-            <input
-              type="checkbox"
-              checked={panels.linked}
-              onChange={(e) =>
-                setPanels((old) => ({ ...old, linked: e.target.checked }))
-              }
-            />
-            Связать периоды
-          </label>
-          <select
-            aria-label="Готовая раскладка"
-            value=""
-            onChange={(e) => preset(e.target.value)}
-          >
-            <option value="" disabled>
-              Раскладки
-            </option>
-            <option value="planning">Планирование</option>
-            <option value="review">Разбор недели</option>
-            <option value="overview">Обзор</option>
-          </select>
+        <div className="help-section-host" hidden={!helpOpen}>
+          <Help
+            onPrompt={(text) => {
+              setHelpOpen(false);
+              setPanels((old) => ({ ...old, side: "assistant" }));
+              setHelpPrompt({ id: Date.now(), text });
+            }}
+            onAction={(action) => {
+              if (action === "calendar" || action === "analytics")
+                setHelpOpen(false);
+              if (action === "calendar" || action === "analytics")
+                setSection(action);
+              if (action === "memory") setMemoryOpen(true);
+              if (action === "settings") setAssistantSettingsOpen(true);
+            }}
+          />
         </div>
-        <div
-          ref={workspace}
-          className={`workspace ${vertical ? "vertical" : ""} ${reversed ? "reversed" : ""} ${dragOver ? "drop-active" : ""} ${panels.side === "closed" ? "solo" : ""}`}
-          data-layout={layout}
-          style={
-            { "--calendar-ratio": `${config.ratio}%` } as React.CSSProperties
-          }
-          onDragOver={(e) => {
-            if (e.dataTransfer.types.includes("text/plain")) {
-              e.preventDefault();
-              setDragOver(true);
-            }
-          }}
-          onDragLeave={(e) => {
-            if (!e.currentTarget.contains(e.relatedTarget as Node))
-              setDragOver(false);
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragOver(false);
-            if (
-              ["calendar", "assistant", "analytics"].includes(
-                e.dataTransfer.getData("text/plain"),
-              )
-            )
-              swap();
-          }}
-        >
-          <div className="calendar-container">
-            {section === "analytics" ? (
-              dashboard(mainKind, setMainKind)
-            ) : (
-              <Calendar
-                date={date}
-                setDate={updateDate}
-                listFilter={listFilter}
-                setListFilter={setListFilter}
-                view={view}
-                setView={setView}
-                events={visibleEvents}
-                select={setSelected}
-                change={(updated) => {
-                  if (
-                    conflicts(
-                      events.filter((e) => e.id !== updated.id),
-                      updated.people,
-                      updated,
-                    )
-                  ) {
-                    setNotice(
-                      "Изменение отменено: у участников есть пересечение с другой встречей.",
-                    );
-                    return;
+        <div className="calendar-workspace" hidden={helpOpen}>
+          <div
+            className="panel-tools"
+            aria-label="Состав рабочего пространства"
+          >
+            <label>
+              Основная панель
+              <select
+                aria-label="Основная панель"
+                value={section === "calendar" ? "calendar" : mainKind}
+                onChange={(e) => {
+                  if (e.target.value === "calendar") setSection("calendar");
+                  else {
+                    setMainKind(e.target.value as Dashboard);
+                    setSection("analytics");
                   }
-                  setEvents((old) =>
-                    old.map((e) => (e.id === updated.id ? updated : e)),
-                  );
-                  setNotice("Время демо-встречи изменено.");
                 }}
-                state={state}
-                retry={() => setState("loading")}
-                swap={swap}
+              >
+                <option value="calendar">Календарь</option>
+                {Object.entries(dashboards).map(([id, title]) => (
+                  <option value={id} key={id}>
+                    {title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Рядом
+              <select
+                aria-label="Соседняя панель"
+                value={panels.side}
+                onChange={(e) =>
+                  setPanels((old) => ({
+                    ...old,
+                    side: e.target.value as typeof old.side,
+                  }))
+                }
+              >
+                <option value="assistant">Ассистент</option>
+                {Object.entries(dashboards).map(([id, title]) => (
+                  <option value={id} key={id}>
+                    {title}
+                  </option>
+                ))}
+                <option value="closed">Скрыть панель</option>
+              </select>
+            </label>
+            <label className="linked-periods">
+              <input
+                type="checkbox"
+                checked={panels.linked}
+                onChange={(e) =>
+                  setPanels((old) => ({ ...old, linked: e.target.checked }))
+                }
               />
-            )}
-          </div>
-          {panels.side !== "closed" && (
-            <div
-              className="splitter"
-              role="separator"
-              tabIndex={0}
-              aria-label="Размер панелей"
-              aria-orientation={vertical ? "horizontal" : "vertical"}
-              aria-valuemin={35}
-              aria-valuemax={76}
-              aria-valuenow={Math.round(config.ratio)}
-              onPointerDown={(e) => {
-                if (window.innerWidth < 760) return;
-                moving.current = true;
-                e.currentTarget.setPointerCapture(e.pointerId);
-                e.preventDefault();
-              }}
-              onPointerMove={(e) => {
-                if (moving.current) resize(e.clientX, e.clientY);
-              }}
-              onPointerUp={(e) => {
-                moving.current = false;
-                if (e.currentTarget.hasPointerCapture(e.pointerId))
-                  e.currentTarget.releasePointerCapture(e.pointerId);
-              }}
-              onPointerCancel={() => {
-                moving.current = false;
-              }}
-              onKeyDown={(e) => {
-                if (
-                  !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
-                    e.key,
-                  )
-                )
-                  return;
-                e.preventDefault();
-                const increase =
-                  e.key === "ArrowRight" || e.key === "ArrowDown";
-                setConfig((c) => ({
-                  ...c,
-                  ratio: Math.min(
-                    76,
-                    Math.max(35, c.ratio + (increase !== reversed ? 3 : -3)),
-                  ),
-                }));
-              }}
+              Связать периоды
+            </label>
+            <select
+              aria-label="Готовая раскладка"
+              value=""
+              onChange={(e) => preset(e.target.value)}
             >
-              <span />
-            </div>
-          )}
-          {panels.side !== "closed" && (
-            <div className="assistant-container">
-              {panels.side === "assistant" ? (
-                <AssistantPanel
-                  showEventList={(filter) => {
-                    setListFilter(filter);
-                    updateDate(filter.from);
-                    setView("list");
-                    setSection("calendar");
-                    return groupListEvents(visibleEvents, filter).reduce(
-                      (sum, group) => sum + group.events.length,
-                      0,
-                    );
-                  }}
-                  events={events}
-                  add={add}
-                  state={state}
-                  swap={swap}
-                  analytics={() => setSection("analytics")}
-                  analysisContext={analysisContext}
-                />
-              ) : (
-                dashboard(panels.side, (kind) =>
-                  setPanels((old) => ({ ...old, side: kind })),
+              <option value="" disabled>
+                Раскладки
+              </option>
+              <option value="planning">Планирование</option>
+              <option value="review">Разбор недели</option>
+              <option value="overview">Обзор</option>
+            </select>
+          </div>
+          <div
+            ref={workspace}
+            className={`workspace ${vertical ? "vertical" : ""} ${reversed ? "reversed" : ""} ${dragOver ? "drop-active" : ""} ${panels.side === "closed" ? "solo" : ""}`}
+            data-layout={layout}
+            style={
+              { "--calendar-ratio": `${config.ratio}%` } as React.CSSProperties
+            }
+            onDragOver={(e) => {
+              if (e.dataTransfer.types.includes("text/plain")) {
+                e.preventDefault();
+                setDragOver(true);
+              }
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node))
+                setDragOver(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              if (
+                ["calendar", "assistant", "analytics"].includes(
+                  e.dataTransfer.getData("text/plain"),
                 )
+              )
+                swap();
+            }}
+          >
+            <div className="calendar-container">
+              {section === "analytics" ? (
+                dashboard(mainKind, setMainKind)
+              ) : (
+                <Calendar
+                  date={date}
+                  setDate={updateDate}
+                  listFilter={listFilter}
+                  setListFilter={setListFilter}
+                  view={view}
+                  setView={setView}
+                  events={visibleEvents}
+                  select={setSelected}
+                  change={(updated) => {
+                    if (
+                      conflicts(
+                        events.filter((e) => e.id !== updated.id),
+                        updated.people,
+                        updated,
+                      )
+                    ) {
+                      setNotice(
+                        "Изменение отменено: у участников есть пересечение с другой встречей.",
+                      );
+                      return;
+                    }
+                    setEvents((old) =>
+                      old.map((e) => (e.id === updated.id ? updated : e)),
+                    );
+                    setNotice("Время демо-встречи изменено.");
+                  }}
+                  state={state}
+                  retry={() => setState("loading")}
+                  swap={swap}
+                />
               )}
             </div>
-          )}
+            {panels.side !== "closed" && (
+              <div
+                className="splitter"
+                role="separator"
+                tabIndex={0}
+                aria-label="Размер панелей"
+                aria-orientation={vertical ? "horizontal" : "vertical"}
+                aria-valuemin={35}
+                aria-valuemax={76}
+                aria-valuenow={Math.round(config.ratio)}
+                onPointerDown={(e) => {
+                  if (window.innerWidth < 760) return;
+                  moving.current = true;
+                  e.currentTarget.setPointerCapture(e.pointerId);
+                  e.preventDefault();
+                }}
+                onPointerMove={(e) => {
+                  if (moving.current) resize(e.clientX, e.clientY);
+                }}
+                onPointerUp={(e) => {
+                  moving.current = false;
+                  if (e.currentTarget.hasPointerCapture(e.pointerId))
+                    e.currentTarget.releasePointerCapture(e.pointerId);
+                }}
+                onPointerCancel={() => {
+                  moving.current = false;
+                }}
+                onKeyDown={(e) => {
+                  if (
+                    ![
+                      "ArrowLeft",
+                      "ArrowRight",
+                      "ArrowUp",
+                      "ArrowDown",
+                    ].includes(e.key)
+                  )
+                    return;
+                  e.preventDefault();
+                  const increase =
+                    e.key === "ArrowRight" || e.key === "ArrowDown";
+                  setConfig((c) => ({
+                    ...c,
+                    ratio: Math.min(
+                      76,
+                      Math.max(35, c.ratio + (increase !== reversed ? 3 : -3)),
+                    ),
+                  }));
+                }}
+              >
+                <span />
+              </div>
+            )}
+            {panels.side !== "closed" && (
+              <div className="assistant-container">
+                {panels.side === "assistant" ? (
+                  <AssistantPanel
+                    showEventList={(filter) => {
+                      setListFilter(filter);
+                      updateDate(filter.from);
+                      setView("list");
+                      setSection("calendar");
+                      return groupListEvents(visibleEvents, filter).reduce(
+                        (sum, group) => sum + group.events.length,
+                        0,
+                      );
+                    }}
+                    events={events}
+                    add={add}
+                    state={state}
+                    swap={swap}
+                    analytics={() => setSection("analytics")}
+                    analysisContext={analysisContext}
+                    helpPrompt={helpPrompt}
+                    onHelpPromptApplied={() => setHelpPrompt(undefined)}
+                  />
+                ) : (
+                  dashboard(panels.side, (kind) =>
+                    setPanels((old) => ({ ...old, side: kind })),
+                  )
+                )}
+              </div>
+            )}
+          </div>
         </div>
-        <footer className="workspace-footer">
-          <span>
-            Small Calendar <span className="footer-dot">·</span> UI Validation
-          </span>
-          <span>Изменения встреч сбрасываются при перезагрузке</span>
-        </footer>
       </main>
       {settings && (
         <SettingsDialog

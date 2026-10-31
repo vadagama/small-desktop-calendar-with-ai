@@ -75,8 +75,10 @@ export function DockWorkspace({
   calendar,
   assistant,
   settingsOpen,
+  hidden = false,
   closeSettings,
 }: {
+  hidden?: boolean;
   settingsOpen: boolean;
   closeSettings: () => void;
   calendar: (swap: () => void) => ReactNode;
@@ -114,6 +116,7 @@ export function DockWorkspace({
       const a = dock
         .getPanel("assistant")!
         .group.element.getBoundingClientRect();
+      if (!c.width || !a.width) return;
       setPlacement(
         a.right <= c.left
           ? "left"
@@ -148,7 +151,11 @@ export function DockWorkspace({
     );
   }
   return (
-    <div className="dock-workspace" data-assistant-placement={placement}>
+    <div
+      className="dock-workspace"
+      hidden={hidden}
+      data-assistant-placement={placement}
+    >
       <Panels.Provider
         value={{
           calendar: calendar(swap),
