@@ -1,10 +1,12 @@
+import { Help } from "./ui/Help";
+import { helpArticles } from "./help-content";
 import { EventList } from "./ui/EventList";
 import { monthRange } from "./ui/event-list";
 import { eventListMeetings } from "./event-list-meetings";
 import { useEventList } from "./useEventList";
 import { seriesInvalidation } from "../shared/calendar-invalidation.js";
 import { Reminders } from "./Reminders";
-import { Bell, Brain, Sparkles } from "lucide-react";
+import { Bell, Brain, Sparkles, CircleHelp } from "lucide-react";
 import { MemorySettings } from "./MemorySettings";
 import { AgentSettings } from "./AgentSettings";
 import {
@@ -56,6 +58,9 @@ import type { CalendarEvent, CalendarView } from "../shared/calendar.js";
 import type { SmallAuthState, SmallAuthStatus } from "../shared/small-auth.js";
 
 export function DesktopWorkspace() {
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [helpPrompt, setHelpPrompt] = useState<{ id: string; text: string }>();
+  const consumeHelpPrompt = useCallback(() => setHelpPrompt(undefined), []);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [agentSettingsOpen, setAgentSettingsOpen] = useState(false);
   useEffect(() => {
@@ -419,17 +424,22 @@ export function DesktopWorkspace() {
           : "Выберите хотя бы один календарь.");
   return (
     <div
-      className={`app-shell desktop-workspace ${filtersOpen ? "sidebar-open" : ""}`}
+      className={`app-shell desktop-workspace ${helpOpen ? "help-active" : ""} ${filtersOpen ? "sidebar-open" : ""}`}
     >
       <nav className="icon-rail" aria-label="Разделы Small">
         <div className="small-emblem" title="Small">
           <UsersRound size={22} />
         </div>
         <button
-          className="active"
+          className={helpOpen ? "" : "active"}
           aria-label="Показать календари"
           aria-controls="small-calendar-filters"
-          onClick={() => setFiltersOpen((open) => !open)}
+          onClick={() => {
+            if (helpOpen) {
+              setHelpOpen(false);
+              setFiltersOpen(false);
+            } else setFiltersOpen((open) => !open);
+          }}
         >
           <CalendarDays size={19} />
         </button>
@@ -452,7 +462,10 @@ export function DesktopWorkspace() {
           className="rail-settings"
           aria-label="Настройки пространства"
           title="Настройки пространства"
-          onClick={() => setSettingsOpen(true)}
+          onClick={() => {
+            setHelpOpen(false);
+            setSettingsOpen(true);
+          }}
         >
           <Settings2 size={19} />
         </button>
@@ -462,6 +475,18 @@ export function DesktopWorkspace() {
           onClick={() => setRemindersOpen(true)}
         >
           <Bell size={19} />
+        </button>
+        <button
+          aria-label="Помощь"
+          title="Помощь"
+          className={helpOpen ? "active" : ""}
+          aria-current={helpOpen ? "page" : undefined}
+          onClick={() => {
+            setHelpOpen(true);
+            setFiltersOpen(false);
+          }}
+        >
+          <CircleHelp size={20} />
         </button>
         <SmallAccount onChange={setAccount} onStatusChange={updateAuthStatus} />
       </nav>
@@ -488,9 +513,10 @@ export function DesktopWorkspace() {
       <main className="main-shell">
         <header className="workspace-header">
           <div className="workspace-title">
-            <h1>Календарь Small</h1>
+            <h1>{helpOpen ? "Помощь" : "Календарь Small"}</h1>
           </div>
           <button
+            hidden={helpOpen}
             className="primary header-create"
             aria-label="Создать событие"
             title={
@@ -509,8 +535,31 @@ export function DesktopWorkspace() {
             Создать <Plus size={16} />
           </button>
         </header>
-        {needsAuth && <SmallAuthNotice expired={Boolean(identityId)} />}
+        <div className="help-section-host" hidden={!helpOpen}>
+          <Help
+            articles={helpArticles}
+            onPrompt={(text) => {
+              setHelpOpen(false);
+              setHelpPrompt({ id: crypto.randomUUID(), text });
+            }}
+            onAction={(action) => {
+              if (action === "calendar") setHelpOpen(false);
+              if (action === "memory") setMemoryOpen(true);
+              if (action === "settings") setAgentSettingsOpen(true);
+              if (action === "account") openSmallAccount();
+              if (action === "notifications") setRemindersOpen(true);
+              if (action === "model") {
+                setHelpOpen(false);
+                window.dispatchEvent(new Event("small:open-model-settings"));
+              }
+            }}
+          />
+        </div>
+        {!helpOpen && needsAuth && (
+          <SmallAuthNotice expired={Boolean(identityId)} />
+        )}
         <DockWorkspace
+          hidden={helpOpen}
           settingsOpen={settingsOpen}
           closeSettings={() => setSettingsOpen(false)}
           calendar={(swap) => (
@@ -672,13 +721,12 @@ export function DesktopWorkspace() {
                 key={identityId ?? "signed-out"}
                 swap={swap}
                 headerTarget={headerTarget}
+                helpPrompt={helpPrompt}
+                onHelpPromptApplied={consumeHelpPrompt}
               />
             </div>
           )}
         />
-        <footer className="workspace-footer">
-          <span>Team API · Asia/Almaty</span>
-        </footer>
       </main>
       {remindersOpen && <Reminders close={() => setRemindersOpen(false)} />}
       {memoryOpen && (

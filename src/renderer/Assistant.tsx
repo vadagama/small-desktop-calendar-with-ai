@@ -1,3 +1,4 @@
+import { notifyInfo } from "./notification-events";
 import {
   AssistantPresentation,
   TemplateMarkdown,
@@ -23,9 +24,13 @@ import type { ProfileState } from "../shared/profiles.js";
 export function DesktopAssistant({
   swap,
   headerTarget,
+  helpPrompt,
+  onHelpPromptApplied,
 }: {
   swap: () => void;
   headerTarget: HTMLElement | null;
+  helpPrompt?: { id: string; text: string };
+  onHelpPromptApplied?: () => void;
 }) {
   const [promptTemplates, setPromptTemplates] = useState<string[]>([]);
   const [chatId, setChatId] = useState(() => crypto.randomUUID());
@@ -34,10 +39,33 @@ export function DesktopAssistant({
     () => new DesktopTransport(window.smallDesktop.assistant),
   );
   const [input, setInput] = useState("");
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const appliedPrompt = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!helpPrompt || appliedPrompt.current === helpPrompt.id) return;
+    appliedPrompt.current = helpPrompt.id;
+    const next = input.trim()
+      ? `${input}\n${helpPrompt.text}`
+      : helpPrompt.text;
+    if (next.length > 2000) {
+      notifyInfo(
+        "В поле ввода недостаточно места для примера. Сократите черновик и подставьте запрос из помощи ещё раз.",
+      );
+    } else {
+      setInput(next);
+    }
+    requestAnimationFrame(() => inputRef.current?.focus());
+    onHelpPromptApplied?.();
+  }, [helpPrompt, onHelpPromptApplied]);
   const [stopped, setStopped] = useState(false);
   const [profiles, setProfiles] = useState<ProfileState | null>(null);
   const [profileError, setProfileError] = useState("");
   const [settings, setSettings] = useState(false);
+  useEffect(() => {
+    const open = () => setSettings(true);
+    window.addEventListener("small:open-model-settings", open);
+    return () => window.removeEventListener("small:open-model-settings", open);
+  }, []);
   useEffect(() => {
     const update = (event: Event) => {
       const state = (event as CustomEvent<AgentSettingsState>).detail;
@@ -205,6 +233,7 @@ export function DesktopAssistant({
             }}
           >
             <textarea
+              ref={inputRef}
               aria-label="Сообщение ассистенту"
               placeholder="Например, встреча завтра после обеда с Олегом и Витей…"
               rows={2}

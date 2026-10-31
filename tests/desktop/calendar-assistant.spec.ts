@@ -8,6 +8,9 @@ import { mockSmall } from "./fixtures/small-api.js";
 import { calendarToday } from "../../src/shared/calendar-time.js";
 
 test("calendar tools cross utility/main boundary and render trusted results", async () => {
+  // This end-to-end journey runs multiple model/tool turns, writes and screenshots.
+  // It takes about 25 seconds locally; macOS CI needs headroom beyond the 30s default.
+  test.setTimeout(90_000);
   const userData = await mkdtemp(join(tmpdir(), "small-chat-calendar-"));
   type ModelMessage = {
     role: string;

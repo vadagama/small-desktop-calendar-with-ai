@@ -25,6 +25,8 @@ interface Props {
   state: DataState;
   swap: () => void;
   analytics: () => void;
+  onHelpPromptApplied?: () => void;
+  helpPrompt?: { id: number; text: string };
   analysisContext?: { id: number; title: string; text: string };
 }
 interface Message {
@@ -43,6 +45,16 @@ export function Assistant(p: Props) {
     null,
   );
   const [input, setInput] = useState("");
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const appliedPrompt = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (!p.helpPrompt || appliedPrompt.current === p.helpPrompt.id) return;
+    appliedPrompt.current = p.helpPrompt.id;
+    const text = p.helpPrompt.text;
+    setInput((old) => (old.trim() ? `${old}\n${text}` : text));
+    requestAnimationFrame(() => inputRef.current?.focus());
+    p.onHelpPromptApplied?.();
+  }, [p.helpPrompt]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -340,6 +352,7 @@ export function Assistant(p: Props) {
           }}
         >
           <textarea
+            ref={inputRef}
             aria-label="Сообщение ассистенту"
             placeholder="Например, собери команду завтра…"
             value={input}
