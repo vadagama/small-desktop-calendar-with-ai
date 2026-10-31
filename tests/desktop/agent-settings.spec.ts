@@ -114,9 +114,11 @@ test("assistant instructions and skills can be edited, persisted and restored", 
     await dialog
       .getByRole("button", { name: "Восстановить стандартные" })
       .click();
-    await expect(dialog.getByRole("status")).toHaveText(
-      "Стандартные настройки восстановлены",
-    );
+    await expect(
+      dialog
+        .getByRole("status")
+        .filter({ hasText: "Стандартные настройки восстановлены" }),
+    ).toHaveText("Стандартные настройки восстановлены");
     await expect(dialog.getByLabel("Ваши инструкции")).toHaveValue("");
     await expect(dialog.getByLabel("Шаблон 1", { exact: true })).toHaveValue(
       "На завтра создай встречу на 30 минут в любой свободный слот после 12:00",

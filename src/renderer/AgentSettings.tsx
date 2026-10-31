@@ -1,3 +1,4 @@
+import { VoiceSettings } from "./VoiceSettings";
 import { PromptTemplatesEditor } from "./PromptTemplatesEditor";
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
@@ -99,6 +100,7 @@ export function AgentSettings({
           {notice}
         </p>
       )}
+      <VoiceSettings />
       <form
         className="meeting-form"
         onSubmit={(event) => {
