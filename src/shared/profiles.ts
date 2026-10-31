@@ -1,4 +1,9 @@
-export type ProfileId = "small" | "personal";
+export type ProfileId = "small" | "deepseek" | "personal";
+export const profileLabels: Record<ProfileId, string> = {
+  small: "Small vLLM",
+  deepseek: "DeepSeek",
+  personal: "OpenAI Compatible",
+};
 export type ActiveProfile = ProfileId | "synthetic";
 export interface LlmProfile {
   id: ProfileId;

@@ -8,17 +8,11 @@ import type { AssistantTemplates } from "../shared/agent-settings.js";
 import type { AgentSettingsState } from "../shared/agent-settings.js";
 import { createPortal } from "react-dom";
 import { useChat } from "@ai-sdk/react";
-import {
-  ArrowUp,
-  ChevronDown,
-  Settings2,
-  Sparkles,
-  Square,
-  RotateCcw,
-} from "lucide-react";
+import { ArrowUp, Settings2, Sparkles, Square, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { DesktopTransport } from "./transport";
 import { MessageList } from "./MessageList";
+import { ModelPicker } from "./ModelPicker";
 import { ModelSettings } from "./ModelSettings";
 import type { ProfileState } from "../shared/profiles.js";
 
@@ -112,13 +106,7 @@ export function DesktopAssistant({
       mounted = false;
     };
   }, []);
-  const activeProfile = profiles?.profiles.find(
-    (profile) => profile.id === profiles.active,
-  );
   const local = profiles?.active === "synthetic";
-  const modelLabel = local
-    ? "Синтетическая модель"
-    : (activeProfile?.modelId ?? (profiles ? "Настроить модель" : "Загрузка…"));
   const busy = status === "submitted" || status === "streaming";
   useEffect(() => () => transport.close(), [transport]);
   useEffect(() => {
@@ -266,20 +254,12 @@ export function DesktopAssistant({
               }}
             />
             <div>
-              <button
-                className="composer-model-button"
-                type="button"
-                aria-label={`Настроить LLM: ${modelLabel}`}
-                aria-haspopup="dialog"
-                aria-expanded={settings}
-                title="Открыть настройки LLM"
-                disabled={!profiles}
-                onClick={() => setSettings(true)}
-              >
-                <Sparkles size={14} aria-hidden="true" />
-                <span>{modelLabel}</span>
-                <ChevronDown size={12} aria-hidden="true" />
-              </button>
+              <ModelPicker
+                state={profiles}
+                disabled={busy}
+                update={setProfiles}
+                onError={setProfileError}
+              />
               <VoiceInput
                 disabled={busy}
                 chatId={chatId}

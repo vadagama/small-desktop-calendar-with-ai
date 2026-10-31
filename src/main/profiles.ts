@@ -25,7 +25,7 @@ const configSchema = z
   .strictObject({
     version: z.literal(1),
     active: activeProfileSchema,
-    profiles: z.array(storedProfile).max(2),
+    profiles: z.array(storedProfile).max(3),
     retired: z.array(storedProfile),
   })
   .refine(

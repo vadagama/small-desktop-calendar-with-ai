@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, X } from "lucide-react";
+import { profileLabels } from "../shared/profiles.js";
 import type {
   ProfileId,
   ProfileReply,
@@ -10,8 +11,18 @@ function fields(id: ProfileId, state: ProfileState) {
   return (
     state.profiles.find((profile) => profile.id === id) ?? {
       id,
-      baseURL: id === "small" ? "https://ai.skiftrade.kz/v1" : "",
-      modelId: id === "small" ? "vllm/glm-5.3-flash" : "",
+      baseURL:
+        id === "small"
+          ? "https://ai.skiftrade.kz/v1"
+          : id === "deepseek"
+            ? "https://api.deepseek.com"
+            : "",
+      modelId:
+        id === "small"
+          ? "vllm/glm-5.3-flash"
+          : id === "deepseek"
+            ? "deepseek-flash"
+            : "",
     }
   );
 }
@@ -34,7 +45,9 @@ export function ModelSettings({
 }) {
   const [state, setState] = useState(initial);
   const [id, setId] = useState<ProfileId>(
-    initial.active === "personal" ? "personal" : "small",
+    initial.active !== "synthetic"
+      ? initial.active
+      : (initial.profiles[0]?.id ?? "deepseek"),
   );
   const [baseURL, setBaseURL] = useState(fields(id, initial).baseURL);
   const [modelId, setModelId] = useState(fields(id, initial).modelId);
@@ -140,8 +153,11 @@ export function ModelSettings({
               setNotice("");
             }}
           >
-            <option value="small">Small vLLM</option>
-            <option value="personal">Персональный OpenAI-compatible</option>
+            {(["small", "deepseek", "personal"] as const).map((profileId) => (
+              <option key={profileId} value={profileId}>
+                {profileLabels[profileId]}
+              </option>
+            ))}
           </select>
         </label>
         <label>

@@ -183,7 +183,7 @@ test("prompt templates persist, allow empty lists and reject more than five or b
     const legacy = { ...settings };
     delete legacy.promptTemplates;
     await writeFile(join(dir, "agent-settings.json"), JSON.stringify(legacy));
-    assert.equal((await store.read()).settings.promptTemplates?.length, 3);
+    assert.equal((await store.read()).settings.promptTemplates?.length, 4);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

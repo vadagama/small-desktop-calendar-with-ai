@@ -275,3 +275,26 @@ test("legacy profile metadata never reads native credentials and requires a new 
     await f.clean();
   }
 });
+
+test("three provider profiles keep independent keys across reload and deletion", async () => {
+  const f = await fixture();
+  try {
+    for (const id of ["small", "deepseek", "personal"] as const) {
+      await f.store.save({ ...profile, id, apiKey: `synthetic-${id}` });
+    }
+    const reloaded = new ProfileStore(f.directory, f.secrets);
+    assert.equal((await reloaded.state()).profiles.length, 3);
+    for (const id of ["small", "deepseek", "personal"] as const) {
+      await reloaded.activate(id);
+      assert.equal((await reloaded.resolveActive())?.apiKey, `synthetic-${id}`);
+    }
+    await reloaded.remove("deepseek");
+    assert.equal((await reloaded.state()).profiles.length, 2);
+    assert.equal(
+      (await reloaded.resolveActive())?.apiKey,
+      "synthetic-personal",
+    );
+  } finally {
+    await f.clean();
+  }
+});
