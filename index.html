@@ -21,7 +21,7 @@
         ><span class="logo" aria-hidden="true">S</span> Small Calendar</a
       ><span class="header-label">Установка и первый запуск</span
       ><a
-        href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/tag/v0.1.0-snapshot.20261031.6dca9ca"
+        href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/tag/v0.2.0-rc.1"
         >Релиз ↗</a
       >
     </header>
@@ -34,7 +34,10 @@
           ><a href="#launch"><span>03</span> Первый запуск</a
           ><a href="#permission"><span>04</span> Разрешить открытие</a
           ><a href="#small"><span>05</span> Войти в Small</a
-          ><a href="#llm"><span>06</span> Настроить ассистента</a>
+          ><a href="#llm"><span>06</span> Настроить LLM</a>
+          <a href="#voice"><span>07</span> Настроить Voice</a>
+          <a href="#dictation"><span>08</span> Голосовой ввод</a>
+          <a href="#changelog"><span>↻</span> Changelog</a>
         </nav>
         <div class="sidebar-note">
           Для Mac с Apple Silicon<br /><span>M1, M2, M3, M4 и новее</span>
@@ -49,7 +52,7 @@
             AI-ассистента. Пройдём каждый шаг вместе.
           </p>
           <div class="facts">
-            <span>macOS · Apple Silicon</span><span>6 простых шагов</span
+            <span>macOS · Apple Silicon</span><span>8 простых шагов</span
             ><span>Предварительная версия</span>
           </div>
         </section>
@@ -67,13 +70,13 @@
           </p>
           <a
             class="button download"
-            href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/download/v0.1.0-snapshot.20261031.6dca9ca/Small-Calendar-0.1.0-snapshot.20261031.6dca9ca-arm64-local.dmg"
+            href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/download/v0.2.0-rc.1/Small-Calendar-0.2.0-rc.1-arm64-local.dmg"
             ><span aria-hidden="true">↓</span> Скачать Small Calendar
-            <small>DMG · 135 МБ</small></a
+            <small>DMG · 137 МБ</small></a
           >
           <p class="muted">
-            Сборка от 31 октября 2026 · Только для Mac с чипом Apple Silicon, не
-            Intel.
+            Релиз 0.2.0-rc.1 от 31 октября 2026 · Только для Mac с чипом Apple
+            Silicon, не Intel.
           </p>
           <details>
             <summary>Как узнать, какой у меня Mac?</summary>
@@ -327,16 +330,19 @@
               <strong>«Настройки модели»</strong> в правом верхнем углу.
             </li>
             <li>
-              Выберите профиль <strong>Small vLLM</strong> для корпоративного
-              сервиса или <strong>«Персональный OpenAI-compatible»</strong> для
-              своего провайдера.
+              Откройте вкладку <strong>LLM</strong>. Выберите профиль
+              <strong>Small vLLM</strong>, <strong>DeepSeek</strong> или
+              <strong>OpenAI Compatible</strong>. У каждого профиля отдельный
+              API-ключ.
             </li>
             <li>
               Проверьте поля ниже и вставьте ваш <strong>API-ключ</strong>.
             </li>
             <li>
-              Нажмите <strong>«Сохранить»</strong>. Дождитесь сообщения
-              <strong>«Профиль сохранён и выбран»</strong>.
+              Нажмите <strong>«Сохранить»</strong>. Окно закроется, а
+              сохранённый профиль станет активным. Для переключения между
+              сохранёнными моделями нажмите название модели рядом с полем
+              сообщения.
             </li>
           </ol>
           <div class="mock-stage">
@@ -346,6 +352,7 @@
               aria-label="Схема Настроек модели: профиль Small vLLM, Base URL https://ai.skiftrade.kz/v1, Model ID vllm/glm-5.3-flash, пустое поле API-ключ и кнопка Сохранить."
             >
               <strong class="dialog-title">Настройки модели</strong>
+              <div class="mock-label">LLM · Voice — выбрана LLM</div>
               <div class="mock-label">Профиль</div>
               <div class="mock-field">Small vLLM <span>⌄</span></div>
               <div class="mock-label">Base URL</div>
@@ -401,6 +408,89 @@
             </p>
           </details>
         </section>
+        <section class="step" id="voice">
+          <div class="step-heading">
+            <span class="number">07</span>
+            <div>
+              <p class="eyebrow">МОДЕЛЬ РЕЧИ</p>
+              <h2>Настройте Voice</h2>
+            </div>
+          </div>
+          <p>
+            В «Настройках модели» доступны две вкладки: <strong>LLM</strong> для
+            модели ответов и <strong>Voice</strong> для распознавания речи.
+            Голосовой ввод использует Whisper large-v3-turbo и не требует
+            API-ключа.
+          </p>
+          <ol>
+            <li>
+              Откройте вкладку <strong>Voice</strong> и нажмите
+              <strong>«Скачать модель · 1,62 GB»</strong>. Модель скачивается
+              отдельно от приложения.
+            </li>
+            <li>
+              Следите за процентами, объёмом, скоростью и оставшимся временем.
+              Доступны пауза, продолжение и отмена. Дождитесь проверки и чипа
+              <strong>«Модель готова»</strong>.
+            </li>
+            <li>
+              В поле <strong>«Источник звука»</strong> выберите микрофон.
+              Нажмите <strong>«Проверить микрофон»</strong> и разрешите доступ в
+              macOS. Уровень звука показывается индикатором; проверка
+              автоматически закончится через 10 секунд.
+            </li>
+          </ol>
+          <p>
+            Распознавание выполняется локально. После установки модели для
+            диктовки интернет не нужен; для ответов ассистента нужен
+            подключённый LLM-сервис.
+          </p>
+          <details>
+            <summary>Микрофон не работает или модель больше не нужна</summary>
+            <p>
+              Проверьте «Системные настройки» → «Конфиденциальность и
+              безопасность» → «Микрофон» → Small Calendar. Если устройство
+              отключено, подключите его или выберите другой источник. Кнопка
+              «Удалить модель» освобождает место; для следующей диктовки модель
+              потребуется скачать снова.
+            </p>
+          </details>
+        </section>
+        <section class="step" id="dictation">
+          <div class="step-heading">
+            <span class="number">08</span>
+            <div>
+              <p class="eyebrow">РАБОТА С АССИСТЕНТОМ</p>
+              <h2>Как пользоваться голосовым вводом</h2>
+            </div>
+          </div>
+          <ol>
+            <li>
+              После появления «Модель готова» закройте настройки. Рядом с
+              отправкой сообщения появится кнопка микрофона.
+            </li>
+            <li>
+              Поставьте курсор в поле сообщения и нажмите микрофон. В режиме
+              <strong>«Слушаю»</strong> надиктуйте запрос по-русски, например:
+              «Покажи мои встречи на завтра».
+            </li>
+            <li>
+              Нажмите кнопку с квадратом, чтобы закончить запись. Дождитесь
+              распознавания: текст вставится в позицию курсора или заменит
+              выделенный фрагмент.
+            </li>
+            <li>
+              Проверьте имена, даты и время, исправьте текст и нажмите отправку.
+              Диктовка сама сообщение не отправляет.
+            </li>
+          </ol>
+          <div class="note">
+            Крестик или Escape отменяют запись и распознавание без вставки
+            результата. Лимит записи — 120 секунд; затем запись автоматически
+            останавливается и распознаётся. Если текст длиннее 2000 символов,
+            сократите его перед отправкой.
+          </div>
+        </section>
         <section class="finish">
           <span class="check" aria-hidden="true">✓</span>
           <div>
@@ -411,12 +501,119 @@
             </p>
           </div>
         </section>
+        <section class="step" id="changelog" aria-labelledby="changelog-title">
+          <div class="step-heading">
+            <span class="number" aria-hidden="true">↻</span>
+            <div>
+              <p class="eyebrow">ИСТОРИЯ ИЗМЕНЕНИЙ</p>
+              <h2 id="changelog-title">Changelog</h2>
+            </div>
+          </div>
+          <h3>0.2.0-rc.1 · предварительный релиз</h3>
+          <p class="muted">
+            <time datetime="2026-10-31">31 октября 2026</time> · macOS · Apple
+            Silicon
+          </p>
+          <dl class="field-guide">
+            <div>
+              <dt>Добавлено</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <strong>Голосовой ввод на русском.</strong> Whisper
+                    large-v3-turbo распознаёт речь на Mac. Модель скачивается
+                    отдельно с прогрессом, паузой, продолжением и проверкой
+                    готовности. Доступны выбор и проверка микрофона.
+                  </li>
+                  <li>
+                    <strong>Профиль DeepSeek.</strong> Его можно настроить рядом
+                    со Small vLLM и OpenAI Compatible; ключи профилей хранятся
+                    отдельно.
+                  </li>
+                  <li>
+                    <strong>Справка внутри приложения.</strong> Инструкции,
+                    иллюстрации и примеры запросов доступны рядом с профилем.
+                    Пример подставляется в черновик для проверки перед
+                    отправкой.
+                  </li>
+                  <li>
+                    <strong>Шаблон поиска по организатору.</strong> В стартовые
+                    запросы добавлен пример поиска событий за месяц.
+                  </li>
+                </ul>
+              </dd>
+            </div>
+            <div>
+              <dt>Изменено</dt>
+              <dd>
+                <ul>
+                  <li>
+                    <strong>Настройки модели разделены на LLM и Voice.</strong>
+                    LLM содержит параметры сервиса и API-ключ; Voice — модель
+                    распознавания и источник звука. Голосовой ввод перенесён из
+                    настроек AI-помощника.
+                  </li>
+                  <li>
+                    <strong>Быстрое переключение LLM.</strong> Нажатие на
+                    название модели рядом с сообщением открывает меню
+                    сохранённых моделей. Поддерживаются клавиатура и сохранение
+                    выбора.
+                  </li>
+                  <li>
+                    <strong>Диктовка заполняет черновик.</strong> После
+                    остановки текст вставляется в позицию курсора или заменяет
+                    выделение. Отправка выполняется отдельно, отмена доступна по
+                    крестику и Escape. Лимит записи — 120 секунд.
+                  </li>
+                  <li>
+                    <strong>Инструкция обновлена.</strong> Добавлены настройка
+                    LLM/Voice, проверка микрофона и пошаговое использование
+                    голосового ввода.
+                  </li>
+                </ul>
+              </dd>
+            </div>
+            <div>
+              <dt>Исправлено</dt>
+              <dd>
+                Повышена совместимость инструментов просмотра встреч и аналитики
+                с OpenAI-совместимыми сервисами: схемы запросов передаются как
+                объекты, при этом проверка входных данных сохраняется.
+              </dd>
+            </div>
+          </dl>
+          <p class="note">
+            Предварительный релиз для Apple Silicon. Приложение подписано
+            локально и не нотариализовано Apple: при первом запуске macOS может
+            потребовать подтверждение открытия по шагу 04. SHA-256 установщика:
+            <code
+              >1356ffc61d4af6cce0e4da951cc09e477e3a2d7c3b4d2fd3cd1ff6bda7e69638</code
+            >.
+          </p>
+          <details>
+            <summary>
+              Предыдущая версия — 0.1.0 snapshot, 31 октября 2026
+            </summary>
+            <p>
+              Представление «Список», поиск событий ассистентом и исправления
+              входа.
+              <a
+                href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/tag/v0.1.0-snapshot.20261031.6dca9ca"
+                >Открыть предыдущий релиз</a
+              >.
+            </p>
+          </details>
+          <p>
+            <a href="#voice">Настроить Voice ↑</a> ·
+            <a href="#dictation">Начать диктовку ↑</a>
+          </p>
+        </section>
         <footer>
-          <p>Small Calendar · Предварительная сборка 31.10.2026</p>
+          <p>Small Calendar 0.2.0-rc.1 · 31.10.2026</p>
           <p>
             В этой версии поиск по всем календарям может занимать до 120 секунд.
             <a
-              href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/tag/v0.1.0-snapshot.20261031.6dca9ca"
+              href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/tag/v0.2.0-rc.1"
               >Подробности релиза ↗</a
             >
           </p>
