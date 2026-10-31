@@ -41,8 +41,9 @@ test("voice starts uninstalled in a clean profile and exposes safe settings", as
       .click();
 
     await page
-      .getByRole("button", { name: "Настройки AI-помощника", exact: true })
+      .getByRole("button", { name: "Настройки модели", exact: true })
       .click();
+    await page.getByRole("tab", { name: "Voice", exact: true }).click();
     await expect(
       page.getByText("Модель не установлена", { exact: true }),
     ).toBeVisible();
@@ -53,14 +54,8 @@ test("voice starts uninstalled in a clean profile and exposes safe settings", as
     await expect(
       page.getByRole("button", { name: /Скачать модель/ }),
     ).toBeEnabled();
-    await expect(
-      page.getByLabel("Ваши инструкции", { exact: true }),
-    ).toHaveValue("");
-    await expect(page.getByLabel("Mood · стиль общения")).toHaveValue(
-      "neutral",
-    );
     await page
-      .getByRole("button", { name: "Закрыть настройки AI-помощника" })
+      .getByRole("button", { name: "Закрыть настройки модели" })
       .click();
     await expect(
       page.getByRole("button", { name: "Начать голосовой ввод" }),
@@ -150,8 +145,9 @@ test("real Whisper transcribes a synthetic Russian microphone stream without sen
     await input.press("Escape");
     await expect(mic).toBeVisible();
     await page
-      .getByRole("button", { name: "Настройки AI-помощника", exact: true })
+      .getByRole("button", { name: "Настройки модели", exact: true })
       .click();
+    await page.getByRole("tab", { name: "Voice", exact: true }).click();
     await expect(
       page.getByText("Модель готова", { exact: true }),
     ).toBeVisible();

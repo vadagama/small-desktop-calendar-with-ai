@@ -31,6 +31,7 @@ test("guide works offline in a clean profile and inserts prompts without sending
       "С чего начать",
       "Аутентификация",
       "Настройка LLM",
+      "Голосовой ввод",
       "Работать с календарём",
       "Подобрать время",
       "Найти события",

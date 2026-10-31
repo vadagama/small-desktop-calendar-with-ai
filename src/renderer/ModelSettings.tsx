@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { VoiceSettings } from "./VoiceSettings";
+import "./model-settings-tabs.css";
+import { useEffect, useId, useRef, useState } from "react";
 import { CheckCircle2, X } from "lucide-react";
 import { profileLabels } from "../shared/profiles.js";
 import type {
@@ -43,6 +45,8 @@ export function ModelSettings({
   close: () => void;
   update: (state: ProfileState) => void;
 }) {
+  const tabId = useId();
+  const [tab, setTab] = useState<"llm" | "voice">("llm");
   const [state, setState] = useState(initial);
   const [id, setId] = useState<ProfileId>(
     initial.active !== "synthetic"
@@ -115,140 +119,192 @@ export function ModelSettings({
           <X size={19} />
         </button>
       </div>
-      <p className="modal-description">
-        Выберите сервис и сохраните ключ в зашифрованном хранилище этого Mac.
-        Автоматического переключения между моделями нет.
-      </p>
-      <form
-        className="meeting-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void perform(
-            () =>
-              window.smallDesktop.profiles.save({
-                id,
-                baseURL,
-                modelId,
-                ...(apiKey ? { apiKey } : {}),
-              }),
-            "Профиль сохранён и выбран",
-            true,
-          );
-        }}
+      <div
+        className="model-settings-tabs"
+        role="tablist"
+        aria-label="Раздел настроек модели"
       >
-        <label>
-          Профиль
-          <select
-            aria-label="Профиль"
-            value={id}
-            disabled={busy}
-            onChange={(event) => {
-              const nextId = event.target.value as ProfileId;
-              const next = fields(nextId, state);
-              setId(nextId);
-              setBaseURL(next.baseURL);
-              setModelId(next.modelId);
-              setApiKey("");
-              setError("");
-              setNotice("");
+        {(["llm", "voice"] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            id={`${tabId}-${value}`}
+            aria-controls={`${tabId}-${value}-panel`}
+            aria-selected={tab === value}
+            tabIndex={tab === value ? 0 : -1}
+            onClick={() => setTab(value)}
+            onKeyDown={(event) => {
+              if (
+                !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
+              )
+                return;
+              event.preventDefault();
+              const next =
+                event.key === "Home"
+                  ? "llm"
+                  : event.key === "End"
+                    ? "voice"
+                    : value === "llm"
+                      ? "voice"
+                      : "llm";
+              setTab(next);
+              document.getElementById(`${tabId}-${next}`)?.focus();
             }}
           >
-            {(["small", "deepseek", "personal"] as const).map((profileId) => (
-              <option key={profileId} value={profileId}>
-                {profileLabels[profileId]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Base URL
-          <input
-            type="url"
-            required
-            value={baseURL}
-            disabled={busy}
-            autoComplete="off"
-            spellCheck={false}
-            onChange={(event) => {
-              setBaseURL(event.target.value);
-              setApiKey("");
-            }}
-          />
-        </label>
-        <label>
-          Model ID
-          <input
-            required
-            value={modelId}
-            disabled={busy}
-            autoComplete="off"
-            spellCheck={false}
-            maxLength={200}
-            onChange={(event) => setModelId(event.target.value)}
-          />
-        </label>
-        <label>
-          API-ключ
-          <span className="model-key-field">
-            <input
-              type="password"
-              value={apiKey}
-              placeholder={keepKey ? `••••${saved?.keySuffix ?? ""}` : ""}
-              required={!keepKey}
-              disabled={busy}
-              autoComplete="new-password"
-              spellCheck={false}
-              maxLength={8192}
-              onChange={(event) => setApiKey(event.target.value)}
-            />
-            {applied && (
-              <span
-                className="model-key-applied"
-                role="img"
-                aria-label="Ключ сохранён и применён"
-                title="Ключ сохранён и применён"
-              >
-                <CheckCircle2 size={18} aria-hidden="true" />
-              </span>
-            )}
-          </span>
-        </label>
-        <p className="form-note">
-          {keepKey
-            ? "Ключ сохранён. Введите новый ключ, чтобы заменить его."
-            : "Для нового адреса сервиса нужен новый ключ."}
-        </p>
-        {error && (
-          <p className="form-error" role="alert">
-            {error}
-          </p>
-        )}
-        {notice && (
-          <p className="form-note" role="status">
-            {notice}
-          </p>
-        )}
-        <div className="model-actions">
-          <button className="primary" type="submit" disabled={busy}>
-            Сохранить
+            {value === "llm" ? "LLM" : "Voice"}
           </button>
-          {saved && (
-            <button
-              className="text-button"
-              type="button"
+        ))}
+      </div>
+      <div
+        role="tabpanel"
+        id={`${tabId}-llm-panel`}
+        aria-labelledby={`${tabId}-llm`}
+        hidden={tab !== "llm"}
+      >
+        <p className="modal-description">
+          Выберите сервис и сохраните ключ в зашифрованном хранилище этого Mac.
+          Автоматического переключения между моделями нет.
+        </p>
+        <form
+          className="meeting-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void perform(
+              () =>
+                window.smallDesktop.profiles.save({
+                  id,
+                  baseURL,
+                  modelId,
+                  ...(apiKey ? { apiKey } : {}),
+                }),
+              "Профиль сохранён и выбран",
+              true,
+            );
+          }}
+        >
+          <label>
+            Профиль
+            <select
+              aria-label="Профиль"
+              value={id}
               disabled={busy}
-              onClick={() =>
-                void perform(
-                  () => window.smallDesktop.profiles.remove(id),
-                  "Ключ и профиль удалены",
-                )
-              }
+              onChange={(event) => {
+                const nextId = event.target.value as ProfileId;
+                const next = fields(nextId, state);
+                setId(nextId);
+                setBaseURL(next.baseURL);
+                setModelId(next.modelId);
+                setApiKey("");
+                setError("");
+                setNotice("");
+              }}
             >
-              Удалить ключ
-            </button>
+              {(["small", "deepseek", "personal"] as const).map((profileId) => (
+                <option key={profileId} value={profileId}>
+                  {profileLabels[profileId]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Base URL
+            <input
+              type="url"
+              required
+              value={baseURL}
+              disabled={busy}
+              autoComplete="off"
+              spellCheck={false}
+              onChange={(event) => {
+                setBaseURL(event.target.value);
+                setApiKey("");
+              }}
+            />
+          </label>
+          <label>
+            Model ID
+            <input
+              required
+              value={modelId}
+              disabled={busy}
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={200}
+              onChange={(event) => setModelId(event.target.value)}
+            />
+          </label>
+          <label>
+            API-ключ
+            <span className="model-key-field">
+              <input
+                type="password"
+                value={apiKey}
+                placeholder={keepKey ? `••••${saved?.keySuffix ?? ""}` : ""}
+                required={!keepKey}
+                disabled={busy}
+                autoComplete="new-password"
+                spellCheck={false}
+                maxLength={8192}
+                onChange={(event) => setApiKey(event.target.value)}
+              />
+              {applied && (
+                <span
+                  className="model-key-applied"
+                  role="img"
+                  aria-label="Ключ сохранён и применён"
+                  title="Ключ сохранён и применён"
+                >
+                  <CheckCircle2 size={18} aria-hidden="true" />
+                </span>
+              )}
+            </span>
+          </label>
+          <p className="form-note">
+            {keepKey
+              ? "Ключ сохранён. Введите новый ключ, чтобы заменить его."
+              : "Для нового адреса сервиса нужен новый ключ."}
+          </p>
+          {error && (
+            <p className="form-error" role="alert">
+              {error}
+            </p>
           )}
-        </div>
-      </form>
+          {notice && (
+            <p className="form-note" role="status">
+              {notice}
+            </p>
+          )}
+          <div className="model-actions">
+            <button className="primary" type="submit" disabled={busy}>
+              Сохранить
+            </button>
+            {saved && (
+              <button
+                className="text-button"
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  void perform(
+                    () => window.smallDesktop.profiles.remove(id),
+                    "Ключ и профиль удалены",
+                  )
+                }
+              >
+                Удалить ключ
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
+      <div
+        role="tabpanel"
+        id={`${tabId}-voice-panel`}
+        aria-labelledby={`${tabId}-voice`}
+        hidden={tab !== "voice"}
+      >
+        {tab === "voice" && <VoiceSettings />}
+      </div>
     </dialog>
   );
 }
