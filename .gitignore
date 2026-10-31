@@ -11,3 +11,5 @@ prototype/test-results/
 prototype/playwright-report/
 .impeccable/review/
 .impeccable/mocks/
+
+/native/voice/

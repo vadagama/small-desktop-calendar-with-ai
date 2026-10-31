@@ -22,7 +22,8 @@
     "check:size": "node scripts/check-build-size.mjs",
     "check:package": "node scripts/check-package.mjs",
     "package:mac:hardened": "npm run build:desktop && node scripts/package-mac.mjs --local-sign --hardened --out release/hardened",
-    "package:mac:release": "npm run build:desktop && node scripts/package-mac.mjs --release-sign --out release/production"
+    "package:mac:release": "npm run build:desktop && node scripts/package-mac.mjs --release-sign --out release/production",
+    "voice:build": "node scripts/build-whisper.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "3.0.80",

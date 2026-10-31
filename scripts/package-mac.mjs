@@ -1,3 +1,4 @@
+import { access } from "node:fs/promises";
 import { packager } from "@electron/packager";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
@@ -30,6 +31,11 @@ if (
   );
 if (process.platform !== "darwin")
   throw new Error("macOS packaging must run on macOS.");
+await access("native/voice/whisper-cli").catch(() => {
+  throw new Error(
+    "Build the voice runtime first: npm run voice:build (requires CMake and Xcode command line tools)",
+  );
+});
 const paths = await packager({
   dir: ".",
   name: "Small Calendar",
@@ -38,6 +44,11 @@ const paths = await packager({
   arch: "arm64",
   out: values.out,
   asar: true,
+  extraResource: ["native"],
+  extendInfo: {
+    NSMicrophoneUsageDescription:
+      "Small Calendar использует микрофон для локального голосового ввода запросов.",
+  },
   overwrite: true,
   icon: "build/app.icns",
   ...(hardened
