@@ -1,3 +1,4 @@
+import { voiceChannel } from "../shared/voice.js";
 import { eventListChannel } from "../shared/event-list-channel.js";
 import type { EventListResult } from "../shared/event-list.js";
 import { topicRuleChannels } from "../shared/topic-rule-channels.js";
@@ -20,6 +21,7 @@ import { smallAuthChannels } from "../shared/small-auth.js";
 import { profileChannels } from "../shared/profiles.js";
 
 const bridge: DesktopBridge = {
+  voice: { request: (input) => ipcRenderer.invoke(voiceChannel, input) },
   memory: {
     read: () => ipcRenderer.invoke(memoryChannels.read),
     write: (input) => ipcRenderer.invoke(memoryChannels.write, input),

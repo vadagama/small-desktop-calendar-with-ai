@@ -1,3 +1,4 @@
+import { VoiceInput } from "./VoiceInput";
 import { notifyInfo } from "./notification-events";
 import {
   AssistantPresentation,
@@ -38,6 +39,8 @@ export function DesktopAssistant({
   const [transport] = useState(
     () => new DesktopTransport(window.smallDesktop.assistant),
   );
+  const [voiceBusy, setVoiceBusy] = useState(false);
+  const voiceSelection = useRef({ start: 0, end: 0 });
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const appliedPrompt = useRef<string | undefined>(undefined);
@@ -122,13 +125,17 @@ export function DesktopAssistant({
     scroll.current?.scrollTo({ top: scroll.current.scrollHeight });
   }, [messages, error, status, stopped]);
   function choose(text: string) {
-    if (busy || !profiles || !text.trim()) return;
+    if (busy || voiceBusy || !profiles || !text.trim()) return;
     clearError();
     setStopped(false);
     void sendMessage({ text });
   }
   function send() {
-    if (busy || !profiles || !input.trim()) return;
+    if (busy || voiceBusy || !profiles || !input.trim()) return;
+    if (input.length > 2000) {
+      notifyInfo("Сократите сообщение до 2000 символов перед отправкой");
+      return;
+    }
     const text = input.trim();
     setInput("");
     choose(text);
@@ -147,7 +154,7 @@ export function DesktopAssistant({
               <button
                 className="icon-button"
                 aria-label="Новый диалог"
-                disabled={busy}
+                disabled={busy || voiceBusy}
                 onClick={() => setChatId(crypto.randomUUID())}
               >
                 <RotateCcw size={17} />
@@ -225,6 +232,12 @@ export function DesktopAssistant({
               {profileError}
             </p>
           )}
+          {input.length > 2000 && (
+            <p role="alert">
+              Текст сохранён полностью. Сократите его до 2000 символов перед
+              отправкой.
+            </p>
+          )}
           <form
             className="composer"
             onSubmit={(event) => {
@@ -238,6 +251,7 @@ export function DesktopAssistant({
               placeholder="Например, встреча завтра после обеда с Олегом и Витей…"
               rows={2}
               value={input}
+              readOnly={voiceBusy}
               maxLength={2000}
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={(event) => {
@@ -266,6 +280,26 @@ export function DesktopAssistant({
                 <span>{modelLabel}</span>
                 <ChevronDown size={12} aria-hidden="true" />
               </button>
+              <VoiceInput
+                disabled={busy}
+                chatId={chatId}
+                onBusy={setVoiceBusy}
+                onStart={() => {
+                  const field = inputRef.current;
+                  voiceSelection.current = {
+                    start: field?.selectionStart ?? input.length,
+                    end: field?.selectionEnd ?? input.length,
+                  };
+                }}
+                onResult={(text) => {
+                  const { start, end } = voiceSelection.current;
+                  setInput(
+                    (current) =>
+                      current.slice(0, start) + text + current.slice(end),
+                  );
+                  inputRef.current?.focus();
+                }}
+              />
               {busy ? (
                 <button
                   type="button"
@@ -281,7 +315,12 @@ export function DesktopAssistant({
                 <button
                   type="submit"
                   aria-label="Отправить сообщение"
-                  disabled={!profiles || !input.trim()}
+                  disabled={
+                    voiceBusy ||
+                    !profiles ||
+                    !input.trim() ||
+                    input.length > 2000
+                  }
                 >
                   <ArrowUp size={17} />
                 </button>

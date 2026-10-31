@@ -1,0 +1,126 @@
+.voice-settings {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+.voice-settings h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--font-body);
+}
+.voice-settings p,
+.voice-settings small,
+.voice-model span {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--font-compact);
+  line-height: 1.5;
+}
+.voice-settings .voice-demo-note {
+  padding: 8px 10px;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+}
+.voice-model {
+  display: grid;
+  gap: 4px;
+  font-size: var(--font-body);
+}
+.voice-settings [role="status"] {
+  font-size: var(--font-compact);
+}
+.voice-settings progress {
+  width: 100%;
+  height: 6px;
+  accent-color: var(--ink);
+}
+.voice-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.voice-actions:empty {
+  display: none;
+}
+.voice-actions button {
+  font-size: var(--font-body);
+}
+.composer .voice-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.composer .voice-control button {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.composer .voice-control .voice-mic,
+.composer .voice-control .voice-cancel {
+  border-color: transparent;
+}
+.composer .voice-control .voice-stop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  padding: 0 10px;
+  gap: 8px;
+  border-radius: 20px;
+}
+.voice-capture-status {
+  font-size: var(--font-caption);
+  color: var(--muted);
+}
+.voice-wave {
+  letter-spacing: 2px;
+  animation: voice-pulse 1s ease-in-out infinite alternate;
+  color: var(--muted);
+}
+.composer:has(.voice-capture-status) > div > span {
+  display: none;
+}
+.composer:has(.voice-control) > div {
+  gap: 6px;
+  flex-wrap: wrap;
+}
+@keyframes voice-pulse {
+  to {
+    opacity: 0.3;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-wave {
+    animation: none;
+  }
+}
+
+.voice-ready-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #166534;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.voice-actions .voice-remove-model {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+.voice-actions .voice-remove-model:hover:not(:disabled) {
+  background: var(--surface-soft, #f5f5f5);
+}

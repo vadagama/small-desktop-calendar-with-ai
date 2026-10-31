@@ -40,6 +40,7 @@ export interface AssistantBridge {
   subscribe(listener: (event: AgentEvent) => void): () => void;
 }
 export interface DesktopBridge {
+  voice: import("./voice.js").VoiceBridge;
   memory: import("./assistant-memory.js").AssistantMemoryBridge;
   notifications: import("./reminders.js").NativeNotificationBridge;
   reminders: import("./reminders.js").ReminderBridge;

@@ -1,0 +1,121 @@
+.speech-settings {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  margin: 16px 0;
+  font-size: var(--font-body);
+}
+.speech-settings h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--font-body);
+}
+.speech-settings p,
+.speech-settings small,
+.speech-model span {
+  margin: 0;
+  font-size: var(--font-compact);
+  line-height: 1.5;
+  color: var(--muted);
+}
+.speech-settings .form-error {
+  color: #b42318;
+}
+.speech-model {
+  display: grid;
+  gap: 4px;
+}
+.speech-ready {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #166534;
+  font-size: var(--font-compact);
+}
+.speech-settings progress {
+  width: 100%;
+  height: 6px;
+  accent-color: var(--ink);
+}
+.speech-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.speech-actions:empty {
+  display: none;
+}
+.speech-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  font-size: var(--font-body);
+}
+.speech-settings label {
+  display: grid;
+  gap: 8px;
+}
+.speech-settings select {
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--font-body);
+  width: 100%;
+  min-width: 0;
+}
+.composer .speech-input {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-left: auto;
+}
+.composer .speech-input button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+.composer .speech-input .speech-stop {
+  width: auto;
+  padding: 0 10px;
+  gap: 8px;
+  border-color: var(--line);
+  border-radius: 20px;
+}
+.speech-stop meter {
+  width: 34px;
+  height: 10px;
+}
+.speech-status {
+  font-size: var(--font-caption);
+  color: var(--muted);
+}
+.speech-error {
+  flex-basis: 100%;
+  font-size: var(--font-compact);
+  line-height: 1.4;
+  color: #b42318;
+}
+.composer:has(.speech-status) .composer-model-button {
+  display: none;
+}
+.composer:has(.speech-input) > div {
+  gap: 6px;
+  flex-wrap: wrap;
+}

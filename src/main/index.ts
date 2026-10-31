@@ -1,3 +1,4 @@
+import { registerVoice } from "./voice/ipc.js";
 import { EventMutationJournal } from "./event-mutation-journal.js";
 import { ParticipantMemory } from "./participant-memory.js";
 import { AssistantMemoryStore } from "./assistant-memory.js";
@@ -338,10 +339,34 @@ app.whenReady().then(async () => {
     },
     () => calendarSync.reset().catch(() => {}),
   );
-  session.defaultSession.setPermissionRequestHandler(
-    (_contents, _permission, callback) => callback(false),
+  const voice = registerVoice(
+    resolve(app.getPath("userData"), "voice"),
+    resolve(
+      app.isPackaged ? process.resourcesPath : app.getAppPath(),
+      "native/voice/whisper-cli",
+    ),
+    assistant.trusted,
   );
-  session.defaultSession.setPermissionCheckHandler(() => false);
+  session.defaultSession.setPermissionRequestHandler(
+    (contents, permission, callback, details) =>
+      callback(
+        permission === "media" &&
+          voice.microphoneAllowed(contents) &&
+          details.isMainFrame &&
+          details.requestingUrl === (devUrl ?? localUrl) &&
+          "mediaTypes" in details &&
+          details.mediaTypes?.length === 1 &&
+          details.mediaTypes[0] === "audio",
+      ),
+  );
+  session.defaultSession.setPermissionCheckHandler(
+    (contents, permission, _origin, details) =>
+      permission === "media" &&
+      voice.microphoneAllowed(contents) &&
+      details.mediaType === "audio" &&
+      details.isMainFrame &&
+      contents?.getURL() === (devUrl ?? localUrl),
+  );
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
