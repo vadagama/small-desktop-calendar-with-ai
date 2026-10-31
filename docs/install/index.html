@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      name="description"
+      content="Установка Small Calendar на Mac: скачать DMG, разрешить первый запуск, войти в Small и настроить AI-ассистента."
+    />
+    <title>Установка Small Calendar на Mac</title>
+    <link rel="stylesheet" href="style.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233b82f6'/%3E%3Ctext x='16' y='23' text-anchor='middle' fill='white' font-size='24'%3ES%3C/text%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <a class="skip" href="#content">К инструкции</a>
+    <header>
+      <a class="brand" href="#top"
+        ><span class="logo" aria-hidden="true">S</span> Small Calendar</a
+      ><span class="header-label">Установка и первый запуск</span
+      ><a
+        href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/tag/v0.1.0-snapshot.20261031.6dca9ca"
+        >Релиз ↗</a
+      >
+    </header>
+    <div class="layout" id="top">
+      <aside>
+        <nav aria-label="Шаги установки">
+          <p class="eyebrow">НА ЭТОЙ СТРАНИЦЕ</p>
+          <a href="#download"><span>01</span> Скачать</a
+          ><a href="#install"><span>02</span> Установить</a
+          ><a href="#launch"><span>03</span> Первый запуск</a
+          ><a href="#permission"><span>04</span> Разрешить открытие</a
+          ><a href="#small"><span>05</span> Войти в Small</a
+          ><a href="#llm"><span>06</span> Настроить ассистента</a>
+        </nav>
+        <div class="sidebar-note">
+          Для Mac с Apple Silicon<br /><span>M1, M2, M3, M4 и новее</span>
+        </div>
+      </aside>
+      <main id="content">
+        <section class="intro">
+          <p class="eyebrow blue">SMALL CALENDAR ДЛЯ macOS</p>
+          <h1>От скачивания — до первой встречи</h1>
+          <p class="lead">
+            Установите календарь, войдите в рабочую учётную запись и подключите
+            AI-ассистента. Пройдём каждый шаг вместе.
+          </p>
+          <div class="facts">
+            <span>macOS · Apple Silicon</span><span>6 простых шагов</span
+            ><span>Предварительная версия</span>
+          </div>
+        </section>
+        <section class="step" id="download">
+          <div class="step-heading">
+            <span class="number">01</span>
+            <div>
+              <p class="eyebrow">СКАЧИВАНИЕ</p>
+              <h2>Скачайте установщик</h2>
+            </div>
+          </div>
+          <p>
+            Нажмите кнопку ниже. Файл <strong>.dmg</strong> сохранится в папку
+            «Загрузки», если в браузере не выбрано другое место.
+          </p>
+          <a
+            class="button download"
+            href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/download/v0.1.0-snapshot.20261031.6dca9ca/Small-Calendar-0.1.0-snapshot.20261031.6dca9ca-arm64-local.dmg"
+            ><span aria-hidden="true">↓</span> Скачать Small Calendar
+            <small>DMG · 135 МБ</small></a
+          >
+          <p class="muted">
+            Сборка от 31 октября 2026 · Только для Mac с чипом Apple Silicon, не
+            Intel.
+          </p>
+          <details>
+            <summary>Как узнать, какой у меня Mac?</summary>
+            <p>
+              Откройте меню Apple  → «Об этом Mac». В строке «Чип» должно быть
+              указано Apple M1, M2, M3, M4 или более новое поколение. Если
+              указан процессор Intel, эта сборка не подойдёт.
+            </p>
+          </details>
+        </section>
+        <section class="step" id="install">
+          <div class="step-heading">
+            <span class="number">02</span>
+            <div>
+              <p class="eyebrow">УСТАНОВКА</p>
+              <h2>Перетащите календарь в «Программы»</h2>
+            </div>
+          </div>
+          <ol>
+            <li>Дважды нажмите на скачанный файл <strong>.dmg</strong>.</li>
+            <li>
+              В открывшемся окне перетащите значок
+              <strong>Small Calendar</strong> на папку
+              <strong>Applications («Программы»)</strong>.
+            </li>
+            <li>
+              Дождитесь окончания копирования. Откройте Finder → «Программы».
+            </li>
+          </ol>
+          <p class="note">
+            DMG — это образ диска: отдельно распаковывать его не нужно. Если
+            календарь уже установлен, сначала закройте старую версию.
+          </p>
+          <figure>
+            <a
+              href="assets/install-dmg.png"
+              target="_blank"
+              rel="noopener"
+              aria-label="Увеличить иллюстрацию установки"
+              ><img
+                src="assets/install-dmg.png"
+                width="1504"
+                height="1062"
+                alt="В окне DMG значок Small Calendar слева, папка Applications справа. Перетащите приложение по направлению стрелки."
+                fetchpriority="high"
+            /></a>
+            <figcaption>
+              Перетащите левый значок в правую папку. Нажмите на изображение,
+              чтобы увеличить.
+            </figcaption>
+          </figure>
+        </section>
+        <section class="step" id="launch">
+          <div class="step-heading">
+            <span class="number">03</span>
+            <div>
+              <p class="eyebrow">ПЕРВЫЙ ЗАПУСК</p>
+              <h2>Откройте Small Calendar</h2>
+            </div>
+          </div>
+          <p>
+            В папке «Программы» дважды нажмите <strong>Small Calendar</strong>.
+            macOS может показать предупреждение, что Apple не удалось проверить
+            приложение.
+          </p>
+          <div
+            class="system-example"
+            role="img"
+            aria-label="Пример предупреждения macOS: Apple не удалось проверить Small Calendar. Закройте предупреждение кнопкой Готово."
+          >
+            <span class="warning-symbol" aria-hidden="true">!</span
+            ><strong>Apple не удалось проверить<br />«Small Calendar»</strong>
+            <p>Первый запуск может быть заблокирован.</p>
+            <span class="mock-button">Готово</span
+            ><small>Схема · формулировка зависит от версии macOS</small>
+          </div>
+          <p>
+            Закройте предупреждение кнопкой <strong>«Готово»</strong> или «ОК» и
+            перейдите к следующему шагу. Не выбирайте «Переместить в Корзину».
+          </p>
+          <div class="note">
+            Эта предварительная сборка ещё не нотариализована Apple. Разрешайте
+            запуск только для приложения, скачанного по ссылке на этой странице,
+            если доверяете его источнику.
+          </div>
+        </section>
+        <section class="step" id="permission">
+          <div class="step-heading">
+            <span class="number">04</span>
+            <div>
+              <p class="eyebrow">РАЗРЕШЕНИЕ macOS</p>
+              <h2>Разрешите открытие приложения</h2>
+            </div>
+          </div>
+          <div class="path">
+             Apple <span>→</span> Системные настройки
+            <span>→</span> Конфиденциальность и безопасность
+          </div>
+          <ol>
+            <li>
+              Откройте указанный раздел и прокрутите вниз до блока
+              <strong>«Безопасность»</strong>.
+            </li>
+            <li>
+              Найдите сообщение о блокировке <strong>Small Calendar</strong> и
+              нажмите <strong>«Все равно открыть»</strong>.
+            </li>
+          </ol>
+          <figure>
+            <a
+              href="assets/allow-open.png"
+              target="_blank"
+              rel="noopener"
+              aria-label="Увеличить настройки безопасности"
+              ><img
+                src="assets/allow-open.png"
+                width="1894"
+                height="1474"
+                loading="lazy"
+                alt="Системные настройки, Конфиденциальность и безопасность. В разделе Безопасность рядом с Small Calendar есть кнопка Все равно открыть."
+            /></a>
+            <figcaption>
+              Нужная кнопка находится рядом с сообщением о блокировке Small
+              Calendar.
+            </figcaption>
+          </figure>
+          <ol start="3">
+            <li>
+              В следующем окне подтвердите действие:
+              <strong>«Открыть все равно»</strong> или «Открыть».
+            </li>
+            <li>
+              Если macOS запросит подтверждение, используйте Touch ID или пароль
+              администратора <strong>вашего Mac</strong>. Это не пароль Small.
+            </li>
+          </ol>
+          <figure class="compact-figure">
+            <a
+              href="assets/confirm-open.png"
+              target="_blank"
+              rel="noopener"
+              aria-label="Увеличить подтверждение запуска"
+              ><img
+                src="assets/confirm-open.png"
+                width="832"
+                height="914"
+                loading="lazy"
+                alt="Подтверждение macOS: Открыть файл Small Calendar? Выберите Открыть все равно."
+            /></a>
+            <figcaption>
+              Подтвердите запуск. Порядок окон может отличаться в разных версиях
+              macOS.
+            </figcaption>
+          </figure>
+          <details>
+            <summary>Не вижу кнопку «Все равно открыть»</summary>
+            <p>
+              Ещё раз попробуйте открыть приложение из «Программ», затем
+              вернитесь в настройки безопасности. На рабочем Mac разрешение
+              может ограничиваться политикой организации — в таком случае
+              обратитесь в ИТ-поддержку.
+            </p>
+          </details>
+          <p class="muted">
+            Если предупреждение прямо сообщает об обнаруженном вредоносном ПО
+            или повреждении приложения, не обходите его — обратитесь в
+            поддержку.
+            <a href="https://support.apple.com/ru-ru/102445"
+              >Инструкция Apple ↗</a
+            >
+          </p>
+        </section>
+        <div class="section-divider">
+          <span>ПРИЛОЖЕНИЕ УСТАНОВЛЕНО</span>
+          <h2>Теперь подключим ваши сервисы</h2>
+          <p>
+            Small открывает доступ к календарю. LLM нужен для работы ассистента.
+          </p>
+        </div>
+        <section class="step" id="small">
+          <div class="step-heading">
+            <span class="number">05</span>
+            <div>
+              <p class="eyebrow">РАБОЧАЯ УЧЁТНАЯ ЗАПИСЬ</p>
+              <h2>Войдите в Small</h2>
+            </div>
+          </div>
+          <ol>
+            <li>
+              В приложении нажмите <strong>«Войти в Small»</strong> на верхней
+              плашке. Также можно открыть <strong>«Профиль Small»</strong> внизу
+              левой панели.
+            </li>
+            <li>
+              Введите рабочий <strong>логин</strong> и
+              <strong>пароль</strong> от Team Small.
+            </li>
+            <li>
+              Нажмите <strong>«Войти в Small»</strong> и дождитесь загрузки
+              календаря.
+            </li>
+          </ol>
+          <div class="mock-stage">
+            <div
+              class="mock-dialog"
+              role="img"
+              aria-label="Схема окна Вход в Small: Логин, Пароль и кнопка Войти в Small. Данные вводятся в приложении, а не на странице инструкции."
+            >
+              <strong class="dialog-title">Вход в Small</strong>
+              <p>Используйте рабочую учётную запись Team Small.</p>
+              <div class="mock-label">Логин</div>
+              <div class="mock-field placeholder">Ваш рабочий логин</div>
+              <div class="mock-label">Пароль</div>
+              <div class="mock-field placeholder">Введите пароль</div>
+              <div class="mock-button dark">Войти в Small</div>
+              <small
+                >Сессия хранится в зашифрованном хранилище этого Mac. Пароль не
+                сохраняется.</small
+              >
+            </div>
+            <span class="illustration-label"
+              >Схема окна · вводите данные только в приложении</span
+            >
+          </div>
+          <details>
+            <summary>Появилось «Нет связи с Small»</summary>
+            <p>
+              Проверьте доступ к рабочей сети или VPN и нажмите «Повторить
+              проверку». Если войти всё ещё не удаётся, проверьте свою учётную
+              запись на
+              <a href="https://team.small.kz/calendar">team.small.kz</a> или
+              обратитесь в ИТ-поддержку.
+            </p>
+          </details>
+        </section>
+        <section class="step" id="llm">
+          <div class="step-heading">
+            <span class="number">06</span>
+            <div>
+              <p class="eyebrow">AI-АССИСТЕНТ</p>
+              <h2>Настройте модель и API-ключ</h2>
+            </div>
+          </div>
+          <p>
+            Заранее получите API-ключ и параметры модели у администратора
+            LLM-сервиса. Пароль от Small и API-ключ модели — разные данные.
+          </p>
+          <ol>
+            <li>
+              В панели «Ассистент» нажмите значок ползунков
+              <strong>«Настройки модели»</strong> в правом верхнем углу.
+            </li>
+            <li>
+              Выберите профиль <strong>Small vLLM</strong> для корпоративного
+              сервиса или <strong>«Персональный OpenAI-compatible»</strong> для
+              своего провайдера.
+            </li>
+            <li>
+              Проверьте поля ниже и вставьте ваш <strong>API-ключ</strong>.
+            </li>
+            <li>
+              Нажмите <strong>«Сохранить»</strong>. Дождитесь сообщения
+              <strong>«Профиль сохранён и выбран»</strong>.
+            </li>
+          </ol>
+          <div class="mock-stage">
+            <div
+              class="mock-dialog"
+              role="img"
+              aria-label="Схема Настроек модели: профиль Small vLLM, Base URL https://ai.skiftrade.kz/v1, Model ID vllm/glm-5.3-flash, пустое поле API-ключ и кнопка Сохранить."
+            >
+              <strong class="dialog-title">Настройки модели</strong>
+              <div class="mock-label">Профиль</div>
+              <div class="mock-field">Small vLLM <span>⌄</span></div>
+              <div class="mock-label">Base URL</div>
+              <div class="mock-field mono">https://ai.skiftrade.kz/v1</div>
+              <div class="mock-label">Model ID</div>
+              <div class="mock-field mono">vllm/glm-5.3-flash</div>
+              <div class="mock-label">API-ключ</div>
+              <div class="mock-field placeholder">Ваш личный API-ключ</div>
+              <div class="mock-button dark">Сохранить</div>
+            </div>
+            <span class="illustration-label"
+              >Схема окна · значения корпоративного профиля из текущей
+              сборки</span
+            >
+          </div>
+          <dl class="field-guide">
+            <div>
+              <dt>Base URL</dt>
+              <dd>
+                Адрес API сервиса. Для Small —
+                <code>https://ai.skiftrade.kz/v1</code>. Для другого провайдера
+                используйте выданный им адрес.
+              </dd>
+            </div>
+            <div>
+              <dt>Model ID</dt>
+              <dd>
+                Точное имя доступной модели. В текущем профиле Small —
+                <code>vllm/glm-5.3-flash</code>. Уточните актуальное имя у
+                администратора.
+              </dd>
+            </div>
+            <div>
+              <dt>API-ключ</dt>
+              <dd>
+                Токен доступа к выбранному сервису. Не отправляйте его в чат.
+                При смене Base URL необходимо ввести ключ для нового адреса.
+              </dd>
+            </div>
+          </dl>
+          <div class="note">
+            Сохранение настроек ещё не подтверждает доступ к модели. Отправьте
+            ассистенту: <strong>«Покажи мои встречи на сегодня»</strong> и
+            дождитесь ответа. Автоматического переключения на другую модель нет.
+          </div>
+          <details>
+            <summary>Ассистент сообщает об ошибке</summary>
+            <p>
+              <strong>HTTP 401:</strong> проверьте ключ и его срок действия.
+              <strong>HTTP 403:</strong> уточните права доступа.
+              <strong>HTTP 404:</strong> проверьте Base URL и Model ID. При
+              ошибке сети проверьте соединение и VPN.
+            </p>
+          </details>
+        </section>
+        <section class="finish">
+          <span class="check" aria-hidden="true">✓</span>
+          <div>
+            <h2>Всё готово к работе</h2>
+            <p>
+              Календарь подключён, модель настроена. Начните с просмотра
+              расписания на сегодня.
+            </p>
+          </div>
+        </section>
+        <footer>
+          <p>Small Calendar · Предварительная сборка 31.10.2026</p>
+          <p>
+            В этой версии поиск по всем календарям может занимать до 120 секунд.
+            <a
+              href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/tag/v0.1.0-snapshot.20261031.6dca9ca"
+              >Подробности релиза ↗</a
+            >
+          </p>
+          <a href="#top">Вернуться наверх ↑</a>
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>
