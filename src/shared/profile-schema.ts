@@ -16,8 +16,13 @@ export function normalizeBaseURL(value: string) {
   }
   return url.href.replace(/\/+$/, "");
 }
-export const profileIdSchema = z.enum(["small", "personal"]);
-export const activeProfileSchema = z.enum(["synthetic", "small", "personal"]);
+export const profileIdSchema = z.enum(["small", "deepseek", "personal"]);
+export const activeProfileSchema = z.enum([
+  "synthetic",
+  "small",
+  "deepseek",
+  "personal",
+]);
 export const profileSchema = z.strictObject({
   id: profileIdSchema,
   baseURL: z

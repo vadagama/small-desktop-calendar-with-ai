@@ -64,8 +64,33 @@ test("model settings persist only metadata and use a locally encrypted key throu
   });
   const page = await app.firstWindow();
   try {
-    await page.getByRole("button", { name: /^Настроить LLM:/ }).click();
+    await page.getByRole("button", { name: /^Выбрать модель:/ }).click();
+    await expect(
+      page.getByRole("dialog", { name: "Настройки модели" }),
+    ).toHaveCount(0);
+    await expect(page.getByText("Нет настроенных моделей")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await page
+      .getByRole("button", { name: "Настройки модели", exact: true })
+      .click();
     const dialog = page.getByRole("dialog", { name: "Настройки модели" });
+    await expect(dialog.getByLabel("Профиль", { exact: true })).toHaveValue(
+      "deepseek",
+    );
+    await expect(
+      dialog.getByLabel("Профиль", { exact: true }).locator("option"),
+    ).toHaveText(["Small vLLM", "DeepSeek", "OpenAI Compatible"]);
+    await expect(dialog.getByLabel("Base URL")).toHaveValue(
+      "https://api.deepseek.com",
+    );
+    await expect(dialog.getByLabel("Model ID")).toHaveValue("deepseek-flash");
+    await expect(dialog.getByLabel("API-ключ", { exact: true })).toHaveValue(
+      "",
+    );
+    await expect(
+      dialog.getByLabel("API-ключ", { exact: true }),
+    ).toHaveAttribute("required", "");
+    await dialog.getByLabel("Профиль", { exact: true }).selectOption("small");
     await expect(dialog.getByLabel("Base URL")).toHaveValue(
       "https://ai.skiftrade.kz/v1",
     );
@@ -75,16 +100,18 @@ test("model settings persist only metadata and use a locally encrypted key throu
     await dialog
       .getByLabel("Профиль", { exact: true })
       .selectOption("personal");
+    await expect(dialog.getByLabel("Base URL")).toHaveValue("");
+    await expect(dialog.getByLabel("Model ID")).toHaveValue("");
     await dialog.getByLabel("Base URL").fill(baseURL);
     await dialog.getByLabel("Model ID").fill("synthetic-profile-model");
     await dialog.getByLabel("API-ключ", { exact: true }).fill(key);
     await dialog.getByRole("button", { name: "Сохранить" }).click();
     await expect(dialog).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: /^Настроить LLM:/ }),
+      page.getByRole("button", { name: /^Выбрать модель:/ }),
     ).toContainText("synthetic-profile-model");
     await expect(
-      page.getByRole("button", { name: /^Настроить LLM:/ }),
+      page.getByRole("button", { name: /^Выбрать модель:/ }),
     ).toHaveCSS("font-size", "12px");
     await page
       .getByRole("button", { name: "Настройки модели", exact: true })
@@ -138,6 +165,53 @@ test("model settings persist only metadata and use a locally encrypted key throu
       .getByRole("button", { name: "Сохранить", exact: true })
       .click();
     await expect(dialog).toHaveCount(0);
+    await page.getByRole("button", { name: /^Выбрать модель:/ }).click();
+    const modelOption = page.getByRole("menuitemradio", {
+      name: /synthetic-profile-model/,
+    });
+    await expect(modelOption).toHaveAttribute("aria-checked", "true");
+    await expect(modelOption).toHaveCSS("font-size", "12px");
+    await page.screenshot({ path: "test-results/desktop/model-picker.png" });
+    await modelOption.click();
+    await expect(
+      page.getByRole("menu", { name: "Выбор модели" }),
+    ).not.toBeVisible();
+    await expect(dialog).toHaveCount(0);
+    await page
+      .getByRole("button", { name: "Настройки модели", exact: true })
+      .click();
+    await dialog.getByLabel("Профиль", { exact: true }).selectOption("small");
+    await dialog.getByLabel("Base URL").fill(baseURL);
+    await dialog.getByLabel("Model ID").fill("second-test-model");
+    await dialog.getByLabel("API-ключ", { exact: true }).fill(key);
+    await dialog
+      .getByRole("button", { name: "Сохранить", exact: true })
+      .click();
+    await page.getByRole("button", { name: /^Выбрать модель:/ }).click();
+    await expect(
+      page.getByRole("menuitemradio", { name: /second-test-model/ }),
+    ).toHaveAttribute("aria-checked", "true");
+    await expect(
+      page.getByRole("menuitemradio", { name: /second-test-model/ }),
+    ).toBeFocused();
+    await page.keyboard.press("Home");
+    await expect(
+      page.getByRole("menuitemradio", { name: /synthetic-profile-model/ }),
+    ).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("button", { name: /^Выбрать модель:/ }),
+    ).toContainText("synthetic-profile-model");
+    await page.reload();
+    await expect(
+      page.getByRole("button", { name: /^Выбрать модель:/ }),
+    ).toContainText("synthetic-profile-model");
+    await page.getByRole("button", { name: /^Выбрать модель:/ }).click();
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("button", { name: /^Выбрать модель:/ }),
+    ).toBeFocused();
+    await page.evaluate(() => window.smallDesktop.profiles.remove("small"));
     const settingsDirectory = await app.evaluate(({ app }) =>
       app.getPath("userData"),
     );
@@ -220,6 +294,7 @@ test("model settings persist only metadata and use a locally encrypted key throu
     );
   } finally {
     try {
+      await page.evaluate(() => window.smallDesktop.profiles.remove("small"));
       const cleanup = await page.evaluate(() =>
         window.smallDesktop.profiles.remove("personal"),
       );
