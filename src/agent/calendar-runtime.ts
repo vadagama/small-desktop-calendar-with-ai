@@ -13,6 +13,8 @@ import {
 import { meetingDraftInput } from "../shared/meeting-draft.js";
 import {
   ToolLoopAgent,
+  jsonSchema,
+  zodSchema,
   isStepCount,
   tool,
   type ModelMessage,
@@ -26,6 +28,24 @@ import {
   slotsToolInput,
   type CalendarToolExecutor,
 } from "../shared/calendar-tools.js";
+
+// The runtime union stays authoritative. Some compatible servers require an
+// explicit root object type even when every anyOf branch is already an object.
+const scheduleSchema = zodSchema(scheduleToolInput);
+const scheduleModelInput = jsonSchema(
+  async () => ({
+    ...(await scheduleSchema.jsonSchema),
+    type: "object" as const,
+  }),
+  {
+    validate: (value) => {
+      const result = scheduleToolInput.safeParse(value);
+      return result.success
+        ? { success: true, value: result.data }
+        : { success: false, error: result.error };
+    },
+  },
+);
 
 export async function streamCalendarTurn(
   model: Exclude<LanguageModel, string>,
@@ -140,13 +160,13 @@ export async function streamCalendarTurn(
       listMeetings: tool({
         description:
           "Прочитать мои встречи за весь сегодняшний/завтрашний день, текущую/следующую неделю или период до 31 дня (custom, from/to включительно). Включает прошедшие часы дня и выходные. Для копирования включи includeDetails:true: получишь состав и описание оригинала. Результат изложи кратко по дням в Markdown; при complete=false явно сообщи о неполноте.",
-        inputSchema: scheduleToolInput,
+        inputSchema: scheduleModelInput,
         execute: (input) => runTool("listMeetings", input),
       }),
       meetingAnalytics: tool({
         description:
           "Подсчитать мои встречи за период (today, tomorrow, this-week, next-week или custom от from до to включительно, до 31 дня): количество, часы, регулярные, разбивки и состав отчёта. Все числа считает инструмент; сообщай только их, не пересчитывай и не выдумывай темы, команды и отмены. При complete=false явно скажи, что итог частичный.",
-        inputSchema: scheduleToolInput,
+        inputSchema: scheduleModelInput,
         execute: (input) => runTool("meetingAnalytics", input),
       }),
       loadReference: tool({
