@@ -68,7 +68,7 @@ export function Help({
             {[
               {
                 title: "01 · Знакомство",
-                ids: ["start", "auth", "llm", "calendar"],
+                ids: ["start", "auth", "llm", "voice", "calendar"],
               },
               {
                 title: "02 · Планирование с AI",
