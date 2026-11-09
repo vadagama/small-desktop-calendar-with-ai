@@ -118,6 +118,9 @@ export interface PeoplePage {
   nextPage: number | null;
 }
 export interface SlotsQuery {
+  bufferMinutes?: number;
+  organizerParticipantId?: string;
+  exactInterval?: { start: string; end: string };
   includeWeekends?: boolean;
   accountId: string;
   participantIds: string[];
@@ -132,6 +135,20 @@ export interface SlotsResult {
   timezone: "Asia/Almaty";
 }
 export interface CalendarBridge {
+  updateAvailabilityContext(
+    input: import("./availability-analysis.js").AvailabilityOpening | null,
+  ): Promise<void>;
+  availabilityAnalysis(
+    input: import("./availability-analysis.js").AnalysisQuery,
+  ): Promise<
+    CalendarReply<import("./availability-analysis.js").AvailabilityAnalysis>
+  >;
+  subscribeAvailability(
+    listener: (
+      result: import("./availability-analysis.js").AvailabilityOpening,
+    ) => void,
+  ): () => void;
+
   subscribeEventList(
     listener: (result: import("./event-list.js").EventListResult) => void,
   ): () => void;

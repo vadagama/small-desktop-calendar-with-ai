@@ -1,3 +1,12 @@
+import {
+  analysisQuery,
+  analysisDates,
+  partitionAvailability,
+  commonAvailability,
+  smallWorkingIntervals,
+  type AvailabilityAnalysis,
+  type AvailabilityDay,
+} from "../shared/availability-analysis.js";
 import { z } from "zod";
 import {
   CalendarError,
@@ -9,7 +18,7 @@ import {
   durationMinutes,
   participantIds,
 } from "./availability-request.js";
-import { calendarRange } from "../shared/calendar-time.js";
+import { addDateDays, calendarRange } from "../shared/calendar-time.js";
 
 const interval = z
   .strictObject({
@@ -76,6 +85,141 @@ export class AvailabilityService {
     private session: CalendarSession,
     private now: () => number = Date.now,
   ) {}
+  async analyze(
+    input: unknown,
+    signal?: AbortSignal,
+  ): Promise<AvailabilityAnalysis> {
+    signal?.throwIfAborted();
+    const parsed = analysisQuery.safeParse(input);
+    if (!parsed.success)
+      throw new CalendarError(
+        "invalid",
+        "Проверьте состав, период и окно поиска.",
+      );
+    const q = parsed.data;
+    return this.session.readCalendar(q.accountId, async (request) => {
+      const days: AvailabilityDay[] = [];
+      // busy-intervals returns the full day for each explicit participant; find-slots is sampled.
+      for (const date of analysisDates(q)) {
+        signal?.throwIfAborted();
+        const raw = busyResponse.safeParse(
+          await calendarJson(
+            await request("/gate/team/api/calendar/events/busy-intervals", {
+              participant_ids: q.participantIds,
+              timezone: "Asia/Almaty",
+              date,
+            }),
+          ),
+        );
+        signal?.throwIfAborted();
+        if (!raw.success)
+          throw new CalendarError(
+            "invalid",
+            "Неизвестный формат занятости: доступность не подтверждена.",
+          );
+        const records = raw.data.data;
+        if (records.reduce((n, r) => n + r.busy_slots.length, 0) > 5000)
+          throw new CalendarError(
+            "invalid",
+            "Слишком много интервалов. Сузьте период или состав.",
+          );
+        if (
+          new Set(records.map((r) => r.participant_id)).size !==
+            records.length ||
+          records.some((r) => !q.participantIds.includes(r.participant_id))
+        )
+          throw new CalendarError(
+            "invalid",
+            "Некорректный состав ответа занятости.",
+          );
+        if (
+          q.bufferMinutes &&
+          q.organizerParticipantId &&
+          q.participantIds.includes(q.organizerParticipantId)
+        ) {
+          const minute = (time: string) =>
+            Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+          for (const delta of [-1, 1]) {
+            if (
+              delta === -1
+                ? minute(q.timeFrom) >= q.bufferMinutes
+                : 1440 - minute(q.timeTo) >= q.bufferMinutes
+            )
+              continue;
+            signal?.throwIfAborted();
+            const neighbor = busyResponse.safeParse(
+              await calendarJson(
+                await request("/gate/team/api/calendar/events/busy-intervals", {
+                  participant_ids: [q.organizerParticipantId],
+                  timezone: "Asia/Almaty",
+                  date: addDateDays(date, delta),
+                }),
+              ),
+            );
+            if (
+              !neighbor.success ||
+              neighbor.data.data.length !== 1 ||
+              neighbor.data.data[0]?.participant_id !== q.organizerParticipantId
+            )
+              throw new CalendarError(
+                "invalid",
+                "Нет полной занятости соседнего дня: перерыв не проверен.",
+              );
+            records
+              .find((r) => r.participant_id === q.organizerParticipantId)
+              ?.busy_slots.push(...neighbor.data.data[0].busy_slots);
+          }
+        }
+        const workingHours = smallWorkingIntervals(date);
+        const participants: AvailabilityDay["participants"] =
+          q.participantIds.map((participantId) => {
+            const record = records.find(
+              (r) => r.participant_id === participantId,
+            );
+            const busy = (record?.busy_slots ?? []).map((i) => ({
+              start: new Date(
+                Date.parse(i.start) -
+                  (participantId === q.organizerParticipantId
+                    ? q.bufferMinutes
+                    : 0) *
+                    60000,
+              ).toISOString(),
+              end: new Date(
+                Date.parse(i.end) +
+                  (participantId === q.organizerParticipantId
+                    ? q.bufferMinutes
+                    : 0) *
+                    60000,
+              ).toISOString(),
+            }));
+            return {
+              participantId,
+              intervals: partitionAvailability(
+                date,
+                record ? workingHours : [],
+                busy,
+                q.timeFrom,
+                q.timeTo,
+                this.now(),
+                workingHours,
+              ),
+              ...(!record
+                ? { issue: "Нет подтверждённой занятости сотрудника" }
+                : {}),
+            };
+          });
+        days.push({
+          date,
+          participants,
+          commonWindows: commonAvailability(
+            participants.map((p) => p.intervals),
+            q.durationMinutes,
+          ),
+        });
+      }
+      return { query: q, fetchedAt: new Date(this.now()).toISOString(), days };
+    });
+  }
   async find(input: unknown) {
     const parsed = query.safeParse(input);
     if (!parsed.success)
@@ -101,14 +245,23 @@ export class AvailabilityService {
         participant_ids: q.participantIds,
         timezone: "Asia/Almaty" as const,
       };
-      // Выходные: сетка слотов Small не применяется, интервал проверяется только по занятости.
-      const weekendInterval =
-        q.includeWeekends && isWeekend ? q.exactInterval : undefined;
-      const rawSlots = weekendInterval
+      // An exact choice is checked against full busy coverage, not the sampled search list.
+      const exact = q.exactInterval;
+      const exactAllowed =
+        exact &&
+        smallWorkingIntervals(q.date).some(
+          (w) =>
+            Date.parse(w.start) <= Date.parse(exact.start) &&
+            Date.parse(w.end) >= Date.parse(exact.end),
+        );
+      const rawSlots = exact
         ? {
             success: true as const,
             data: {
-              data: { available_slots: [weekendInterval], has_more: false },
+              data: {
+                available_slots: exactAllowed ? [exact] : [],
+                has_more: false,
+              },
             },
           }
         : slotsResponse.safeParse(

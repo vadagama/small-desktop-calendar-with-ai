@@ -18,8 +18,12 @@ export function CalendarFilters({
   setDate,
   participation,
   toggleParticipation,
+  availabilityMode = false,
+  refreshAvailability,
 }: {
   calendar: ReturnType<typeof useSmallCalendar>;
+  availabilityMode?: boolean;
+  refreshAvailability?: () => void;
   enabled: boolean;
   date: string;
   setDate: (date: string) => void;
@@ -33,7 +37,8 @@ export function CalendarFilters({
     const timer = window.setTimeout(() => setRefreshFeedback(false), 700);
     return () => window.clearTimeout(timer);
   }, [refreshFeedback]);
-  const refreshing = refreshFeedback || calendar.refreshing;
+  const refreshing =
+    refreshFeedback || (!availabilityMode && calendar.refreshing);
   useEffect(() => setMonth(date), [date]);
   const today = calendarToday();
   return (
@@ -49,14 +54,6 @@ export function CalendarFilters({
           onClick={() => calendar.setMy(true)}
         >
           Календарь
-        </button>
-        <button
-          className={!calendar.my ? "selected" : ""}
-          aria-pressed={!calendar.my}
-          onClick={() => calendar.setMy(false)}
-          title="Фильтр переговорных"
-        >
-          Переговорные
         </button>
       </div>
       <div className="small-sidebar-scroll">
@@ -109,62 +106,64 @@ export function CalendarFilters({
             ))}
           </div>
         </section>
-        <section className="calendar-filters" aria-label="Выбор календарей">
-          <h2>{calendar.my ? "Мои календари" : "Переговорные"}</h2>
-          {calendar.my &&
-            participationFilters.map((filter) => (
-              <label key={filter.id}>
-                <input
-                  type="checkbox"
-                  checked={participation[filter.id]}
-                  onChange={() => toggleParticipation(filter.id)}
-                />
-                <span
-                  className={`custom-check participation-${filter.id} ${participation[filter.id] ? "checked" : ""}`}
-                  aria-hidden="true"
-                >
-                  <Check size={11} />
-                </span>
-                {filter.label}
-              </label>
-            ))}
-          {!calendar.my &&
-            calendar.calendars.map((entry) => {
-              const checked = !calendar.my && calendar.ids.includes(entry.id);
-              return (
-                <label key={entry.id}>
+        {!availabilityMode && (
+          <section className="calendar-filters" aria-label="Выбор календарей">
+            <h2>{calendar.my ? "Мои календари" : "Переговорные"}</h2>
+            {calendar.my &&
+              participationFilters.map((filter) => (
+                <label key={filter.id}>
                   <input
                     type="checkbox"
-                    checked={checked}
-                    disabled={
-                      !calendar.ids.includes(entry.id) &&
-                      calendar.ids.length >= 8
-                    }
-                    onChange={() => {
-                      if (calendar.my && calendar.ids.includes(entry.id))
-                        calendar.setMy(false);
-                      else calendar.toggle(entry.id);
-                    }}
+                    checked={participation[filter.id]}
+                    onChange={() => toggleParticipation(filter.id)}
                   />
                   <span
-                    className={`custom-check calendar-team ${checked ? "checked" : ""}`}
+                    className={`custom-check participation-${filter.id} ${participation[filter.id] ? "checked" : ""}`}
                     aria-hidden="true"
                   >
                     <Check size={11} />
                   </span>
-                  {entry.name}
+                  {filter.label}
                 </label>
-              );
-            })}
-          {!calendar.my && (
-            <p className="form-note">Выберите до 8 переговорных.</p>
-          )}
-          {!calendar.my && calendar.catalogError && (
-            <p className="form-error" role="alert">
-              {calendar.catalogError}
-            </p>
-          )}
-        </section>
+              ))}
+            {!calendar.my &&
+              calendar.calendars.map((entry) => {
+                const checked = !calendar.my && calendar.ids.includes(entry.id);
+                return (
+                  <label key={entry.id}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={
+                        !calendar.ids.includes(entry.id) &&
+                        calendar.ids.length >= 8
+                      }
+                      onChange={() => {
+                        if (calendar.my && calendar.ids.includes(entry.id))
+                          calendar.setMy(false);
+                        else calendar.toggle(entry.id);
+                      }}
+                    />
+                    <span
+                      className={`custom-check calendar-team ${checked ? "checked" : ""}`}
+                      aria-hidden="true"
+                    >
+                      <Check size={11} />
+                    </span>
+                    {entry.name}
+                  </label>
+                );
+              })}
+            {!calendar.my && (
+              <p className="form-note">Выберите до 8 переговорных.</p>
+            )}
+            {!calendar.my && calendar.catalogError && (
+              <p className="form-error" role="alert">
+                {calendar.catalogError}
+              </p>
+            )}
+          </section>
+        )}
       </div>
       <div className="small-sidebar-footer">
         <button
@@ -173,7 +172,8 @@ export function CalendarFilters({
           aria-busy={refreshing}
           onClick={() => {
             setRefreshFeedback(true);
-            calendar.refresh();
+            if (availabilityMode) refreshAvailability?.();
+            else calendar.refresh();
           }}
         >
           <RefreshCw

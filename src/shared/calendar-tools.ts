@@ -78,6 +78,7 @@ export type CalendarToolResult = CalendarReply<
   | import("./schedule.js").ScheduleResult
   | import("./analytics.js").AnalyticsResult
   | PeoplePage
+  | import("./availability-analysis.js").AvailabilityOpening
   | SlotsResult
   | MeetingDraft
   | MeetingDeletion
