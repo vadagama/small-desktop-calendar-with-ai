@@ -1,6 +1,6 @@
 {
   "name": "small-desktop-calendar",
-  "version": "0.2.0-rc.2",
+  "version": "0.2.0-rc.3",
   "private": true,
   "type": "module",
   "engines": {
@@ -22,12 +22,14 @@
     "check:size": "node scripts/check-build-size.mjs",
     "check:package": "node scripts/check-package.mjs",
     "package:mac:hardened": "npm run build:desktop && node scripts/package-mac.mjs --local-sign --hardened --out release/hardened",
-    "package:mac:release": "npm run build:desktop && node scripts/package-mac.mjs --release-sign --out release/production",
-    "voice:build": "node scripts/build-whisper.mjs"
+    "package:mac:release": "npm run build:desktop && node scripts/package-mac.mjs --release-sign --out release/production && node scripts/package-update.mjs",
+    "voice:build": "node scripts/build-whisper.mjs",
+    "package:update:mac": "node scripts/package-update.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "3.0.80",
     "ai": "7.0.155",
+    "electron-updater": "6.8.11",
     "zod": "4.6.7"
   },
   "devDependencies": {

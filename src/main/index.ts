@@ -1,3 +1,4 @@
+import { registerUpdates } from "./update-ipc.js";
 import { registerVoice } from "./voice/ipc.js";
 import { EventMutationJournal } from "./event-mutation-journal.js";
 import { ParticipantMemory } from "./participant-memory.js";
@@ -273,6 +274,7 @@ app.whenReady().then(async () => {
     () => agentSettings.read(),
   );
   registerAgentSettingsHandlers(agentSettings, assistant.trusted);
+  registerUpdates(assistant.trusted);
   registerMemoryHandlers(
     memoryStore,
     memoryProposals,

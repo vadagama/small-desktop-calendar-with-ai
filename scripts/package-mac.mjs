@@ -1,4 +1,5 @@
-import { access } from "node:fs/promises";
+import { access, mkdtemp, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { packager } from "@electron/packager";
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
@@ -36,55 +37,77 @@ await access("native/voice/whisper-cli").catch(() => {
     "Build the voice runtime first: npm run voice:build (requires CMake and Xcode command line tools)",
   );
 });
-const paths = await packager({
-  dir: ".",
-  name: "Small Calendar",
-  appBundleId: "kz.small.desktop-calendar",
-  platform: "darwin",
-  arch: "arm64",
-  out: values.out,
-  asar: true,
-  extraResource: ["native"],
-  extendInfo: {
-    NSMicrophoneUsageDescription:
-      "Small Calendar использует микрофон для локального голосового ввода запросов.",
-  },
-  overwrite: true,
-  icon: "build/app.icns",
-  ...(hardened
-    ? {
-        afterExtract: [
-          async ({ buildPath }) => {
-            await hardenElectron(join(buildPath, "Electron.app"));
-          },
-        ],
-      }
-    : {}),
-  ignore: [
-    /^\/(?!out(\/|$)|package\.json$|node_modules(\/|$))/,
-    /\/(?:\.vite|\.cache|\.git|\.bin|test-results|playwright-report)(?:\/|$)/,
-  ],
-  ...(local
-    ? {
-        osxSign: {
-          identity: "-",
-          identityValidation: false,
-          preAutoEntitlements: false,
-          preEmbedProvisioningProfile: false,
-          gatekeeperAssess: false,
-          optionsForFile: () => ({ hardenedRuntime: false }),
-        },
-      }
-    : release
+// Extra resources are copied before signing/notarization. Never mutate a signed app.
+const updateWork = release
+  ? await mkdtemp(join(tmpdir(), "small-update-config-"))
+  : undefined;
+const updateConfig = updateWork
+  ? join(updateWork, "app-update.yml")
+  : undefined;
+if (updateConfig)
+  await writeFile(
+    updateConfig,
+    JSON.stringify({
+      provider: "github",
+      owner: "vadagama",
+      repo: "small-desktop-calendar-with-ai",
+      updaterCacheDirName: "small-calendar-updater",
+    }),
+  );
+let paths;
+try {
+  paths = await packager({
+    dir: ".",
+    name: "Small Calendar",
+    appBundleId: "kz.small.desktop-calendar",
+    platform: "darwin",
+    arch: "arm64",
+    out: values.out,
+    asar: true,
+    extraResource: ["native", ...(updateConfig ? [updateConfig] : [])],
+    extendInfo: {
+      NSMicrophoneUsageDescription:
+        "Small Calendar использует микрофон для локального голосового ввода запросов.",
+    },
+    overwrite: true,
+    icon: "build/app.icns",
+    ...(hardened
       ? {
-          osxSign: {
-            identity,
-            optionsForFile: () => ({ hardenedRuntime: true }),
-          },
-          osxNotarize: { keychainProfile },
+          afterExtract: [
+            async ({ buildPath }) => {
+              await hardenElectron(join(buildPath, "Electron.app"));
+            },
+          ],
         }
       : {}),
-});
+    ignore: [
+      /^\/(?!out(\/|$)|package\.json$|node_modules(\/|$))/,
+      /\/(?:\.vite|\.cache|\.git|\.bin|test-results|playwright-report)(?:\/|$)/,
+    ],
+    ...(local
+      ? {
+          osxSign: {
+            identity: "-",
+            identityValidation: false,
+            preAutoEntitlements: false,
+            preEmbedProvisioningProfile: false,
+            gatekeeperAssess: false,
+            optionsForFile: () => ({ hardenedRuntime: false }),
+          },
+        }
+      : release
+        ? {
+            osxSign: {
+              identity,
+              optionsForFile: () => ({ hardenedRuntime: true }),
+            },
+            osxNotarize: { keychainProfile },
+          }
+        : {}),
+  });
+} finally {
+  if (updateWork) await rm(updateWork, { recursive: true, force: true });
+}
 for (const path of paths) {
   const app = join(path, "Small Calendar.app");
   inspectArchive(join(app, "Contents/Resources/app.asar"));
