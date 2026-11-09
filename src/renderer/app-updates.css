@@ -1,0 +1,57 @@
+.app-updates {
+  display: grid;
+  gap: 12px;
+  font-size: var(--font-body);
+}
+.app-updates h3,
+.app-updates p,
+.update-notice p {
+  margin: 0;
+}
+.app-updates h3 {
+  font-size: var(--font-body);
+}
+.app-updates > button {
+  justify-self: start;
+}
+.update-progress {
+  display: grid;
+  gap: 6px;
+  font-size: var(--font-compact);
+}
+.update-progress progress {
+  width: 100%;
+  accent-color: var(--ink);
+}
+.update-notes summary {
+  cursor: pointer;
+}
+.update-notes p {
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: var(--font-compact);
+  margin-top: 8px;
+}
+.update-notice {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  z-index: 100;
+  width: min(400px, calc(100vw - 40px));
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface, white);
+  color: var(--ink);
+  box-shadow: 0 4px 16px #0001;
+  font-size: var(--font-body);
+}
+.update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}

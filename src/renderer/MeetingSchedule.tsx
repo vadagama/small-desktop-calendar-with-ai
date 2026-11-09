@@ -1,4 +1,6 @@
 import { calendarToday } from "../shared/calendar-time.js";
+import { MeetingTimePicker } from "./MeetingTimePicker";
+import { endAfterDuration } from "../shared/meeting-time.js";
 import { Clock } from "lucide-react";
 import { addDateDays, validCalendarDate } from "../shared/calendar-time.js";
 import type { useNewMeeting } from "./useNewMeeting";
@@ -49,21 +51,9 @@ export function MeetingSchedule({
               people.invalidate();
             }}
           />
-          <input
-            aria-label="Начало"
-            type="time"
-            required
-            value={start}
-            onChange={(e) => setStart(e.target.value)}
-          />
+          <MeetingTimePicker label="Начало" value={start} onChange={setStart} />
           <span>–</span>
-          <input
-            aria-label="Окончание"
-            type="time"
-            required
-            value={end}
-            onChange={(e) => setEnd(e.target.value)}
-          />
+          <MeetingTimePicker label="Окончание" value={end} onChange={setEnd} />
           <button
             type="button"
             className="secondary"
@@ -75,6 +65,31 @@ export function MeetingSchedule({
           >
             <Clock size={20} />
           </button>
+        </div>
+        <div
+          className="meeting-duration-helpers"
+          role="group"
+          aria-label="Длительность встречи"
+        >
+          {(
+            [
+              [15, "15 мин"],
+              [30, "Полчаса"],
+              [60, "Час"],
+              [90, "Полтора"],
+              [120, "2 часа"],
+            ] as const
+          ).map(([duration, label]) => (
+            <button
+              key={duration}
+              type="button"
+              aria-pressed={data.durationMinutes === duration}
+              disabled={!endAfterDuration(start, duration)}
+              onClick={() => setEnd(endAfterDuration(start, duration)!)}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         <small>
           Asia/Almaty{data.endsNextDay ? " · Окончание на следующий день" : ""}

@@ -1,4 +1,5 @@
 import { VoiceSettings } from "./VoiceSettings";
+import { UpdateSettings } from "./AppUpdates";
 import "./model-settings-tabs.css";
 import { useEffect, useId, useRef, useState } from "react";
 import { CheckCircle2, X } from "lucide-react";
@@ -46,7 +47,8 @@ export function ModelSettings({
   update: (state: ProfileState) => void;
 }) {
   const tabId = useId();
-  const [tab, setTab] = useState<"llm" | "voice">("llm");
+  const tabs = ["llm", "voice", "updates"] as const;
+  const [tab, setTab] = useState<(typeof tabs)[number]>("llm");
   const [state, setState] = useState(initial);
   const [id, setId] = useState<ProfileId>(
     initial.active !== "synthetic"
@@ -124,7 +126,7 @@ export function ModelSettings({
         role="tablist"
         aria-label="Раздел настроек модели"
       >
-        {(["llm", "voice"] as const).map((value) => (
+        {tabs.map((value) => (
           <button
             key={value}
             type="button"
@@ -140,19 +142,27 @@ export function ModelSettings({
               )
                 return;
               event.preventDefault();
+              const index = tabs.indexOf(value);
               const next =
-                event.key === "Home"
-                  ? "llm"
-                  : event.key === "End"
-                    ? "voice"
-                    : value === "llm"
-                      ? "voice"
-                      : "llm";
+                tabs[
+                  event.key === "Home"
+                    ? 0
+                    : event.key === "End"
+                      ? tabs.length - 1
+                      : (index +
+                          (event.key === "ArrowRight" ? 1 : -1) +
+                          tabs.length) %
+                        tabs.length
+                ]!;
               setTab(next);
               document.getElementById(`${tabId}-${next}`)?.focus();
             }}
           >
-            {value === "llm" ? "LLM" : "Voice"}
+            {value === "llm"
+              ? "LLM"
+              : value === "voice"
+                ? "Voice"
+                : "Обновления"}
           </button>
         ))}
       </div>
@@ -304,6 +314,14 @@ export function ModelSettings({
         hidden={tab !== "voice"}
       >
         {tab === "voice" && <VoiceSettings />}
+      </div>
+      <div
+        role="tabpanel"
+        id={`${tabId}-updates-panel`}
+        aria-labelledby={`${tabId}-updates`}
+        hidden={tab !== "updates"}
+      >
+        {tab === "updates" && <UpdateSettings />}
       </div>
     </dialog>
   );

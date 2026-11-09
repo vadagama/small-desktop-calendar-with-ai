@@ -1,0 +1,68 @@
+.meeting-time-picker {
+  display: flex;
+  align-items: center;
+  position: relative;
+  min-width: 0;
+}
+.meeting-time-picker input {
+  width: 100%;
+  padding-right: 30px;
+  font-size: var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+.meeting-time-picker > button {
+  position: absolute;
+  right: 4px;
+  display: flex;
+  padding: 8px 4px;
+}
+.meeting-time-picker > button[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+.meeting-time-options {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface, white);
+  color: var(--ink);
+  box-shadow: 0 4px 16px #0001;
+}
+.meeting-time-options button {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  border-radius: 6px;
+  font-size: var(--font-menu);
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+.meeting-time-options button[data-active="true"] {
+  background: var(--hover, #f2f2f2);
+}
+.meeting-time-options button[aria-selected="true"] {
+  background: var(--ink);
+  color: white;
+}
+.meeting-duration-helpers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+.meeting-duration-helpers button {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: var(--font-compact);
+}
+.meeting-duration-helpers button[aria-pressed="true"] {
+  background: var(--ink);
+  color: white;
+  border-color: var(--ink);
+}

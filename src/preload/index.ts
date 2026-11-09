@@ -1,4 +1,5 @@
 import { voiceChannel } from "../shared/voice.js";
+import { updateChannels, type UpdateState } from "../shared/updates.js";
 import { eventListChannel } from "../shared/event-list-channel.js";
 import type { EventListResult } from "../shared/event-list.js";
 import { topicRuleChannels } from "../shared/topic-rule-channels.js";
@@ -21,6 +22,17 @@ import { smallAuthChannels } from "../shared/small-auth.js";
 import { profileChannels } from "../shared/profiles.js";
 
 const bridge: DesktopBridge = {
+  updates: {
+    read: () => ipcRenderer.invoke(updateChannels.read),
+    check: () => ipcRenderer.invoke(updateChannels.check),
+    install: () => ipcRenderer.invoke(updateChannels.install),
+    subscribe: (listener) => {
+      const handler = (_event: IpcRendererEvent, state: UpdateState) =>
+        listener(state);
+      ipcRenderer.on(updateChannels.changed, handler);
+      return () => ipcRenderer.removeListener(updateChannels.changed, handler);
+    },
+  },
   voice: { request: (input) => ipcRenderer.invoke(voiceChannel, input) },
   memory: {
     read: () => ipcRenderer.invoke(memoryChannels.read),

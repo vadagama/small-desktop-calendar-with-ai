@@ -1,4 +1,8 @@
 import { editableEvent } from "../shared/event-edit.js";
+import {
+  clockMinutes as minutes,
+  meetingDuration,
+} from "../shared/meeting-time.js";
 import { meetingLink } from "../shared/meeting-link.js";
 import { calendarDateAt } from "../shared/calendar-time.js";
 import type { CalendarEvent } from "../shared/calendar.js";
@@ -14,10 +18,6 @@ import {
 import type { MeetingView } from "../shared/meeting-operations.js";
 import type { MeetingOptions } from "../shared/meeting-options.js";
 import type { SmallCalendar } from "../shared/calendar.js";
-const minutes = (time: string) => {
-  const [h, m] = time.split(":").map(Number);
-  return (h ?? NaN) * 60 + (m ?? NaN);
-};
 export function useNewMeeting({
   account,
   initialDate,
@@ -179,8 +179,8 @@ export function useNewMeeting({
   });
   const original = useRef(snapshot);
   const dirty = original.current !== snapshot;
-  const endsNextDay = end === "00:00" && start !== "00:00";
-  const durationMinutes = (endsNextDay ? 1440 : minutes(end)) - minutes(start);
+  const endsNextDay = minutes(end) < minutes(start);
+  const durationMinutes = meetingDuration(start, end);
   const locked = !!result && result.phase !== "preview";
   useEffect(() => {
     active.current = true;
@@ -247,7 +247,10 @@ export function useNewMeeting({
         date !== initial.date ||
         start !== initial.start ||
         end !== initial.end;
-      if (timeChanged && (duration <= 0 || duration > 480))
+      if (
+        timeChanged &&
+        (!Number.isFinite(duration) || duration <= 0 || duration > 480)
+      )
         throw new Error(
           "Окончание должно быть позже начала; длительность — до 8 часов.",
         );
