@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Свободные слоты · Small</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+    <link rel="stylesheet" href="./src/availability-demo.css" />
+  </head>
+  <body class="availability-demo">
+    <div class="availability-app">
+      <nav class="availability-rail" aria-label="Навигация Small">
+        <a href="/" class="small-emblem" aria-label="Календарь Small"
+          ><i data-icon="UsersRound"></i
+        ></a>
+        <a href="/" aria-label="Календарь"><i data-icon="CalendarDays"></i></a>
+        <a
+          href="#availability-view"
+          aria-label="Свободные слоты"
+          aria-current="page"
+          ><i data-icon="CalendarClock"></i
+        ></a>
+        <div class="rail-bottom">
+          <span class="rail-avatar" aria-label="Демонстрационный профиль"
+            >А</span
+          >
+        </div>
+      </nav>
+      <div class="availability-shell">
+        <header class="demo-top">
+          <div>
+            <h1>Календарь Small</h1>
+            <span class="prototype-tag">Демо-прототип</span>
+          </div>
+          <details class="demo-state-tools">
+            <summary>
+              <i data-icon="SlidersHorizontal"></i> Состояния прототипа
+            </summary>
+            <div>
+              <label
+                >Состояние данных
+                <select id="demo-state">
+                  <option value="ready">Загружено</option>
+                  <option value="loading">Загрузка</option>
+                  <option value="empty">Нет общих окон</option>
+                  <option value="partial">Частичные данные</option>
+                  <option value="error">Ошибка</option>
+                </select></label
+              >
+              <p>
+                Данные вымышленные. В чате работают запросы «только Анну»,
+                «всех», «следующую неделю».
+              </p>
+            </div>
+          </details>
+        </header>
+        <div class="demo-workspace">
+          <main class="demo-main">
+            <nav class="demo-tabs" aria-label="Вкладки рабочей области">
+              <button id="calendar-tab" aria-pressed="false">
+                <i data-icon="CalendarDays"></i>Календарь</button
+              ><button id="availability-tab" aria-pressed="true">
+                <i data-icon="CalendarClock"></i>Свободные слоты
+                <span>3</span>
+              </button>
+            </nav>
+            <section id="calendar-view" hidden>
+              <h2>Календарь</h2>
+              <p>Анализ доступности сохранён в соседней вкладке.</p>
+              <button id="return" class="demo-primary">
+                Вернуться к свободным слотам</button
+              ><a href="/">Открыть основной прототип календаря</a>
+            </section>
+            <section id="availability-view" aria-label="Свободные слоты">
+              <div class="demo-toolbar">
+                <div class="demo-period">
+                  <button id="previous" aria-label="Предыдущая неделя">
+                    <i data-icon="ChevronLeft"></i></button
+                  ><button id="next" aria-label="Следующая неделя">
+                    <i data-icon="ChevronRight"></i>
+                  </button>
+                  <h2 id="period"></h2>
+                </div>
+                <button id="refresh" aria-label="Обновить доступность">
+                  <i data-icon="RefreshCw"></i></button
+                ><span class="demo-zone">Asia/Almaty · UTC+5</span>
+              </div>
+              <div class="demo-filters">
+                <label
+                  >Длительность
+                  <select id="duration">
+                    <option value="30">30 минут</option>
+                    <option value="60" selected>1 час</option>
+                    <option value="90">1,5 часа</option>
+                  </select></label
+                ><label class="demo-weekends"
+                  ><input id="weekends" type="checkbox" /> Выходные</label
+                >
+                <div class="demo-mode" aria-label="Вид доступности">
+                  <button id="all-view" aria-pressed="true">Сотрудники</button
+                  ><button id="common-view" aria-pressed="false">
+                    Общие окна
+                  </button>
+                </div>
+              </div>
+              <div
+                class="demo-people"
+                id="people"
+                aria-label="Участники анализа"
+              ></div>
+              <div class="demo-summary" aria-live="polite">
+                <span><strong id="window-count"></strong> общих окон</span
+                ><span><strong id="free-total"></strong> доступны всем</span>
+                <p id="best-window"></p>
+              </div>
+              <div id="feedback" role="status" aria-live="polite"></div>
+              <div
+                class="demo-grid-scroll"
+                tabindex="0"
+                aria-label="Доступность по дням: горизонтальная прокрутка часов 00–24, вертикальная прокрутка дат"
+              >
+                <table id="grid"></table>
+              </div>
+              <div class="demo-bottom">
+                <div class="demo-legend">
+                  <span><i class="free"></i>Свободен</span
+                  ><span><i class="busy"></i>Занят</span
+                  ><span><i class="common"></i>Общее окно</span
+                  ><span><i class="outside"></i>Вне рабочих часов</span
+                  ><span id="unknown-legend" hidden
+                    ><i class="unknown"></i>Нет данных</span
+                  >
+                </div>
+                <span id="freshness">Шкала 00–24 · рабочие часы 09–18</span>
+              </div>
+              <section
+                id="selection"
+                class="demo-selection"
+                aria-label="Выбранное окно"
+                hidden
+              ></section>
+            </section>
+          </main>
+          <div class="demo-divider" aria-hidden="true">
+            <i data-icon="GripVertical"></i>
+          </div>
+          <aside class="demo-assistant" aria-labelledby="assistant-title">
+            <header>
+              <i data-icon="GripVertical"></i>
+              <h2 id="assistant-title">Ассистент</h2>
+              <span class="prototype-tag">Демо</span>
+            </header>
+            <div
+              id="messages"
+              class="demo-messages"
+              role="log"
+              aria-live="polite"
+            >
+              <p class="demo-user">
+                Покажи свободные слоты трёх сотрудников на эту неделю. Нужен час
+                для общей встречи.
+              </p>
+              <div class="demo-answer">
+                <i data-icon="Sparkles"></i>
+                <p>
+                  Открыл <strong>свободные слоты</strong> в отдельной вкладке
+                  слева.
+                </p>
+                <p>
+                  Голубые окна с контуром подходят всем выбранным сотрудникам.
+                  Выберите время, чтобы подготовить черновик встречи.
+                </p>
+                <button id="show-report">
+                  <i data-icon="ArrowUpRight"></i>Открыть свободные слоты
+                </button>
+              </div>
+            </div>
+            <div class="demo-composer-area">
+              <form id="chat-form">
+                <label class="visually-hidden" for="prompt"
+                  >Сообщение ассистенту</label
+                ><textarea
+                  id="prompt"
+                  rows="3"
+                  placeholder="Например, покажи только Анну…"
+                ></textarea>
+                <footer>
+                  <span><i data-icon="Sparkles"></i>Демо-ассистент</span
+                  ><button class="demo-primary" aria-label="Отправить запрос">
+                    <i data-icon="ArrowUp"></i>
+                  </button>
+                </footer>
+              </form>
+              <p>Демо-режим · без отправки приглашений</p>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="./src/availability-demo.js"></script>
+  </body>
+</html>
