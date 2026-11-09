@@ -596,7 +596,7 @@
   padding: 8px;
   margin-top: 8px;
 }
-.meeting-people-results label {
+.meeting-people-results .meeting-person-option {
   display: flex;
   gap: 8px;
   padding: 6px;
@@ -1986,4 +1986,45 @@
   margin: 0;
   padding: 10px 12px;
   line-height: 1.35;
+}
+
+.meeting-people-input:focus-within {
+  outline: 1px solid var(--ink);
+  outline-offset: -1px;
+}
+.meeting-people-results .meeting-person-option {
+  font-size: var(--font-compact);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.meeting-people-results .meeting-person-option:hover,
+.meeting-people-results .meeting-person-option:focus-within {
+  background: var(--soft);
+}
+.meeting-people-results small,
+.meeting-chips > span {
+  font-size: var(--font-compact);
+}
+.meeting-person-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 32px;
+  height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--soft);
+  font-size: var(--font-menu);
+}
+.meeting-person-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.meeting-person-option {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  font-weight: 400;
+  color: inherit;
 }

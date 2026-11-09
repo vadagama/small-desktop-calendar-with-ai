@@ -24,6 +24,7 @@ async function open(
     page: Page;
     date: string;
   }) => Promise<void>,
+  initialExtra: Record<string, unknown> = {},
 ) {
   const userData = await mkdtemp(join(tmpdir(), "small-remote-"));
   const app = await _electron.launch({
@@ -37,13 +38,17 @@ async function open(
   try {
     const date = calendarToday();
     await mockSmall(app, date);
-    await app.evaluate((_electron, day) => {
-      (globalThis as Inspection).syntheticEventExtra = {
-        title: "Исходное название",
-        starts_at: `${day}T09:00:00+05:00`,
-        ends_at: `${day}T09:30:00+05:00`,
-      };
-    }, date);
+    await app.evaluate(
+      (_electron, { day, extra }) => {
+        (globalThis as Inspection).syntheticEventExtra = {
+          title: "Исходное название",
+          starts_at: `${day}T09:00:00+05:00`,
+          ends_at: `${day}T09:30:00+05:00`,
+          ...extra,
+        };
+      },
+      { day: date, extra: initialExtra },
+    );
     const page = await app.firstWindow();
     await page
       .getByRole("button", { name: "Профиль Small", exact: true })
@@ -80,6 +85,8 @@ async function startEditing(page: Page) {
   const editor = page.getByRole("dialog", { name: "Редактирование события" });
   const field = editor.getByPlaceholder("Введите наименование");
   await field.fill("Моя правка");
+  await field.press("Tab");
+  await expect(field).toHaveValue("Моя правка");
   return { details: editor, field };
 }
 
@@ -143,6 +150,9 @@ test("full event editor prepopulates and saves creation fields without creating 
   await open(async ({ app, page, date }) => {
     const { details: editor, field } = await startEditing(page);
     await expect(
+      editor.locator(".meeting-chips > span").first().getByRole("button"),
+    ).toHaveCount(0);
+    await expect(
       editor.getByRole("textbox", { name: "Описание", exact: true }),
     ).toHaveValue("Синтетическая повестка");
     await expect(editor.getByLabel("Начало", { exact: true })).toHaveValue(
@@ -183,7 +193,7 @@ test("full event editor prepopulates and saves creation fields without creating 
     await editor
       .getByRole("button", { name: "Найти информируемых", exact: true })
       .click();
-    await editor.getByRole("checkbox").first().check();
+    await editor.locator(".meeting-person-option").first().click();
     await page.screenshot({
       path: "test-results/desktop/full-event-editor.png",
     });
@@ -195,9 +205,8 @@ test("full event editor prepopulates and saves creation fields without creating 
       () => (globalThis as Inspection).syntheticEventExtra,
     );
     expect(saved.title).toBe("Моя правка");
-    expect(saved.description).toBe(
-      "Обновлённая повестка\n\nhttps://meet.small.kz/synthetic-edit",
-    );
+    expect(saved.description).toBe("Обновлённая повестка");
+    expect(saved.location).toBe("https://meet.small.kz/synthetic-edit");
     expect(saved.calendar_ids).toEqual([11]);
     expect(Date.parse(String(saved.starts_at))).toBe(
       Date.parse(`${date}T10:30:00+05:00`),
@@ -212,6 +221,9 @@ test("full event editor prepopulates and saves creation fields without creating 
 test("cancelling an edit confirms unsaved changes and returns to the event card", async () => {
   await open(async ({ page }) => {
     const { details: editor, field } = await startEditing(page);
+    await expect(
+      editor.locator(".meeting-chips > span").first().getByRole("button"),
+    ).toHaveCount(0);
     await editor.getByRole("button", { name: "Отмена", exact: true }).click();
     const confirm = page.getByRole("dialog", {
       name: "Отменить несохранённые изменения?",
@@ -229,3 +241,45 @@ test("cancelling an edit confirms unsaved changes and returns to the event card"
     ).toBeVisible();
   });
 });
+
+for (const change of ["agenda", "title", "remove"] as const) {
+  test(`legacy conference URL survives editing ${change} without duplication`, async () => {
+    const url = "https://meet.small.kz/synthetic-legacy";
+    // Seed legacy data before login/list caching, rather than changing the server
+    // halfway through opening a form under the 300 ms sync used by remote tests.
+    await open(
+      async ({ app, page }) => {
+        const { details: editor } = await startEditing(page);
+        const agenda = editor.getByRole("textbox", {
+          name: "Описание",
+          exact: true,
+        });
+        const link = editor.getByLabel("Ссылка на встречу", { exact: true });
+        await expect(link).toHaveValue(url);
+        await expect(agenda).toHaveValue("Повестка");
+        if (change === "agenda") await agenda.fill("Новая повестка");
+        if (change === "remove") await link.fill("");
+        await expect(agenda).toHaveValue(
+          change === "agenda" ? "Новая повестка" : "Повестка",
+        );
+        await expect(link).toHaveValue(change === "remove" ? "" : url);
+        await editor
+          .getByRole("button", { name: "Сохранить", exact: true })
+          .click();
+        await expect(editor).toHaveCount(0);
+        const saved = await app.evaluate(
+          () => (globalThis as Inspection).syntheticEventExtra,
+        );
+        expect(saved.description).toBe(
+          change === "title"
+            ? `Повестка\n\n${url}`
+            : change === "agenda"
+              ? "Новая повестка"
+              : "Повестка",
+        );
+        expect(saved.location).toBe(change === "agenda" ? url : "Переговорная");
+      },
+      { description: `Повестка\n\n${url}`, location: "Переговорная" },
+    );
+  });
+}

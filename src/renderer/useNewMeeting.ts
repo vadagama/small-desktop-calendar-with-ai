@@ -125,6 +125,13 @@ export function useNewMeeting({
     }
     wasAuthRequired.current = authRequired;
   }, [authRequired, files.length, result]);
+  const organizerParticipant = editing?.participants?.find(
+    (person) => person.organizer,
+  );
+  const organizerId =
+    organizerParticipant?.id ?? editing?.organizerId ?? account.participantId;
+  const organizerName =
+    organizerParticipant?.name || editing?.organizer || account.name;
   const people = useAvailability(
       account.id,
       expired,
@@ -134,17 +141,16 @@ export function useNewMeeting({
             name: p.name,
             position: "",
           }))
-        : initialPeople?.length
-          ? initialPeople
-          : account.participantId
-            ? [
-                {
-                  participantId: account.participantId,
-                  name: account.name,
-                  position: "Организатор",
-                },
-              ]
-            : [],
+        : (initialPeople ?? []),
+      organizerId
+        ? [
+            {
+              participantId: organizerId,
+              name: organizerName,
+              position: "Организатор",
+            },
+          ]
+        : [],
     ),
     recipients = useAvailability(
       account.id,
@@ -253,23 +259,16 @@ export function useNewMeeting({
       if (editing && before && "id" in editing.lookup) {
         let description = before.description;
         let location = before.location;
-        if (agenda !== originalAgenda || url !== originalUrl) {
-          description = [
-            agenda,
-            url && (!meetingLink(editing.location) || url !== originalUrl)
-              ? url
-              : "",
-          ]
-            .filter(Boolean)
-            .join("\n\n");
-          if (url !== originalUrl && meetingLink(editing.location))
-            location = stripLink(location);
-        }
         const roomChanged = room !== (editing.calendarIds[0] ?? "");
-        if (roomChanged) {
-          location = rooms.find((r) => r.id === room)?.name ?? "";
-          if (url && meetingLink(editing.location) && url === originalUrl)
-            description = [description, url].filter(Boolean).join("\n\n");
+        if (agenda !== originalAgenda || url !== originalUrl || roomChanged) {
+          description = agenda;
+          location =
+            url.trim() ||
+            (roomChanged
+              ? (rooms.find((r) => r.id === room)?.name ?? "")
+              : meetingLink(before.location)
+                ? stripLink(before.location)
+                : before.location);
         }
         const reply = await window.smallDesktop.calendar.updateEvent({
           accountId: account.id,
@@ -398,6 +397,7 @@ export function useNewMeeting({
   }
   return {
     editing,
+    organizerName,
     dirty,
     durationMinutes,
     endsNextDay,

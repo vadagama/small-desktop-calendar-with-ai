@@ -57,7 +57,7 @@ test("notification check distinguishes delivery, failure and action without arbi
       await app.evaluate(({ BrowserWindow }) =>
         BrowserWindow.getAllWindows()[0]!.isVisible(),
       ),
-    ).toBe(true);
+    ).toBe(process.env.SMALL_E2E_BACKGROUND !== "1");
     await app.evaluate(() => {
       (globalThis as any).testDenied = true;
     });
@@ -85,6 +85,14 @@ test("notification check distinguishes delivery, failure and action without arbi
       local.getByRole("heading", { name: "Календарь Small", exact: true }),
     ).toBeVisible();
     expect(local.url()).toBe("small-app://workspace/index.html");
+    if (process.env.SMALL_E2E_BACKGROUND === "1")
+      expect(
+        await app.evaluate(({ BrowserWindow }) =>
+          BrowserWindow.getAllWindows().every(
+            (w) => !w.isVisible() && !w.isFocused(),
+          ),
+        ),
+      ).toBe(true);
     expect(await app.evaluate(() => (globalThis as any).opened)).toEqual([]);
   } finally {
     await app.close();

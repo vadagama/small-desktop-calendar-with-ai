@@ -1,3 +1,4 @@
+import { generateConferenceLink } from "../shared/meeting-link.js";
 import { useState } from "react";
 import { DiscardMeetingDialog } from "./DiscardMeetingDialog";
 import { X, Video, Plus, Paperclip } from "lucide-react";
@@ -10,7 +11,7 @@ export function NewMeeting(
     notice?: import("react").ReactNode;
   },
 ) {
-  const { account, close, authRequired } = props;
+  const { close, authRequired } = props;
   const data = useNewMeeting(props);
   const [confirmClose, setConfirmClose] = useState(false);
   function requestClose() {
@@ -123,16 +124,16 @@ export function NewMeeting(
               <button
                 type="button"
                 className="meeting-link-action"
-                onClick={() =>
-                  setUrl(`https://meet.small.kz/${crypto.randomUUID()}`)
-                }
+                onClick={() => setUrl(generateConferenceLink())}
               >
                 <Video size={18} />
                 Сгенерировать ссылку
               </button>
               <div>
                 <label className="meeting-field-title">Участники</label>
-                <p className="meeting-organizer">Организатор: {account.name}</p>
+                <p className="meeting-organizer">
+                  Организатор: {data.organizerName}
+                </p>
                 <MeetingPeoplePicker data={people} label="участников" />
               </div>
               <button

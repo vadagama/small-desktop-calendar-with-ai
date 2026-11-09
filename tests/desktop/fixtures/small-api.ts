@@ -28,6 +28,9 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       /** Requests for the calendar list and for people search, to see what the cache saved. */
       syntheticCalendarRequests?: number;
       syntheticPeopleRequests?: number;
+      syntheticPeopleQueries?: string[];
+      syntheticPeopleCompleted?: string[];
+      syntheticPeopleDelayMs?: number;
       /** Slows the read of the event card, as a real round trip to Small would. */
       syntheticDetailDelayMs?: number;
       /** Someone else removed the event: the card is 404 and the list omits it. */
@@ -345,6 +348,11 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         inspection.syntheticPeopleRequests =
           (inspection.syntheticPeopleRequests ?? 0) + 1;
         const q = url.searchParams.get("q");
+        (inspection.syntheticPeopleQueries ??= []).push(q ?? "");
+        if (q === "медленно" && inspection.syntheticPeopleDelayMs)
+          await new Promise((resolve) =>
+            setTimeout(resolve, inspection.syntheticPeopleDelayMs),
+          );
         const current = Number(url.searchParams.get("page"));
         const people =
           q === "пусто"
@@ -385,6 +393,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
                         position_name: "Отдел B",
                       },
                     ];
+        (inspection.syntheticPeopleCompleted ??= []).push(q ?? "");
         return Response.json({
           data: {
             items: people,

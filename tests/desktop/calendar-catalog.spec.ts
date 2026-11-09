@@ -80,7 +80,9 @@ test("the calendar list and people search come from the cache until the user ref
       await dialog
         .getByRole("button", { name: "Найти сотрудников", exact: true })
         .click();
-      await expect(dialog.getByRole("checkbox").first()).toBeVisible();
+      await expect(
+        dialog.locator(".meeting-person-option").first(),
+      ).toBeVisible();
     };
     await search();
     await search();

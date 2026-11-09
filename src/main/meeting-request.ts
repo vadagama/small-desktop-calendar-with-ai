@@ -7,7 +7,7 @@ export const meetingCreateBody = z
   .strictObject({
     title: z.string().trim().min(1).max(200),
     description: z.string().max(7500),
-    location: z.string().max(500),
+    location: z.string().max(2000),
     starts_at: z.iso.datetime({ offset: true }),
     ends_at: z.iso.datetime({ offset: true }),
     timezone: z.literal("Asia/Almaty"),
@@ -31,10 +31,8 @@ export const meetingCreateBody = z
 export function meetingPayload(draft: MeetingDraft) {
   return meetingCreateBody.parse({
     title: draft.title,
-    description: [draft.agenda, draft.conferenceUrl]
-      .filter(Boolean)
-      .join("\n\n"),
-    location: draft.location,
+    description: draft.agenda,
+    location: draft.conferenceUrl ?? draft.location,
     starts_at: draft.startsAt,
     ends_at: draft.endsAt,
     timezone: draft.timezone,
