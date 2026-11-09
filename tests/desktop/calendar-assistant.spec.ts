@@ -171,6 +171,7 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     };
     const setSlots = (day: string) =>
       app.evaluate((_electron, day) => {
+        Object.assign(globalThis, { syntheticAvailabilityByDay: {} });
         (
           globalThis as typeof globalThis & {
             syntheticAvailableSlots: { start: string; end: string }[];
@@ -376,9 +377,20 @@ test("calendar tools cross utility/main boundary and render trusted results", as
       );
     expect(await writes()).toBe(0);
     await app.evaluate(() => {
-      (
-        globalThis as typeof globalThis & { syntheticAvailableSlots: unknown[] }
-      ).syntheticAvailableSlots = [];
+      Object.assign(globalThis, {
+        syntheticAvailableSlots: [],
+        syntheticAvailabilityByDay: {
+          "synthetic-organizer:2099-10-29": {
+            free: [],
+            busy: [
+              {
+                start: "2099-10-29T14:00:00+05:00",
+                end: "2099-10-29T14:30:00+05:00",
+              },
+            ],
+          },
+        },
+      });
     });
     await draft
       .getByRole("button", {
@@ -725,9 +737,9 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     // Three adjacent meetings in one assistant turn are separate operations.
     turn++;
     const batchSlots = [
-      { start: "2099-11-02T13:00:00+05:00", end: "2099-11-02T13:30:00+05:00" },
-      { start: "2099-11-02T13:30:00+05:00", end: "2099-11-02T14:00:00+05:00" },
       { start: "2099-11-02T14:00:00+05:00", end: "2099-11-02T14:30:00+05:00" },
+      { start: "2099-11-02T14:30:00+05:00", end: "2099-11-02T15:00:00+05:00" },
+      { start: "2099-11-02T15:00:00+05:00", end: "2099-11-02T15:30:00+05:00" },
     ];
     await app.evaluate((_electron, slots) => {
       (
@@ -737,7 +749,7 @@ test("calendar tools cross utility/main boundary and render trusted results", as
       ).syntheticAvailableSlots = slots;
     }, batchSlots);
     const batchPrompt =
-      "Подготовь три личные встречи подряд по полчаса второго ноября с 13:00";
+      "Подготовь три личные встречи подряд по полчаса второго ноября с 14:00";
     plan = [
       {
         name: "assistantMemory",
@@ -816,7 +828,7 @@ test("calendar tools cross utility/main boundary and render trusted results", as
       },
     ];
     await send(
-      "Подготовь новую личную встречу на освободившиеся 13:00 второго ноября",
+      "Подготовь новую личную встречу на освободившиеся 14:00 второго ноября",
     );
     const replacement = page
       .getByRole("region", { name: "Черновик встречи", exact: true })

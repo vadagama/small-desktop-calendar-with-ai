@@ -1,3 +1,5 @@
+import { availabilityAnalysisChannels } from "../shared/availability-channels.js";
+import type { AvailabilityOpening } from "../shared/availability-analysis.js";
 import { voiceChannel } from "../shared/voice.js";
 import { updateChannels, type UpdateState } from "../shared/updates.js";
 import { eventListChannel } from "../shared/event-list-channel.js";
@@ -74,6 +76,17 @@ const bridge: DesktopBridge = {
     reconcile: (input) => ipcRenderer.invoke(meetingChannels.reconcile, input),
   },
   calendar: {
+    updateAvailabilityContext: (input) =>
+      ipcRenderer.invoke(availabilityAnalysisChannels.context, input),
+    availabilityAnalysis: (input) =>
+      ipcRenderer.invoke(availabilityAnalysisChannels.read, input),
+    subscribeAvailability: (listener) => {
+      const handler = (_event: IpcRendererEvent, result: AvailabilityOpening) =>
+        listener(result);
+      ipcRenderer.on(availabilityAnalysisChannels.open, handler);
+      return () =>
+        ipcRenderer.removeListener(availabilityAnalysisChannels.open, handler);
+    },
     subscribeEventList: (listener) => {
       const handler = (_event: IpcRendererEvent, result: EventListResult) =>
         listener(result);

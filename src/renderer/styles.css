@@ -612,16 +612,34 @@
   gap: 6px;
 }
 .meeting-chips > span {
+  height: 32px;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  line-height: 20px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   background: var(--soft);
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 6px 10px;
+  padding: 3px 8px;
 }
-.meeting-chips button {
+.meeting-chips > span > button {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  flex-shrink: 0;
+}
+.meeting-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .new-meeting-time {
   display: grid;
@@ -781,7 +799,6 @@
   padding: 6px;
 }
 .new-meeting .meeting-chips > span {
-  padding: 4px 8px;
   overflow-wrap: anywhere;
   min-width: 0;
 }
@@ -2027,4 +2044,27 @@
   border: 0;
   font-weight: 400;
   color: inherit;
+}
+
+.dock-main-view {
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+.dock-main-view[hidden] {
+  display: none;
+}
+
+.availability-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.availability-result-card {
+  margin-top: 8px;
+}
+.availability-result-card > .assistant-markdown {
+  margin-top: 10px;
 }

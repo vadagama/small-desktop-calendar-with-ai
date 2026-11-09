@@ -36,6 +36,16 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       /** Someone else removed the event: the card is 404 and the list omits it. */
       syntheticEventRemoved?: boolean;
       syntheticListApplied?: { starts_at: string; ends_at: string };
+      syntheticAvailabilityStatus?: number;
+      syntheticAvailabilityDelayMs?: number;
+      syntheticAvailabilityCompleted?: number;
+      syntheticAvailabilityByDay?: Record<
+        string,
+        {
+          free: { start: string; end: string }[];
+          busy: { start: string; end: string }[];
+        }
+      >;
       syntheticAvailableSlots?: { start: string; end: string }[];
       syntheticEventExtra?: Record<string, unknown>;
       syntheticEventOwner?: string;
@@ -201,8 +211,19 @@ export async function mockSmall(app: ElectronApplication, date: string) {
           },
         });
       if (path.endsWith("/find-slots") || path.endsWith("/busy-intervals")) {
+        if (inspection.syntheticAvailabilityStatus)
+          return new Response(null, {
+            status: inspection.syntheticAvailabilityStatus,
+          });
         if (request.method !== "POST")
           return new Response(null, { status: 405 });
+        if (inspection.syntheticAvailabilityDelayMs) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, inspection.syntheticAvailabilityDelayMs),
+          );
+          inspection.syntheticAvailabilityCompleted =
+            (inspection.syntheticAvailabilityCompleted ?? 0) + 1;
+        }
         const input = await request.json();
         if (input.participant_ids.includes("denied"))
           return new Response(null, { status: 403 });
@@ -213,6 +234,9 @@ export async function mockSmall(app: ElectronApplication, date: string) {
             data: {
               has_more: false,
               available_slots:
+                inspection.syntheticAvailabilityByDay?.[
+                  `${input.participant_ids[0]}:${day}`
+                ]?.free ??
                 inspection.syntheticAvailableSlots ??
                 (input.duration_minutes === 60
                   ? []
@@ -236,14 +260,17 @@ export async function mockSmall(app: ElectronApplication, date: string) {
               type: "participant",
               id: participant_id,
               busy_slots:
-                participant_id === "synthetic-b"
+                inspection.syntheticAvailabilityByDay?.[
+                  `${participant_id}:${day}`
+                ]?.busy ??
+                (participant_id === "synthetic-b"
                   ? [
                       {
                         start: `${day}T09:00:00+05:00`,
                         end: `${day}T09:30:00+05:00`,
                       },
                     ]
-                  : [],
+                  : []),
             })),
         });
       }

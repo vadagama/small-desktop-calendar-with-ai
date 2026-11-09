@@ -75,7 +75,9 @@ export function MeetingPeoplePicker({
         <div className="meeting-chips">
           {data.selected.map((p) => (
             <span key={p.participantId}>
-              {p.name}
+              <span className="meeting-chip-name" title={p.name}>
+                {p.name}
+              </span>
               {!data.protectedIds.includes(p.participantId) && (
                 <button
                   type="button"

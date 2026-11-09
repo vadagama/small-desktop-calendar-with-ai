@@ -1,3 +1,8 @@
+import {
+  analysisQuery,
+  analysisToolInput,
+} from "../shared/availability-analysis.js";
+import { calendarToday } from "../shared/calendar-time.js";
 import { readEventList } from "./event-list.js";
 import { eventListInput } from "../shared/event-list.js";
 import { seriesTarget } from "../shared/series-scope.js";
@@ -420,6 +425,114 @@ export function createCalendarToolExecutor(
         data = {
           kind: "memory" as const,
           people: await memory.read(accountId),
+        };
+      } else if (name === "showAvailabilityAnalysis") {
+        const q = analysisToolInput.parse(input);
+        if (!organizerParticipantId)
+          throw new CalendarError(
+            "invalid",
+            "Не удалось определить организатора. Выполните вход в Small заново.",
+          );
+        const requested = q.participantIds.filter(
+          (id) => id !== organizerParticipantId,
+        );
+        const selected = conversation.selected.filter(
+          (id) => id !== organizerParticipantId,
+        );
+        if (
+          !conversation.selectionConfirmed ||
+          requested.length !== selected.length ||
+          requested.some((id) => !selected.includes(id))
+        )
+          throw new CalendarError(
+            "invalid",
+            "Сначала уточните и выберите полный состав участников.",
+          );
+        const people = requested
+          .map((id) => conversation.people.get(id))
+          .filter((p): p is CalendarPerson => Boolean(p));
+        if (people.length !== requested.length)
+          throw new CalendarError(
+            "invalid",
+            "Проверьте участников в каталоге.",
+          );
+        const organizer = people.find(
+          (p) => p.participantId === organizerParticipantId,
+        ) ?? {
+          participantId: organizerParticipantId,
+          name: organizerName,
+          position: "",
+        };
+        const organizerIndex = people.findIndex(
+          (p) => p.participantId === organizerParticipantId,
+        );
+        if (organizerIndex >= 0) people.splice(organizerIndex, 1);
+        people.unshift(organizer);
+        if (people.length > 20)
+          throw new CalendarError(
+            "invalid",
+            "Можно выбрать не более 19 сотрудников помимо организатора.",
+          );
+        if (!people.length)
+          throw new CalendarError(
+            "invalid",
+            "Выберите хотя бы одного сотрудника.",
+          );
+        const stored = assistantMemory
+          ? await assistantMemory.store.read(accountId)
+          : undefined;
+        const raw =
+          typeof input === "object" && input !== null
+            ? (input as Record<string, unknown>)
+            : {};
+        const preferences = resolveMeetingPreferences(
+          stored?.preferences ?? {},
+          conversation.taskPreferences,
+          conversation.preset?.durationMinutes !== undefined
+            ? { durationMinutes: conversation.preset.durationMinutes }
+            : {},
+          conversation.meetingSource
+            ? { durationMinutes: conversation.meetingSource.durationMinutes }
+            : {},
+        ).values;
+        const query = analysisQuery.parse({
+          accountId,
+          participantIds: people.map((p) => p.participantId),
+          date:
+            q.date ?? conversation.availability?.query.date ?? calendarToday(),
+          period:
+            raw.period !== undefined
+              ? q.period
+              : (conversation.availability?.query.period ?? q.period),
+          includeWeekends:
+            (raw.includeWeekends !== undefined
+              ? q.includeWeekends
+              : (conversation.availability?.query.includeWeekends ??
+                q.includeWeekends)) ||
+            (q.period === "day" &&
+              [0, 6].includes(
+                new Date(`${q.date ?? calendarToday()}T12:00:00Z`).getUTCDay(),
+              )),
+          bufferMinutes: preferences.bufferMinutes ?? 0,
+          ...(organizerParticipantId ? { organizerParticipantId } : {}),
+          durationMinutes:
+            raw.durationMinutes !== undefined
+              ? q.durationMinutes
+              : (preferences.durationMinutes ?? 60),
+          timeFrom:
+            raw.timeFrom !== undefined
+              ? q.timeFrom
+              : (preferences.timeFrom ?? "09:00"),
+          timeTo:
+            raw.timeTo !== undefined
+              ? q.timeTo
+              : (preferences.timeTo ?? "18:00"),
+        });
+        data = { kind: "availability-analysis" as const, query, people };
+        conversation.availability = data;
+        conversation.taskPreferences = {
+          ...conversation.taskPreferences,
+          durationMinutes: query.durationMinutes,
         };
       } else if (name === "findSlots" || name === "prepareMeetingDraft") {
         const stored = assistantMemory

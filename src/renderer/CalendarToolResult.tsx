@@ -1,3 +1,4 @@
+import { availabilityOpeningSchema } from "../shared/availability-analysis.js";
 import {
   TemplateMarkdown,
   useAssistantPresentation,
@@ -12,6 +13,7 @@ const resultSchema = z.discriminatedUnion("ok", [
   z.object({
     ok: z.literal(true),
     data: z.union([
+      availabilityOpeningSchema,
       meetingDraftSchema,
       meetingDeletionSchema,
       z.object({
@@ -61,6 +63,19 @@ export function CalendarToolResult({ output }: { output: unknown }) {
   if (!parsed.success) return <p>Результат недоступен.</p>;
   if (!parsed.data.ok) return <p>{parsed.data.error}</p>;
   const data = parsed.data.data;
+  if ("kind" in data && data.kind === "availability-analysis")
+    return (
+      <button
+        className="secondary"
+        onClick={() =>
+          window.dispatchEvent(
+            new CustomEvent("small:open-availability", { detail: data }),
+          )
+        }
+      >
+        Открыть свободные слоты
+      </button>
+    );
   if ("kind" in data)
     return data.kind === "meeting-delete" ? (
       <MeetingDeletionCard deletion={data} />
