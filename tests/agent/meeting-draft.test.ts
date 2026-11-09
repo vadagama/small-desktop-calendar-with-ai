@@ -43,7 +43,7 @@ test("prepares a read-only 30-minute draft with bound organizer and generated li
   assert.deepEqual(draft.organizer, organizer);
   assert.match(
     draft.conferenceUrl!,
-    /^https:\/\/meet\.small\.kz\/[a-f0-9-]{36}$/,
+    /^https:\/\/meet\.small\.kz\/[a-z]{2,10}(?:-[a-z]{2,10}){2}$/,
   );
   assert.equal(draft.recurrence, "none");
   assert.equal(draft.visibility, "private");

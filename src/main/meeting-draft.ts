@@ -1,3 +1,4 @@
+import { generateConferenceLink } from "../shared/meeting-link.js";
 import { randomUUID } from "node:crypto";
 import {
   meetingDraftInput,
@@ -83,7 +84,7 @@ export async function prepareMeetingDraft(
         ? null
         : q.conference.mode === "custom"
           ? q.conference.url
-          : `https://meet.small.kz/${randomUUID()}`,
+          : generateConferenceLink(),
     recurrence: "none",
     visibility: "private",
     availabilityCheckedAt: new Date().toISOString(),

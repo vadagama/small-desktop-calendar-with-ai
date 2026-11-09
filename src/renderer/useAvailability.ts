@@ -10,11 +10,18 @@ export function useAvailability(
   accountId: string,
   expired: () => void,
   initialPeople: CalendarPerson[] = [],
+  protectedPeople: CalendarPerson[] = [],
 ) {
   const [people, setPeople] = useState<PeoplePage | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
-  const [selected, setSelected] = useState<CalendarPerson[]>(initialPeople);
+  const protectedIds = protectedPeople.map((person) => person.participantId);
+  const [selected, setSelected] = useState<CalendarPerson[]>(() => [
+    ...protectedPeople,
+    ...initialPeople.filter(
+      (person) => !protectedIds.includes(person.participantId),
+    ),
+  ]);
   const [slots, setSlots] = useState<SlotsResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -43,7 +50,7 @@ export function useAvailability(
     const version = ++searchVersion.current;
     setSearching(true);
     setSearchError("");
-    setPeople(null);
+    if (page === 1) setPeople(null);
     try {
       const reply = await window.smallDesktop.calendar.people({
         accountId,
@@ -54,7 +61,23 @@ export function useAvailability(
       if (!reply.ok) {
         setSearchError(reply.error);
         if (reply.kind === "auth") expired();
-      } else setPeople(reply.data);
+      } else
+        setPeople((previous) =>
+          page > 1 && previous
+            ? {
+                ...reply.data,
+                people: [
+                  ...previous.people,
+                  ...reply.data.people.filter(
+                    (person) =>
+                      !previous.people.some(
+                        (old) => old.participantId === person.participantId,
+                      ),
+                  ),
+                ],
+              }
+            : reply.data,
+        );
     } catch {
       if (version === searchVersion.current)
         setSearchError("Не удалось найти сотрудников. Повторите поиск.");
@@ -63,11 +86,14 @@ export function useAvailability(
     }
   }
   function toggle(person: CalendarPerson) {
+    if (protectedIds.includes(person.participantId)) return;
     invalidate();
     setSelected((current) =>
       current.some((p) => p.participantId === person.participantId)
         ? current.filter((p) => p.participantId !== person.participantId)
-        : [...current, person],
+        : current.length < 20
+          ? [...current, person]
+          : current,
     );
   }
   async function find(
@@ -105,6 +131,7 @@ export function useAvailability(
     searching,
     searchError,
     selected,
+    protectedIds,
     slots,
     loading,
     error,

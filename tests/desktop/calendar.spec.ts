@@ -3,7 +3,10 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mockSmall } from "./fixtures/small-api.js";
-import { calendarToday } from "../../src/shared/calendar-time.js";
+import {
+  calendarToday,
+  calendarRange,
+} from "../../src/shared/calendar-time.js";
 
 test("calendar reads Small events and details, distinguishes partial/empty/errors and clears on logout", async () => {
   const userData = await mkdtemp(join(tmpdir(), "small-calendar-e2e-"));
@@ -381,7 +384,10 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
     ).toHaveCount(0);
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Месяц", exact: true }).click();
-    await expect(page.locator(".month-day")).toHaveCount(35);
+    const monthRange = calendarRange(calendarToday(), "month");
+    const monthCellCount =
+      (Date.parse(monthRange.end) - Date.parse(monthRange.start)) / 86_400_000;
+    await expect(page.locator(".month-day")).toHaveCount(monthCellCount);
     await expect(page.locator(".month-event")).toHaveCount(1);
     const room = page.getByRole("checkbox", {
       name: "Тестовая переговорная",

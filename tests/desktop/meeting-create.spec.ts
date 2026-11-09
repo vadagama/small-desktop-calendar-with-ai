@@ -122,13 +122,22 @@ test("header creates a meeting without a model, preserves fields and blocks unkn
     const url = await dialog
       .getByLabel("Ссылка на встречу", { exact: true })
       .inputValue();
-    expect(url).toMatch(/^https:\/\/meet.small.kz\//);
+    expect(url).toMatch(
+      /^https:\/\/meet\.small\.kz\/[a-z]{2,10}(?:-[a-z]{2,10}){2}$/,
+    );
     await dialog.getByLabel("Поиск участников", { exact: true }).fill("Тест");
     await dialog
       .getByRole("button", { name: "Найти сотрудников", exact: true })
       .click();
-    await dialog.getByRole("checkbox").first().check();
-    await dialog.getByRole("checkbox").nth(1).check();
+    await dialog.locator(".meeting-person-option").first().click();
+    await expect(
+      dialog.getByLabel("Поиск участников", { exact: true }),
+    ).toHaveValue("");
+    await dialog.getByLabel("Поиск участников", { exact: true }).fill("Тест");
+    await dialog
+      .getByRole("button", { name: "Найти сотрудников", exact: true })
+      .click();
+    await dialog.locator(".meeting-person-option").first().click();
     await dialog.getByLabel("Дата", { exact: true }).fill("2099-10-29");
     await dialog.getByLabel("Начало", { exact: true }).fill("09:30");
     await dialog.getByLabel("Окончание", { exact: true }).fill("10:00");
@@ -141,7 +150,12 @@ test("header creates a meeting without a model, preserves fields and blocks unkn
     await dialog
       .getByRole("button", { name: "Найти информируемых", exact: true })
       .click();
-    await dialog.getByRole("checkbox").nth(3).check();
+    await dialog
+      .locator(".meeting-people-picker")
+      .nth(1)
+      .locator(".meeting-person-option")
+      .nth(1)
+      .click();
     await dialog.getByLabel("Переговорная", { exact: true }).selectOption("11");
     await dialog.getByRole("switch", { name: "Повторяемость" }).check();
     await dialog.getByLabel("Дата", { exact: true }).fill("");
@@ -204,7 +218,8 @@ test("header creates a meeting without a model, preserves fields and blocks unkn
       BYDAY: ["TH"],
       UNTIL: "2099-11-05",
     });
-    expect(payload.description).toBe(`План обсуждения\n\n${url}`);
+    expect(payload.description).toBe("План обсуждения");
+    expect(payload.location).toBe(url);
 
     await page
       .getByRole("button", { name: "Создать событие", exact: true })
@@ -216,7 +231,7 @@ test("header creates a meeting without a model, preserves fields and blocks unkn
     await dialog
       .getByRole("button", { name: "Найти сотрудников", exact: true })
       .click();
-    await dialog.getByRole("checkbox").first().check();
+    await dialog.locator(".meeting-person-option").first().click();
     await dialog.getByLabel("Дата", { exact: true }).fill("2099-10-30");
     await dialog.getByLabel("Начало", { exact: true }).fill("09:30");
     await dialog.getByLabel("Окончание", { exact: true }).fill("10:00");

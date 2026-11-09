@@ -81,6 +81,8 @@ const csp = [
   "form-action 'none'",
 ].join("; ");
 
+const backgroundE2E = process.env.SMALL_E2E_BACKGROUND === "1";
+
 async function createWindow() {
   const window = new BrowserWindow({
     width: 1440,
@@ -97,6 +99,7 @@ async function createWindow() {
       nodeIntegration: false,
       webSecurity: true,
       webviewTag: false,
+      ...(backgroundE2E ? { backgroundThrottling: false } : {}),
     },
   });
   // https://www.electronjs.org/docs/latest/tutorial/security
@@ -108,7 +111,9 @@ async function createWindow() {
   window.webContents.on("will-attach-webview", (event) =>
     event.preventDefault(),
   );
-  window.once("ready-to-show", () => window.show());
+  window.once("ready-to-show", () => {
+    if (!backgroundE2E) window.show();
+  });
   await window.loadURL(devUrl || localUrl);
 }
 
@@ -118,11 +123,14 @@ app.on("second-instance", () => {
   const window = BrowserWindow.getAllWindows()[0];
   if (window) {
     if (window.isMinimized()) window.restore();
-    window.show();
-    window.focus();
+    if (!backgroundE2E) {
+      window.show();
+      window.focus();
+    }
   } else if (app.isReady()) void createWindow();
 });
 app.whenReady().then(async () => {
+  if (backgroundE2E) app.dock?.hide();
   if (!primaryInstance) return;
   app.dock?.setIcon(appIcon);
   const agentSettings = new AgentSettingsStore(app.getPath("userData"));
@@ -187,6 +195,7 @@ app.whenReady().then(async () => {
         : {}),
       online: () => net.isOnline(),
       visible: () =>
+        backgroundE2E ||
         BrowserWindow.getAllWindows().some(
           (window) => window.isVisible() && !window.isMinimized(),
         ),
@@ -324,8 +333,10 @@ app.whenReady().then(async () => {
       const window = BrowserWindow.getAllWindows()[0];
       if (window) {
         if (window.isMinimized()) window.restore();
-        window.show();
-        window.focus();
+        if (!backgroundE2E) {
+          window.show();
+          window.focus();
+        }
       } else return createWindow();
     },
   );

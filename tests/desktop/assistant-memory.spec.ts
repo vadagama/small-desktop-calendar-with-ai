@@ -175,10 +175,7 @@ test("memory UI persists preferences, entries, groups and presets; chat writes r
     await memory
       .getByRole("button", { name: "Найти сотрудников", exact: true })
       .click();
-    await memory
-      .locator(".meeting-people-results input[type=checkbox]")
-      .first()
-      .check();
+    await memory.locator(".meeting-person-option").first().click();
     await memory
       .getByRole("button", { name: "Сохранить группу", exact: true })
       .click();
