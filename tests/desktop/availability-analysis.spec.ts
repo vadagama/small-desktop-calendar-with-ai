@@ -154,6 +154,8 @@ test("prompt automatically opens availability dashboard, picker and draft remain
       ];
     });
     const page = await app.firstWindow();
+    // Hidden macOS windows may inherit a smaller CI display; fix the viewport for desktop typography assertions.
+    await page.setViewportSize({ width: 1440, height: 960 });
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
     await page
