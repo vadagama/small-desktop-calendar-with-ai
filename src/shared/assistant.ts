@@ -31,6 +31,8 @@ export type AgentControl =
       calendar: boolean;
       configuration: AgentSettingsState;
       history: ModelMessage[];
+      availability?:
+        import("./availability-analysis.js").AvailabilityOpening | undefined;
     }
   | { type: "cancel" }
   | CalendarToolReply;

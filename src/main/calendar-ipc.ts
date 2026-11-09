@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { availabilityAnalysisChannels } from "../shared/availability-analysis.js";
 import type { EventRescheduleService } from "./event-reschedule.js";
 import type { EventChangeService } from "./event-change.js";
 import { ipcMain, shell, clipboard, type IpcMainInvokeEvent } from "electron";
@@ -34,7 +36,7 @@ export function registerCalendarHandlers(
       sync.write(() => action(input), target(input) ?? undefined);
   const handle = <T>(
     channel: string,
-    action: (input: unknown) => Promise<T>,
+    action: (input: unknown, event: IpcMainInvokeEvent) => Promise<T>,
   ) => {
     ipcMain.handle(
       channel,
@@ -46,7 +48,7 @@ export function registerCalendarHandlers(
             error: "Доступ к календарю отклонён",
           };
         try {
-          return { ok: true, data: await action(input) };
+          return { ok: true, data: await action(input, event) };
         } catch (error) {
           return {
             ok: false,
@@ -104,4 +106,38 @@ export function registerCalendarHandlers(
   handle(calendarChannels.detail, (input) => service.detail(input));
   handle(calendarChannels.people, (input) => catalog.searchPeople(input));
   handle(calendarChannels.slots, (input) => availability.find(input));
+  const analysisReads = new Map<number, AbortController>();
+  handle(availabilityAnalysisChannels.read, async (input, event) => {
+    const owner = event.sender.id;
+    analysisReads.get(owner)?.abort();
+    const controller = new AbortController();
+    analysisReads.set(owner, controller);
+    const close = () => controller.abort();
+    event.sender.once("destroyed", close);
+    const requestId = randomUUID();
+    const started = performance.now();
+    let outcome = "success";
+    try {
+      return await availability.analyze(input, controller.signal);
+    } catch (error) {
+      outcome = controller.signal.aborted
+        ? "canceled"
+        : error instanceof CalendarError || error instanceof SmallAuthError
+          ? error.kind
+          : "unknown";
+      throw error;
+    } finally {
+      console.info(
+        JSON.stringify({
+          event: "availability_read",
+          entryPoint: "calendar_ipc",
+          requestId,
+          outcome,
+          elapsedMs: Math.round(performance.now() - started),
+        }),
+      );
+      event.sender.removeListener("destroyed", close);
+      if (analysisReads.get(owner) === controller) analysisReads.delete(owner);
+    }
+  });
 }

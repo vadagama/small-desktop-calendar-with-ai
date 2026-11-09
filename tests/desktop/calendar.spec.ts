@@ -8,7 +8,7 @@ import {
   calendarRange,
 } from "../../src/shared/calendar-time.js";
 
-test("calendar reads Small events and details, distinguishes partial/empty/errors and clears on logout", async () => {
+test("calendar reads Small events and details, hides room navigation and clears on logout", async () => {
   const userData = await mkdtemp(join(tmpdir(), "small-calendar-e2e-"));
   const executablePath = process.env.SMALL_APP_EXECUTABLE;
   const app = await _electron.launch({
@@ -82,7 +82,7 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
       .click();
     await expect(
       page.getByRole("button", { name: "Переговорные", exact: true }),
-    ).toBeVisible();
+    ).toHaveCount(0);
     await expect(mini).toBeVisible();
     await page.screenshot({ path: "test-results/desktop/calendar-900.png" });
     await page
@@ -389,81 +389,18 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
       (Date.parse(monthRange.end) - Date.parse(monthRange.start)) / 86_400_000;
     await expect(page.locator(".month-day")).toHaveCount(monthCellCount);
     await expect(page.locator(".month-event")).toHaveCount(1);
-    const room = page.getByRole("checkbox", {
-      name: "Тестовая переговорная",
-      exact: true,
-    });
-    const personal = page.getByRole("checkbox", {
-      name: "Мои встречи",
-      exact: true,
-    });
-    await expect(room).toHaveCount(0);
-    await expect(personal).toBeVisible();
-    await page
-      .getByRole("button", { name: "Переговорные", exact: true })
-      .click();
-    await expect(personal).toHaveCount(0);
-    await room.check();
-    await expect(page.locator(".month-event")).toHaveCount(1);
-    await page.getByRole("button", { name: "Календарь", exact: true }).click();
-    await expect(room).toHaveCount(0);
-    await expect(personal).toBeChecked();
-    await page
-      .getByRole("button", { name: "Переговорные", exact: true })
-      .click();
-    await expect(room).toBeChecked();
-    await expect(page.locator(".month-event")).toHaveCount(1);
-    await page.getByRole("checkbox", { name: "Нет прав", exact: true }).check();
-    await expect(page.locator(".calendar-warning")).toContainText(
-      "Нет доступа",
-    );
-    await expect(page.locator(".month-event")).toHaveCount(1);
-    await page.screenshot({
-      path: "test-results/desktop/calendar-partial.png",
-    });
-    await page
-      .getByRole("checkbox", { name: "Тестовая переговорная", exact: true })
-      .uncheck();
     await expect(
-      page.getByText("Нет подтверждённых данных за этот период."),
-    ).toBeVisible();
-    await expect(
-      page.getByText("В этом периоде встреч нет.", { exact: true }),
+      page.getByRole("button", { name: "Переговорные", exact: true }),
     ).toHaveCount(0);
-    await page
-      .getByRole("checkbox", { name: "Тестовая переговорная", exact: true })
-      .check();
-    await page
-      .getByRole("checkbox", { name: "Нет прав", exact: true })
-      .uncheck();
-    await page
-      .getByRole("checkbox", { name: "Сбой сервера", exact: true })
-      .check();
-    await expect(page.locator(".calendar-warning")).toContainText(
-      "Не удалось загрузить",
-    );
-    await page
-      .getByRole("checkbox", { name: "Сбой сервера", exact: true })
-      .uncheck();
-    await page
-      .getByRole("checkbox", { name: "Неполный ответ", exact: true })
-      .check();
-    await expect(page.locator(".calendar-warning")).toContainText(
-      "неизвестный формат",
-    );
-    await page
-      .getByRole("checkbox", { name: "Неполный ответ", exact: true })
-      .uncheck();
-    await page
-      .getByRole("checkbox", { name: "Тестовая переговорная", exact: true })
-      .uncheck();
-    await page
-      .getByRole("checkbox", { name: "Пустой календарь", exact: true })
-      .check();
     await expect(
-      page.getByText("В этом периоде встреч нет.", { exact: true }),
-    ).toBeVisible();
-    await expect(page.locator(".month-event")).toHaveCount(0);
+      page.getByRole("checkbox", {
+        name: "Тестовая переговорная",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("checkbox", { name: "Мои встречи", exact: true }),
+    ).toBeChecked();
     await page
       .getByRole("button", { name: "Профиль Small", exact: true })
       .click();

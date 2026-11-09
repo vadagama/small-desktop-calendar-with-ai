@@ -44,7 +44,7 @@ test("calendar cells create timed drafts and protect unsaved changes", async () 
     await page
       .getByRole("button", { name: "Следующий период", exact: true })
       .click();
-    const cell = page.locator('.calendar-slot[data-create-start="780"]');
+    const cell = page.locator('.calendar-slot[data-create-start="840"]');
     await expect(page.locator(".calendar-slot")).toHaveCount(48);
     await cell.click();
     const form = page.getByRole("dialog", {
@@ -59,10 +59,10 @@ test("calendar cells create timed drafts and protect unsaved changes", async () 
       tomorrow,
     );
     await expect(form.getByLabel("Начало", { exact: true })).toHaveValue(
-      "13:00",
+      "14:00",
     );
     await expect(form.getByLabel("Окончание", { exact: true })).toHaveValue(
-      "13:30",
+      "14:30",
     );
     // An untouched draft can close immediately.
     await form.getByRole("button", { name: "Закрыть новое событие" }).click();
@@ -116,7 +116,7 @@ test("calendar cells create timed drafts and protect unsaved changes", async () 
       await page.mouse.down();
       await page.mouse.move(box.x + box.width / 2, box.y + 80, { steps: 10 });
       await expect(page.locator(".calendar-selection")).toContainText(
-        "13:00 – 14:15",
+        "14:00 – 15:15",
       );
       if (cancel) await page.keyboard.press("Escape");
       else
@@ -132,7 +132,7 @@ test("calendar cells create timed drafts and protect unsaved changes", async () 
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");
     await expect(form.getByLabel("Начало", { exact: true })).toHaveValue(
-      "13:30",
+      "14:30",
     );
     await page.keyboard.press("Escape");
     await page.locator('.calendar-slot[data-create-start="1410"]').click();
@@ -146,10 +146,10 @@ test("calendar cells create timed drafts and protect unsaved changes", async () 
     await page.keyboard.press("Escape");
     await drag();
     await expect(form.getByLabel("Начало", { exact: true })).toHaveValue(
-      "13:00",
+      "14:00",
     );
     await expect(form.getByLabel("Окончание", { exact: true })).toHaveValue(
-      "14:15",
+      "15:15",
     );
     await form
       .getByLabel("Наименование", { exact: false })
@@ -160,7 +160,7 @@ test("calendar cells create timed drafts and protect unsaved changes", async () 
           syntheticAvailableSlots: { start: string; end: string }[];
         }
       ).syntheticAvailableSlots = [
-        { start: `${date}T13:00:00+05:00`, end: `${date}T14:15:00+05:00` },
+        { start: `${date}T14:00:00+05:00`, end: `${date}T15:15:00+05:00` },
       ];
     }, tomorrow);
     await form.getByRole("button", { name: "Создать", exact: true }).click();
@@ -181,7 +181,7 @@ test("calendar cells create timed drafts and protect unsaved changes", async () 
       75 * 60000,
     );
     expect(Date.parse(payload.starts_at)).toBe(
-      Date.parse(`${tomorrow}T13:00:00+05:00`),
+      Date.parse(`${tomorrow}T14:00:00+05:00`),
     );
     expect(errors).toEqual([]);
     await page

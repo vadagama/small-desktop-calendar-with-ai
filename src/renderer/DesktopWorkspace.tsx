@@ -1,3 +1,5 @@
+import { AvailabilityAnalysisPanel } from "./AvailabilityAnalysis";
+import type { AvailabilityOpening } from "../shared/availability-analysis.js";
 import { Help } from "./ui/Help";
 import { helpArticles } from "./help-content";
 import { EventList } from "./ui/EventList";
@@ -17,7 +19,13 @@ import {
 } from "./notification-events.js";
 import { NewMeeting } from "./NewMeeting";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CalendarDays, Settings2, UsersRound, Plus } from "lucide-react";
+import {
+  CalendarClock,
+  CalendarDays,
+  Settings2,
+  UsersRound,
+  Plus,
+} from "lucide-react";
 import { Calendar } from "./ui/CalendarView";
 import type { Meeting, Slot } from "./ui/types";
 import { DesktopAssistant } from "./Assistant";
@@ -58,6 +66,12 @@ import type { CalendarEvent, CalendarView } from "../shared/calendar.js";
 import type { SmallAuthState, SmallAuthStatus } from "../shared/small-auth.js";
 
 export function DesktopWorkspace() {
+  const [availabilityOpening, setAvailabilityOpening] = useState<{
+    id: string;
+    value: AvailabilityOpening;
+  } | null>(null);
+  const [availabilityActive, setAvailabilityActive] = useState(false);
+  const [availabilityRefresh, setAvailabilityRefresh] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpPrompt, setHelpPrompt] = useState<{ id: string; text: string }>();
   const consumeHelpPrompt = useCallback(() => setHelpPrompt(undefined), []);
@@ -112,6 +126,8 @@ export function DesktopWorkspace() {
   const accountId = needsAuth ? null : identityId;
   currentAccount.current = accountId;
   useEffect(() => {
+    setAvailabilityOpening(null);
+    setAvailabilityActive(false);
     setParticipation({ organizer: true, invited: true, informed: true });
     setMemoryOpen(false);
     setRemindersOpen(false);
@@ -125,8 +141,36 @@ export function DesktopWorkspace() {
   const expired = useCallback(() => {
     requireSmallAccount();
   }, []);
+  useEffect(() => {
+    const open = (value: AvailabilityOpening) => {
+      if (value.query.accountId !== currentAccount.current) return;
+      setHelpOpen(false);
+      setDate(value.query.date);
+      setAvailabilityOpening({ id: crypto.randomUUID(), value });
+      setAvailabilityActive(true);
+    };
+    const unsubscribe =
+      window.smallDesktop.calendar.subscribeAvailability(open);
+    const event = (e: Event) =>
+      open((e as CustomEvent<AvailabilityOpening>).detail);
+    window.addEventListener("small:open-availability", event);
+    const reset = () => {
+      setAvailabilityOpening(null);
+      setAvailabilityActive(false);
+      void window.smallDesktop.calendar.updateAvailabilityContext(null);
+    };
+    window.addEventListener("small:new-conversation", reset);
+    return () => {
+      unsubscribe();
+      window.removeEventListener("small:open-availability", event);
+      window.removeEventListener("small:new-conversation", reset);
+    };
+  }, []);
   const calendar = useSmallCalendar(accountId, date, view, expired);
   const list = useEventList(accountId, setDate, setView);
+  useEffect(() => {
+    if (list.result) setAvailabilityActive(false);
+  }, [list.result]);
   const listResult = list.active ? list.result : null;
   const listRange = listResult?.query ?? monthRange(date);
   const navigateDate = (next: string) => {
@@ -431,17 +475,65 @@ export function DesktopWorkspace() {
           <UsersRound size={22} />
         </div>
         <button
-          className={helpOpen ? "" : "active"}
+          className={!helpOpen && !availabilityActive ? "active" : ""}
+          aria-current={!helpOpen && !availabilityActive ? "page" : undefined}
           aria-label="Показать календари"
           aria-controls="small-calendar-filters"
           onClick={() => {
-            if (helpOpen) {
+            if (availabilityActive) {
+              setAvailabilityActive(false);
+              setHelpOpen(false);
+            } else if (helpOpen) {
               setHelpOpen(false);
               setFiltersOpen(false);
             } else setFiltersOpen((open) => !open);
           }}
         >
           <CalendarDays size={19} />
+        </button>
+        <button
+          className={!helpOpen && availabilityActive ? "active" : ""}
+          aria-current={!helpOpen && availabilityActive ? "page" : undefined}
+          aria-label="Свободные слоты"
+          title="Свободные слоты"
+          onClick={() => {
+            if (!accountId || account?.status !== "signed-in") {
+              openSmallAccount();
+              return;
+            }
+            setHelpOpen(false);
+            setAvailabilityActive(true);
+            if (availabilityOpening) return;
+            const id = account.profile.participantId;
+            setAvailabilityOpening({
+              id: crypto.randomUUID(),
+              value: {
+                kind: "availability-analysis",
+                query: {
+                  accountId,
+                  participantIds: id ? [id] : [],
+                  date,
+                  period: "week",
+                  durationMinutes: 60,
+                  includeWeekends: false,
+                  bufferMinutes: 0,
+                  timeFrom: "09:00",
+                  timeTo: "18:00",
+                },
+                people: id
+                  ? [
+                      {
+                        participantId: id,
+                        name: account.profile.name,
+                        position: "",
+                      },
+                    ]
+                  : [],
+              },
+            });
+          }}
+        >
+          <CalendarClock size={20} />
         </button>
         <button
           className={`rail-memory ${memoryOpen ? "active" : ""}`}
@@ -492,6 +584,8 @@ export function DesktopWorkspace() {
       </nav>
       <CalendarFilters
         calendar={calendar}
+        availabilityMode={availabilityActive && !helpOpen}
+        refreshAvailability={() => setAvailabilityRefresh((n) => n + 1)}
         enabled={Boolean(accountId)}
         date={date}
         setDate={navigateDate}
@@ -543,7 +637,10 @@ export function DesktopWorkspace() {
               setHelpPrompt({ id: crypto.randomUUID(), text });
             }}
             onAction={(action) => {
-              if (action === "calendar") setHelpOpen(false);
+              if (action === "calendar") {
+                setHelpOpen(false);
+                setAvailabilityActive(false);
+              }
               if (action === "memory") setMemoryOpen(true);
               if (action === "settings") setAgentSettingsOpen(true);
               if (action === "account") openSmallAccount();
@@ -559,6 +656,61 @@ export function DesktopWorkspace() {
           <SmallAuthNotice expired={Boolean(identityId)} />
         )}
         <DockWorkspace
+          availability={
+            availabilityOpening && accountId
+              ? {
+                  id: availabilityOpening.id,
+                  content: (
+                    <AvailabilityAnalysisPanel
+                      key={availabilityOpening.id}
+                      opening={availabilityOpening.value}
+                      visible={availabilityActive && !helpOpen}
+                      selectedDate={date}
+                      onDateChange={navigateDate}
+                      refreshKey={availabilityRefresh}
+                      organizer={
+                        account?.status === "signed-in" &&
+                        account.profile.participantId
+                          ? {
+                              participantId: account.profile.participantId,
+                              name: account.profile.name,
+                              position: "",
+                            }
+                          : undefined
+                      }
+                      expired={expired}
+                      context={(query, people) => {
+                        void window.smallDesktop.calendar.updateAvailabilityContext(
+                          { kind: "availability-analysis", query, people },
+                        );
+                      }}
+                      draft={(choice, duration) => {
+                        setInitialPeople(
+                          choice.people.map((p) => ({
+                            id: p.participantId,
+                            name: p.name,
+                            status: "accepted",
+                            organizer: false,
+                          })),
+                        );
+                        setInitialSlot({
+                          date: calendarDateAt(choice.start),
+                          start:
+                            new Date(
+                              Date.parse(choice.start) + 5 * 3600000,
+                            ).getUTCHours() *
+                              60 +
+                            new Date(choice.start).getUTCMinutes(),
+                          duration,
+                        });
+                        setCreating(true);
+                      }}
+                    />
+                  ),
+                }
+              : undefined
+          }
+          availabilityActive={availabilityActive}
           hidden={helpOpen}
           settingsOpen={settingsOpen}
           closeSettings={() => setSettingsOpen(false)}

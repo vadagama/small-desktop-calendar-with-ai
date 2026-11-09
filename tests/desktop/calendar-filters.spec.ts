@@ -89,14 +89,10 @@ test("personal participation filters work locally in every view and preserve roo
         1,
       );
     }
-    await page
-      .getByRole("button", { name: "Переговорные", exact: true })
-      .click();
-    await page
-      .getByRole("checkbox", { name: "Тестовая переговорная", exact: true })
-      .check();
-    await expect(page.locator(".calendar-event")).toHaveCount(2);
-    await page.getByRole("button", { name: "Календарь", exact: true }).click();
+    // Room navigation is temporarily hidden; personal filters remain unchanged.
+    await expect(
+      page.getByRole("button", { name: "Переговорные", exact: true }),
+    ).toHaveCount(0);
     await expect(invited).not.toBeChecked();
     await expect(page.locator(".calendar-event")).toHaveCount(1);
 

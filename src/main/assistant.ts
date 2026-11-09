@@ -1,3 +1,8 @@
+import { AvailabilitySessions } from "./availability-session.js";
+import {
+  availabilityAnalysisChannels,
+  availabilityOpeningSchema,
+} from "../shared/availability-analysis.js";
 import { eventListChannel } from "../shared/event-list-channel.js";
 import type { CalendarConversation } from "./calendar-conversation.js";
 import { WindowConversations } from "./window-conversations.js";
@@ -60,6 +65,24 @@ export function registerAssistantHandlers(
     !event.sender.isDestroyed() &&
     event.senderFrame === event.sender.mainFrame &&
     event.senderFrame?.url === rendererUrl;
+  const availabilityOwners = new WeakSet<WebContents>();
+  const availabilitySessions = new AvailabilitySessions();
+  ipcMain.handle(
+    availabilityAnalysisChannels.context,
+    (event, input: unknown) => {
+      if (!trusted(event)) return;
+      if (input === null) {
+        availabilitySessions.close(
+          event.sender.id,
+          jobs.get(event.sender.id)?.requestId,
+        );
+        return;
+      }
+      const parsed = availabilityOpeningSchema.safeParse(input);
+      if (!parsed.success) return;
+      availabilitySessions.set(event.sender.id, parsed.data);
+    },
+  );
   const send = (job: Job, event: AgentEvent) => {
     if (!job.owner.isDestroyed())
       job.owner.send(assistantChannels.event, event);
@@ -123,6 +146,12 @@ export function registerAssistantHandlers(
       };
       jobs.set(ownerId, job);
       owner.once("destroyed", job.stop);
+      if (!availabilityOwners.has(owner)) {
+        availabilityOwners.add(owner);
+        owner.once("destroyed", () => {
+          availabilitySessions.destroy(ownerId);
+        });
+      }
       owner.on("did-start-navigation", job.stop);
       let worker: UtilityProcess;
       let profile: ModelConnection | null;
@@ -143,6 +172,30 @@ export function registerAssistantHandlers(
             { ownerId, requestId: parsed.data.requestId },
           );
         if (!calendar) state.bindAccount(null);
+        const context = state.boundAccount
+          ? availabilitySessions.context(ownerId, state.boundAccount)
+          : undefined;
+        if (
+          calendar &&
+          context &&
+          state.matchesAccount(context.query.accountId)
+        ) {
+          state.availability = context;
+          state.selected = context.people.map((p) => p.participantId);
+          state.selectionConfirmed = true;
+          for (const person of context.people)
+            state.people.set(person.participantId, person);
+          state.taskPreferences = {
+            ...state.taskPreferences,
+            durationMinutes: context.query.durationMinutes,
+            timeFrom: context.query.timeFrom,
+            timeTo: context.query.timeTo,
+          };
+        } else {
+          state.clearAvailability();
+          if (context) availabilitySessions.destroy(ownerId);
+        }
+
         if (jobs.get(ownerId) !== job) return { ok: true };
         if (!trusted(event)) {
           finish(job, true);
@@ -180,6 +233,7 @@ export function registerAssistantHandlers(
             calendar: calendar !== null,
             configuration,
             history: state.messages,
+            availability: state.availability,
           } satisfies AgentControl);
         else worker.kill();
       });
@@ -204,6 +258,7 @@ export function registerAssistantHandlers(
               participantMemory: "people-search",
               assistantMemory: "people-search",
               findSlots: "availability",
+              showAvailabilityAnalysis: "availability",
               prepareMeetingDraft: "meeting-draft",
               prepareMeetingDeletion: "meeting-delete",
             } as const;
@@ -240,6 +295,20 @@ export function registerAssistantHandlers(
                   result.data.kind === "event-list"
                 )
                   job.owner.send(eventListChannel, result.data);
+                if (
+                  result.ok &&
+                  "kind" in result.data &&
+                  result.data.kind === "availability-analysis" &&
+                  availabilitySessions.deliver(
+                    ownerId,
+                    job.requestId,
+                    message.callId,
+                  )
+                )
+                  job.owner.send(
+                    availabilityAnalysisChannels.open,
+                    result.data,
+                  );
                 if (jobs.get(ownerId) === job)
                   worker.postMessage({
                     type: "calendar-result",
@@ -279,6 +348,7 @@ export function registerAssistantHandlers(
     trusted,
     cancelActive: () => {
       conversations.clear();
+      availabilitySessions.clear();
       for (const job of [...jobs.values()]) finish(job, true);
     },
   };

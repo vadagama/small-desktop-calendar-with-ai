@@ -28,9 +28,15 @@ async function run(
   calendar: boolean,
   configuration: AgentSettingsState,
   history: ModelMessage[],
+  availability?: import("../shared/availability-analysis.js").AvailabilityOpening,
 ) {
   try {
-    const options = { prompt, history, abortSignal: controller.signal };
+    const options = {
+      prompt,
+      history,
+      availability,
+      abortSignal: controller.signal,
+    };
     const result =
       calendar && profile
         ? await streamCalendarTurn(
@@ -111,5 +117,6 @@ port.on("message", ({ data }: { data: AgentControl }) => {
       data.calendar,
       data.configuration,
       data.history,
+      data.availability,
     );
 });
