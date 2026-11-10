@@ -212,12 +212,13 @@ app.whenReady().then(async () => {
   );
   // Creating a meeting changes Small's calendar, so the cached copy is dropped.
   const writer: MeetingWriter = {
-    preflight: (draft) => meetingWriter.preflight(draft),
+    preflight: (draft, allowUnconfirmed) =>
+      meetingWriter.preflight(draft, allowUnconfirmed),
     verify: (draft, eventId) => meetingWriter.verify(draft, eventId),
     wasDeleted: (draft, eventId) => meetingWriter.wasDeleted(draft, eventId),
-    create: (draft) =>
+    create: (draft, allowUnconfirmed) =>
       calendarSync.write(
-        () => meetingWriter.create(draft),
+        () => meetingWriter.create(draft, allowUnconfirmed),
         meetingTarget(draft),
       ),
   };

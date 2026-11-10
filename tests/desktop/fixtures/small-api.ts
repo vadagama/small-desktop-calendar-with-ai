@@ -18,6 +18,8 @@ export async function mockSmall(app: ElectronApplication, date: string) {
        * only the event list (not the card) shows the new time, as with replica lag.
        */
       syntheticUpdateOutcome?: "reject" | "lose" | "lose-applied";
+      syntheticUpdateConflict?: boolean;
+      syntheticUpdateForces?: string[];
       syntheticUpdateDelayMs?: number;
       syntheticListDelayMs?: number;
       syntheticListAfterCreateDelayMs?: number;
@@ -41,6 +43,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
       syntheticEventOwner?: string;
       syntheticEventMutations: number;
       syntheticCreatedPayload?: Record<string, unknown>;
+      syntheticCreateForce?: string | null;
     };
     inspection.syntheticMeetingWrites = 0;
     inspection.syntheticEventMutations = 0;
@@ -155,7 +158,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         path === "/gate/team/api/calendar/events" &&
         request.method === "POST"
       ) {
-        if (url.searchParams.get("force") !== "false")
+        if (!["false", "true"].includes(url.searchParams.get("force") ?? ""))
           return new Response(null, { status: 400 });
         if (inspection.syntheticCreateRejection)
           return new Response(null, {
@@ -164,6 +167,7 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         const body = await request.json();
         inspection.syntheticMeetingWrites++;
         inspection.syntheticCreatedPayload = body;
+        inspection.syntheticCreateForce = url.searchParams.get("force");
         const event = {
           ...body,
           description: body.description || null,
@@ -251,9 +255,24 @@ export async function mockSmall(app: ElectronApplication, date: string) {
         path === "/gate/team/api/calendar/events/42" &&
         request.method === "PUT"
       ) {
-        if (url.searchParams.get("force") !== "false")
+        if (!["false", "true"].includes(url.searchParams.get("force") ?? ""))
           return new Response(null, { status: 400 });
         const body = await request.json();
+        (inspection.syntheticUpdateForces ??= []).push(
+          url.searchParams.get("force")!,
+        );
+        if (
+          inspection.syntheticUpdateConflict &&
+          url.searchParams.get("force") !== "true"
+        )
+          return Response.json(
+            {
+              status: "error",
+              message: "Validation failed",
+              errors: { participant_ids: body.participant_ids },
+            },
+            { status: 422 },
+          );
         if (inspection.syntheticUpdateDelayMs)
           await new Promise((resolve) =>
             setTimeout(resolve, inspection.syntheticUpdateDelayMs),

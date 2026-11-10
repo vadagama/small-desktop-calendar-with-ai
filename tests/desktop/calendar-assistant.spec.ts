@@ -386,9 +386,7 @@ test("calendar tools cross utility/main boundary and render trusted results", as
         exact: true,
       })
       .click();
-    await expect(draft.getByRole("status")).toContainText(
-      "Время больше не свободно",
-    );
+    await expect(draft).toContainText("Время больше не свободно");
     await expect(draft).not.toContainText("Нет пересечений у участников");
     expect(await writes()).toBe(0);
     await setSlots("2099-10-29");
@@ -398,9 +396,9 @@ test("calendar tools cross utility/main boundary and render trusted results", as
       ).syntheticCreateRejection = 409;
     });
     await draft
-      .getByRole("button", { name: "Создать встречу", exact: true })
+      .getByRole("button", { name: "Да, поставить встречу", exact: true })
       .click();
-    await expect(draft.getByRole("status")).toContainText(
+    await expect(draft).toContainText(
       "Small отклонил создание: обнаружен конфликт времени",
     );
     expect(await writes()).toBe(0);
@@ -412,11 +410,11 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     });
     await draft
       .getByRole("button", {
-        name: "Создать встречу",
+        name: "Да, поставить встречу",
         exact: true,
       })
       .click();
-    await expect(draft.getByRole("status")).toContainText("Встреча создана:");
+    await expect(draft).toContainText("Встреча создана:");
     expect(await writes()).toBe(1);
     await expect(
       page.getByRole("button", {
@@ -429,7 +427,7 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     );
     expect(repeated.ok).toBe(true);
     expect(await writes()).toBe(1);
-    await expect(draft.getByRole("status")).toContainText("Встреча создана:");
+    await expect(draft).toContainText("Встреча создана:");
     await page.screenshot({ path: "test-results/desktop/meeting-created.png" });
     turn++;
     plan = [
@@ -725,9 +723,9 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     // Three adjacent meetings in one assistant turn are separate operations.
     turn++;
     const batchSlots = [
-      { start: "2099-11-02T13:00:00+05:00", end: "2099-11-02T13:30:00+05:00" },
-      { start: "2099-11-02T13:30:00+05:00", end: "2099-11-02T14:00:00+05:00" },
       { start: "2099-11-02T14:00:00+05:00", end: "2099-11-02T14:30:00+05:00" },
+      { start: "2099-11-02T14:30:00+05:00", end: "2099-11-02T15:00:00+05:00" },
+      { start: "2099-11-02T15:00:00+05:00", end: "2099-11-02T15:30:00+05:00" },
     ];
     await app.evaluate((_electron, slots) => {
       (
@@ -737,11 +735,15 @@ test("calendar tools cross utility/main boundary and render trusted results", as
       ).syntheticAvailableSlots = slots;
     }, batchSlots);
     const batchPrompt =
-      "Подготовь три личные встречи подряд по полчаса второго ноября с 13:00";
+      "Подготовь три личные встречи подряд по полчаса второго ноября с 14:00";
     plan = [
       {
         name: "assistantMemory",
-        input: { action: "task", resetTask: true, evidence: batchPrompt },
+        input: {
+          action: "task",
+          resetTask: true,
+          evidence: batchPrompt,
+        },
       },
       { name: "selectParticipants", input: { participantIds: [] } },
       ...batchSlots.map((slot, index) => ({
@@ -816,7 +818,7 @@ test("calendar tools cross utility/main boundary and render trusted results", as
       },
     ];
     await send(
-      "Подготовь новую личную встречу на освободившиеся 13:00 второго ноября",
+      "Подготовь новую личную встречу на освободившиеся 14:00 второго ноября",
     );
     const replacement = page
       .getByRole("region", { name: "Черновик встречи", exact: true })
@@ -986,6 +988,77 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     await page.screenshot({
       path: "test-results/desktop/memory-task-copy.png",
     });
+    turn++;
+    const unconfirmedInput = {
+      title: "Встреча на выбранное время",
+      agenda: "Синтетическая проверка",
+      participantIds: ["synthetic-b"],
+      startsAt: "2099-11-04T09:00:00+05:00",
+      durationMinutes: 30,
+      location: "",
+      conference: { mode: "none" },
+    };
+    plan = [{ name: "prepareMeetingDraft", input: unconfirmedInput }];
+    answer = "Интервал не подтверждён.";
+    await send(
+      "Поставь встречу с тем же участником 4 ноября в 9:00 на 30 минут",
+    );
+    await expect(log).toContainText(
+      "Выбранный интервал не подтверждён для всех участников",
+    );
+    turn++;
+    answer = "";
+    await send("Всё равно поставь встречу именно в это время");
+    const overrideDraft = page
+      .getByRole("region", { name: "Черновик встречи", exact: true })
+      .last();
+    await expect(overrideDraft).toContainText(
+      "Выбранный интервал не подтверждён для всех участников. Вы действительно хотите поставить встречу?",
+    );
+    await expect(overrideDraft).toContainText("09:00–09:30");
+    await expect(overrideDraft).not.toContainText(
+      "Нет пересечений у участников",
+    );
+    const beforeOverride = await writes();
+    const latestOutput = outputs.findLast((value) => {
+      const result = value as { ok?: boolean; data?: { kind?: string } };
+      return result.ok && result.data?.kind === "meeting-draft";
+    }) as { data: { id: string; revision: number } };
+    const noConsent = await page.evaluate(
+      (ref) => window.smallDesktop.meetings.confirm(ref),
+      { id: latestOutput.data.id, revision: latestOutput.data.revision },
+    );
+    expect(noConsent.ok && noConsent.data.phase).toBe("preview");
+    expect(await writes()).toBe(beforeOverride);
+    const confirmOverride = overrideDraft.getByRole("button", {
+      name: "Да, поставить встречу",
+      exact: true,
+    });
+    await expect(confirmOverride).toHaveCSS("font-size", "14px");
+    await confirmOverride.scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: "test-results/desktop/assistant-unconfirmed-meeting.png",
+    });
+    await confirmOverride.focus();
+    await page.keyboard.press("Enter");
+    await expect(overrideDraft).toContainText("Встреча создана:");
+    expect(await writes()).toBe(beforeOverride + 1);
+    expect(
+      await app.evaluate(
+        () =>
+          (globalThis as typeof globalThis & { syntheticCreateForce: string })
+            .syntheticCreateForce,
+      ),
+    ).toBe("true");
+    await page.evaluate(
+      (ref) =>
+        window.smallDesktop.meetings.confirm({
+          ...ref,
+          allowUnconfirmed: true,
+        }),
+      { id: latestOutput.data.id, revision: latestOutput.data.revision },
+    );
+    expect(await writes()).toBe(beforeOverride + 1);
   } finally {
     const cleanupPage = await app.firstWindow();
     const removed = await cleanupPage.evaluate(() =>

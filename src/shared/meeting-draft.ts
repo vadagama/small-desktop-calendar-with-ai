@@ -21,6 +21,7 @@ export const meetingDraftInput = z.strictObject({
     z.strictObject({ mode: z.literal("custom"), url: conferenceUrl }),
     z.strictObject({ mode: z.literal("none") }),
   ]),
+  allowUnconfirmed: z.boolean().optional(),
 });
 export const meetingDraftSchema = z.strictObject({
   kind: z.literal("meeting-draft"),
@@ -50,6 +51,7 @@ export const meetingDraftSchema = z.strictObject({
   options: meetingOptions.optional(),
   visibility: z.literal("private"),
   availabilityCheckedAt: z.iso.datetime(),
+  availabilityUnconfirmed: z.boolean().optional(),
   memoryPolicy: z
     .strictObject({
       revision: z.number().int().nonnegative(),
@@ -63,6 +65,8 @@ export const meetingDraftSchema = z.strictObject({
 });
 export type MeetingDraft = z.infer<typeof meetingDraftSchema>;
 
-export const manualMeetingInput = meetingDraftInput.extend({
-  options: meetingOptions,
-});
+export const manualMeetingInput = meetingDraftInput
+  .omit({ allowUnconfirmed: true })
+  .extend({
+    options: meetingOptions,
+  });

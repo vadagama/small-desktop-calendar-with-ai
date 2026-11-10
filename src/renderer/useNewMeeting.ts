@@ -1,4 +1,6 @@
 import { editableEvent } from "../shared/event-edit.js";
+import type { EventEditQuery } from "../shared/event-edit.js";
+import type { MeetingDraft } from "../shared/meeting-draft.js";
 import {
   clockMinutes as minutes,
   meetingDuration,
@@ -115,6 +117,10 @@ export function useNewMeeting({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [result, setResult] = useState<MeetingView | null>(null);
+  const [conflict, setConflict] = useState<{
+    names: string[];
+    confirm: () => Promise<void>;
+  } | null>(null);
   const wasAuthRequired = useRef(authRequired);
   useEffect(() => {
     if (wasAuthRequired.current && !authRequired && files.length && !result) {
@@ -178,6 +184,9 @@ export function useNewMeeting({
     files: files.map((f) => f.id),
   });
   const original = useRef(snapshot);
+  useEffect(() => {
+    setConflict(null);
+  }, [snapshot, authRequired]);
   const dirty = original.current !== snapshot;
   const endsNextDay = minutes(end) < minutes(start);
   const durationMinutes = meetingDuration(start, end);
@@ -215,6 +224,82 @@ export function useNewMeeting({
       else setError(r.error);
     } catch {
       if (active.current) setError("Не удалось прикрепить файл.");
+    } finally {
+      running.current = false;
+      if (active.current) setBusy(false);
+    }
+  }
+  async function saveEdit(query: EventEditQuery, allowConflicts = false) {
+    const reply = await window.smallDesktop.calendar.updateEvent({
+      ...query,
+      allowConflicts,
+    });
+    if (!active.current) return;
+    if (!reply.ok) {
+      if (reply.kind === "auth") expired();
+      const conflictingIds = reply.conflictingParticipantIds;
+      if (conflictingIds && !allowConflicts) {
+        setConflict({
+          names: people.selected
+            .filter((p) => conflictingIds.includes(p.participantId))
+            .map((p) => p.name),
+          confirm: () => saveEdit(query, true),
+        });
+        return;
+      }
+      throw new Error(reply.error);
+    }
+    notifySuccess("Изменения сохранены");
+    saved?.();
+  }
+  function showDraftConflict(draft: MeetingDraft) {
+    setResult(null);
+    setConflict({ names: [], confirm: () => submitDraft(draft, true) });
+  }
+  async function submitDraft(draft: MeetingDraft, allowUnconfirmed = false) {
+    setResult({
+      draft,
+      phase: "unknown",
+      message:
+        "Ответ не получен. Проверьте результат перед повторным созданием.",
+    });
+    const reply = await window.smallDesktop.meetings.confirm({
+      id: draft.id,
+      revision: draft.revision,
+      allowUnconfirmed,
+    });
+    if (!active.current) return;
+    if (!reply.ok) throw new Error(reply.error);
+    if (
+      reply.data.phase === "preview" &&
+      reply.data.draft.availabilityUnconfirmed &&
+      !allowUnconfirmed
+    ) {
+      showDraftConflict(reply.data.draft);
+      return;
+    }
+    setResult(reply.data);
+    if (reply.data.phase !== "succeeded") notifyError("создать событие");
+    if (reply.data.phase === "succeeded") {
+      notifySuccess("Событие успешно создано");
+      created(reply.data);
+      close();
+    }
+  }
+  async function confirmConflict() {
+    if (!conflict || running.current || disabled || authRequired) return;
+    const pending = conflict;
+    running.current = true;
+    setConflict(null);
+    setBusy(true);
+    setError("");
+    try {
+      await pending.confirm();
+    } catch (e) {
+      if (active.current)
+        setError(
+          e instanceof Error ? e.message : "Не удалось сохранить встречу.",
+        );
     } finally {
       running.current = false;
       if (active.current) setBusy(false);
@@ -273,7 +358,7 @@ export function useNewMeeting({
                 ? stripLink(before.location)
                 : before.location);
         }
-        const reply = await window.smallDesktop.calendar.updateEvent({
+        await saveEdit({
           accountId: account.id,
           eventId: editing.lookup.id,
           before,
@@ -297,13 +382,6 @@ export function useNewMeeting({
             attachments: files.map((f) => f.id),
           },
         });
-        if (!active.current) return;
-        if (!reply.ok) {
-          if (reply.kind === "auth") expired();
-          throw new Error(reply.error);
-        }
-        notifySuccess("Изменения сохранены");
-        saved?.();
         return;
       }
       const prepared = await window.smallDesktop.meetings.prepare({
@@ -329,34 +407,12 @@ export function useNewMeeting({
       });
       if (!active.current) return;
       if (!prepared.ok) throw new Error(prepared.error);
-      setResult({
-        draft: prepared.data,
-        phase: "unknown",
-        message:
-          "Ответ не получен. Проверьте результат перед повторным созданием.",
-      });
+      if (prepared.data.availabilityUnconfirmed) {
+        showDraftConflict(prepared.data);
+        return;
+      }
       submitted = true;
-      const r = await window.smallDesktop.meetings.confirm({
-        id: prepared.data.id,
-        revision: prepared.data.revision,
-      });
-      if (!active.current) return;
-      if (!r.ok) {
-        setResult({
-          draft: prepared.data,
-          phase: "unknown",
-          message:
-            "Ответ не получен. Проверьте результат перед повторным созданием.",
-        });
-        throw new Error(r.error);
-      }
-      setResult(r.data);
-      if (r.data.phase !== "succeeded") notifyError("создать событие");
-      if (r.data.phase === "succeeded") {
-        notifySuccess("Событие успешно создано");
-        created(r.data);
-        close();
-      }
+      await submitDraft(prepared.data);
     } catch (e) {
       if (active.current) {
         if (submitted) notifyError("создать событие");
@@ -440,5 +496,8 @@ export function useNewMeeting({
     attach,
     create,
     reconcile,
+    conflict,
+    confirmConflict,
+    cancelConflict: () => setConflict(null),
   };
 }

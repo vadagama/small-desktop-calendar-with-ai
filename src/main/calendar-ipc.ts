@@ -3,6 +3,7 @@ import type { EventChangeService } from "./event-change.js";
 import { ipcMain, shell, clipboard, type IpcMainInvokeEvent } from "electron";
 import { calendarChannels, type CalendarReply } from "../shared/calendar.js";
 import { CalendarError, type CalendarService } from "./calendar.js";
+import { CalendarConflictError } from "./calendar-conflict.js";
 import { SmallAuthError } from "./small-auth.js";
 import type { AvailabilityService } from "./availability.js";
 import type { CalendarSync } from "./calendar-sync.js";
@@ -52,6 +53,9 @@ export function registerCalendarHandlers(
             ok: false,
             ...(error instanceof CalendarError && error.unknownOutcome
               ? { unknownOutcome: true as const }
+              : {}),
+            ...(error instanceof CalendarConflictError
+              ? { conflictingParticipantIds: error.participantIds }
               : {}),
             kind:
               error instanceof CalendarError

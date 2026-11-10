@@ -1,7 +1,11 @@
 import { eventUpdateBody, type EventUpdateBody } from "./event-reschedule.js";
 import { seriesUpdateBody, type SeriesUpdateBody } from "./series-adapter.js";
 import { attachmentPath, isAttachmentUpload } from "./attachment-request.js";
-import { meetingCreateBody, meetingCreatePath } from "./meeting-request.js";
+import {
+  meetingCreateBody,
+  meetingCreatePath,
+  confirmedMeetingCreatePath,
+} from "./meeting-request.js";
 import { z } from "zod";
 import { CalendarError } from "./calendar.js";
 import { isAvailabilityRequest } from "./availability-request.js";
@@ -411,7 +415,11 @@ export class SmallAuth {
     });
   }
   /** One attempt only: never refresh-and-replay a calendar write. */
-  createCalendarEvent(accountId: string, input: unknown): Promise<Response> {
+  createCalendarEvent(
+    accountId: string,
+    input: unknown,
+    allowUnconfirmed = false,
+  ): Promise<Response> {
     const version = this.version;
     const body = meetingCreateBody.safeParse(input);
     if (!body.success)
@@ -424,7 +432,11 @@ export class SmallAuth {
         state.profile.id !== accountId
       )
         throw new SmallAuthError("Изменился аккаунт Small.", "auth");
-      return this.write(meetingCreatePath, "POST", body.data);
+      return this.write(
+        allowUnconfirmed ? confirmedMeetingCreatePath : meetingCreatePath,
+        "POST",
+        body.data,
+      );
     });
   }
   respondCalendarEvent(
@@ -474,6 +486,7 @@ export class SmallAuth {
     accountId: string,
     eventId: string,
     input: EventUpdateBody,
+    allowConflicts = false,
   ): Promise<Response> {
     const version = this.version;
     const body = eventUpdateBody.safeParse(input);
@@ -490,7 +503,7 @@ export class SmallAuth {
       )
         throw new SmallAuthError("Изменился аккаунт Small.", "auth");
       return this.write(
-        `/gate/team/api/calendar/events/${eventId}?force=false`,
+        `/gate/team/api/calendar/events/${eventId}?force=${allowConflicts ? "true" : "false"}`,
         "PUT",
         body.data,
       );

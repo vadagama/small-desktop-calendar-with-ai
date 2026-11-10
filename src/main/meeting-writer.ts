@@ -14,6 +14,10 @@ import type { SmallAuth } from "./small-auth.js";
 import type { AvailabilityService } from "./availability.js";
 import type { MeetingWriter } from "./meeting-operations.js";
 import { meetingPayload } from "./meeting-request.js";
+import {
+  CalendarConflictError,
+  participantConflicts,
+} from "./calendar-conflict.js";
 const id = z
   .union([
     z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
@@ -71,12 +75,12 @@ export class SmallMeetingWriter implements MeetingWriter {
         "Память изменилась. Подготовьте и подтвердите новый черновик.",
       );
   }
-  async preflight(d: MeetingDraft) {
+  async preflight(d: MeetingDraft, allowUnconfirmed = false) {
     await this.checkMemory(d);
     for (const occurrence of meetingOccurrences(d))
-      await this.checkOccurrence(occurrence);
+      await this.checkOccurrence(occurrence, allowUnconfirmed);
   }
-  private async checkOccurrence(d: MeetingDraft) {
+  private async checkOccurrence(d: MeetingDraft, allowUnconfirmed: boolean) {
     const available = await this.availability.find({
       accountId: d.organizer.id,
       participantIds: d.participantIds,
@@ -94,15 +98,16 @@ export class SmallMeetingWriter implements MeetingWriter {
         : {}),
     });
     if (
+      !(d.availabilityUnconfirmed && allowUnconfirmed) &&
       !available.slots.some(
         (s) =>
           Date.parse(s.start) === Date.parse(d.startsAt) &&
           Date.parse(s.end) === Date.parse(d.endsAt),
       )
     )
-      throw new CalendarError(
-        "invalid",
-        "Время больше не свободно. Подготовьте новый черновик.",
+      throw new CalendarConflictError(
+        [],
+        "Время больше не свободно. Подтвердите создание встречи с пересечениями.",
       );
     if (d.options?.calendarIds.length) {
       const rooms = await this.calendar.events({
@@ -144,16 +149,18 @@ export class SmallMeetingWriter implements MeetingWriter {
         "Похожая встреча уже существует. Проверьте календарь.",
       );
   }
-  async create(d: MeetingDraft) {
+  async create(d: MeetingDraft, allowUnconfirmed = false) {
     await this.checkMemory(d);
     const response = await this.auth.createCalendarEvent(
       d.organizer.id,
       meetingPayload(d),
+      d.availabilityUnconfirmed === true && allowUnconfirmed,
     );
     if ([400, 401, 403, 404, 409, 422].includes(response.status))
       throw new MeetingCreateRejected(
         response.status,
         sessionRecoveryMessage(response),
+        await participantConflicts(response, d.participantIds),
       );
     const body = await calendarJson(response);
     return z.object({ data: z.object({ id }) }).parse(body).data.id;

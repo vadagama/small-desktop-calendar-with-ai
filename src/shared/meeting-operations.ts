@@ -1,5 +1,9 @@
 import type { z } from "zod";
-import type { meetingReference, meetingEdit } from "./meeting-validation.js";
+import type {
+  meetingReference,
+  meetingEdit,
+  meetingConfirmation,
+} from "./meeting-validation.js";
 import type { manualMeetingInput, MeetingDraft } from "./meeting-draft.js";
 export interface MeetingView {
   draft: MeetingDraft;
@@ -29,6 +33,6 @@ export interface MeetingBridge {
   ): Promise<{ ok: true; data: MeetingDraft } | { ok: false; error: string }>;
   read(input: z.infer<typeof meetingReference>): Promise<MeetingReply>;
   edit(input: z.infer<typeof meetingEdit>): Promise<MeetingReply>;
-  confirm(input: z.infer<typeof meetingReference>): Promise<MeetingReply>;
+  confirm(input: z.infer<typeof meetingConfirmation>): Promise<MeetingReply>;
   reconcile(input: z.infer<typeof meetingReference>): Promise<MeetingReply>;
 }
