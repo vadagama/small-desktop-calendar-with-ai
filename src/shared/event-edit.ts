@@ -17,6 +17,7 @@ export const eventEditQuery = z.strictObject({
   eventId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
   before: eventEditFields,
   after: eventEditFields.extend({ participant_ids: ids.min(1) }),
+  allowConflicts: z.boolean().optional(),
 });
 export type EventEditQuery = z.infer<typeof eventEditQuery>;
 export function editableEvent(event: CalendarEvent): EventEditQuery["before"] {

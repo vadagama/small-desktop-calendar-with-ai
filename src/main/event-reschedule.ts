@@ -1,5 +1,9 @@
 import { eventEditQuery, eventEditFields } from "../shared/event-edit.js";
 import {
+  CalendarConflictError,
+  participantConflicts,
+} from "./calendar-conflict.js";
+import {
   EventMutationJournal,
   mutationHash,
   type EventMutationRecord,
@@ -44,7 +48,7 @@ export const eventUpdateBody = z
 export type EventUpdateBody = z.infer<typeof eventUpdateBody>;
 export function isEventUpdateRequest(path: string, body: unknown) {
   return (
-    /^\/gate\/team\/api\/calendar\/events\/[A-Za-z0-9_-]{1,128}\?force=false$/.test(
+    /^\/gate\/team\/api\/calendar\/events\/[A-Za-z0-9_-]{1,128}\?force=(?:false|true)$/.test(
       path,
     ) && eventUpdateBody.safeParse(body).success
   );
@@ -156,6 +160,7 @@ export class EventRescheduleService {
         accountId: string,
         eventId: string,
         body: EventUpdateBody,
+        allowConflicts?: boolean,
       ): Promise<Response>;
     },
     private journal: EventMutationJournal,
@@ -243,6 +248,13 @@ export class EventRescheduleService {
     if (!response.ok) {
       if ([400, 401, 403, 404, 409, 422].includes(response.status)) {
         await this.journal.clear(accountId, eventId);
+        if (body) {
+          const conflicts = await participantConflicts(
+            response,
+            body.participant_ids,
+          );
+          if (conflicts) throw new CalendarConflictError(conflicts);
+        }
         await calendarJson(response);
       }
       if (await this.verified(accountId, eventId, entry)) {
@@ -262,7 +274,12 @@ export class EventRescheduleService {
     await this.applyChange({
       accountId: q.accountId,
       eventId: q.eventId,
-      change: { kind: "edit", before: q.before, after: q.after },
+      change: {
+        kind: "edit",
+        before: q.before,
+        after: q.after,
+        allowConflicts: q.allowConflicts,
+      },
     });
   }
   async applyChange(input: unknown): Promise<void> {
@@ -280,6 +297,7 @@ export class EventRescheduleService {
             kind: z.literal("edit"),
             before: eventEditFields,
             after: eventEditQuery.shape.after,
+            allowConflicts: z.boolean().optional(),
           }),
         ]),
       })
@@ -378,7 +396,12 @@ export class EventRescheduleService {
         body = eventUpdateBody.parse({ ...current, title: v.change.title });
       }
       await this.writeMutation(v.accountId, v.eventId, v, body, () =>
-        this.session.updateCalendarEvent(v.accountId, v.eventId, body),
+        this.session.updateCalendarEvent(
+          v.accountId,
+          v.eventId,
+          body,
+          v.change.kind === "edit" && v.change.allowConflicts === true,
+        ),
       );
     } finally {
       this.pending.delete(key);

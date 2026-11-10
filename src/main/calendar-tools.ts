@@ -582,32 +582,56 @@ export function createCalendarToolExecutor(
             name: organizerName,
             position: "",
           });
-        data =
-          name === "findSlots"
-            ? await availability.find({
-                ...parsed.data,
-                accountId,
-                ...(policy
-                  ? {
-                      bufferMinutes: policy.bufferMinutes,
-                      organizerParticipantId: policy.organizerParticipantId,
-                    }
-                  : {}),
-              })
-            : await prepareMeetingDraft(
-                {
-                  id: accountId,
-                  name: organizerName,
-                  ...(organizerParticipantId
-                    ? { participantId: organizerParticipantId }
+        const intervalKey =
+          name === "prepareMeetingDraft"
+            ? JSON.stringify([
+                [...parsed.data.participantIds].sort(),
+                Date.parse((parsed.data as { startsAt: string }).startsAt),
+                parsed.data.durationMinutes,
+              ])
+            : "";
+        if (
+          intervalKey &&
+          (conversation.unconfirmedIntervals.get(intervalKey) ?? turn) < turn
+        )
+          (parsed.data as { allowUnconfirmed?: boolean }).allowUnconfirmed =
+            true;
+        try {
+          data =
+            name === "findSlots"
+              ? await availability.find({
+                  ...parsed.data,
+                  accountId,
+                  ...(policy
+                    ? {
+                        bufferMinutes: policy.bufferMinutes,
+                        organizerParticipantId: policy.organizerParticipantId,
+                      }
                     : {}),
-                },
-                parsed.data,
-                availability,
-                signal,
-                true,
-                policy,
-              );
+                })
+              : await prepareMeetingDraft(
+                  {
+                    id: accountId,
+                    name: organizerName,
+                    ...(organizerParticipantId
+                      ? { participantId: organizerParticipantId }
+                      : {}),
+                  },
+                  parsed.data,
+                  availability,
+                  signal,
+                  true,
+                  policy,
+                );
+        } catch (error) {
+          if (
+            intervalKey &&
+            error instanceof CalendarError &&
+            error.message.startsWith("Выбранный интервал не подтверждён")
+          )
+            conversation.unconfirmedIntervals.set(intervalKey, turn);
+          throw error;
+        }
       } else throw new CalendarError("denied", "Инструмент недоступен.");
       signal.throwIfAborted();
       if (name === "findSlots" || name === "prepareMeetingDraft") {

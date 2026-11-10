@@ -109,6 +109,7 @@ test("rejects injected identity, recurrence, invalid date and unsafe conference 
   for (const invalid of [
     { ...input, organizer: { id: "other" } },
     { ...input, recurrence: "weekly" },
+    { ...input, availabilityUnconfirmed: true },
     { ...input, startsAt: "2099-02-30T09:30:00+05:00" },
     { ...input, title: " " },
     { ...input, participantIds: ["person-a", "person-a"] },
@@ -171,6 +172,15 @@ test("draft tool enforces the directory-verified complete participant selection 
     );
     const result = await execute("prepareMeetingDraft", input);
     assert.equal(result.ok, false);
+    assert.equal(
+      (
+        await execute("prepareMeetingDraft", {
+          ...input,
+          allowUnconfirmed: true,
+        })
+      ).ok,
+      false,
+    );
   }
   const execute = createCalendarToolExecutor(
     organizer.id,
@@ -240,4 +250,107 @@ test("includes the session participant GUID, not the account ID, in draft and av
     );
     assert.deepEqual(result.participantIds, ["person-a", "organizer-guid"]);
   }
+});
+
+test("explicit insistence prepares an unconfirmed preview without claiming availability", async () => {
+  const d = await prepareMeetingDraft(
+    organizer,
+    { ...input, allowUnconfirmed: true },
+    {
+      find: async () => ({
+        slots: [],
+        participantIds: input.participantIds,
+        date: "2099-10-29",
+        durationMinutes: 30,
+        timezone: "Asia/Almaty",
+      }),
+    },
+    signal,
+  );
+  assert.equal(d.availabilityUnconfirmed, true);
+  assert.deepEqual(d.participantIds, input.participantIds);
+  assert.equal(d.startsAt, "2099-10-29T04:30:00.000Z");
+});
+
+test("a repeated user turn offers confirmation for the same time and complete selection", async () => {
+  const { createCalendarToolExecutor } =
+    await import("../../src/main/calendar-tools.js");
+  const { CalendarConversation } =
+    await import("../../src/main/calendar-conversation.js");
+  const conversation = new CalendarConversation();
+  const executeTurn = (prompt: string) =>
+    createCalendarToolExecutor(
+      organizer.id,
+      prompt,
+      signal,
+      {
+        events: async () => ({ events: [], issues: [] }),
+        searchPeople: async () => ({
+          people: [
+            { participantId: "person-a", name: "Synthetic", position: "" },
+          ],
+          page: 1,
+          nextPage: null,
+        }),
+      },
+      {
+        find: async () => ({
+          slots: [],
+          participantIds: ["person-a"],
+          date: "2099-10-29",
+          durationMinutes: 30,
+          timezone: "Asia/Almaty",
+        }),
+      },
+      organizer.name,
+      (d) => d,
+      conversation,
+    );
+  const first = executeTurn("Поставь встречу в 9:30");
+  await first("searchPeople", { query: "Synthetic", page: 1 });
+  await first("selectParticipants", { participantIds: ["person-a"] });
+  assert.equal((await first("prepareMeetingDraft", input)).ok, false);
+  assert.equal(
+    (await first("prepareMeetingDraft", input)).ok,
+    false,
+    "tool retries within one turn are not user insistence",
+  );
+  const next = executeTurn("Всё равно поставь встречу");
+  const result = await next("prepareMeetingDraft", input);
+  assert.ok(
+    result.ok && "kind" in result.data && result.data.kind === "meeting-draft",
+  );
+  if (
+    result.ok &&
+    "kind" in result.data &&
+    result.data.kind === "meeting-draft"
+  ) {
+    assert.equal(result.data.availabilityUnconfirmed, true);
+    assert.deepEqual(result.data.participantIds, ["person-a"]);
+  }
+  assert.equal(
+    (
+      await next("prepareMeetingDraft", {
+        ...input,
+        startsAt: "2099-10-29T11:00:00+05:00",
+      })
+    ).ok,
+    false,
+  );
+});
+
+test("requesting confirmation never bypasses an availability read failure", async () => {
+  await assert.rejects(
+    prepareMeetingDraft(
+      organizer,
+      { ...input, allowUnconfirmed: true },
+      {
+        find: async () => {
+          throw new Error("availability failure");
+        },
+      },
+      signal,
+    ),
+    /availability failure/,
+  );
 });

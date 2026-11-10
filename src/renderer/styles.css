@@ -1141,6 +1141,36 @@
   font-size: var(--font-body);
 }
 
+.meeting-conflict {
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 20px;
+  border-radius: 16px;
+  font-size: var(--font-body);
+}
+.meeting-conflict .modal-header h2 {
+  font-size: var(--font-dialog-title);
+}
+.meeting-conflict p {
+  line-height: 1.5;
+}
+.meeting-conflict ul {
+  max-height: 180px;
+  overflow-y: auto;
+  font-size: var(--font-compact);
+}
+.meeting-conflict-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 20px;
+}
+.meeting-conflict-actions button {
+  justify-content: center;
+  padding: 10px 12px;
+  font-size: var(--font-body);
+}
+
 .notifications {
   position: fixed;
   inset: 64px 16px auto auto;

@@ -344,3 +344,69 @@ test("recovered session rejection keeps creation retryable and does not ask for 
       /Повторите действие/.test(error.message),
   );
 });
+
+test("unconfirmed creation needs UI consent and keeps availability errors and duplicate checks", async () => {
+  const d = { ...draft(), availabilityUnconfirmed: true };
+  let force: boolean | undefined;
+  let failRead = false;
+  let duplicate = false;
+  const writer = new SmallMeetingWriter(
+    {
+      createCalendarEvent: async (_account, _body, override) => {
+        force = override;
+        return Response.json({ data: { id: "42" } });
+      },
+      readCalendar: async () => {
+        throw new Error("unused");
+      },
+    },
+    {
+      events: async () => ({
+        events: duplicate
+          ? [
+              {
+                key: "duplicate",
+                lookup: { id: "42" },
+                title: d.title,
+                startsAt: d.startsAt,
+                endsAt: d.endsAt,
+                calendarIds: [],
+                description: "",
+                organizer: "",
+                location: "",
+              },
+            ]
+          : [],
+        issues: [],
+      }),
+    },
+    {
+      find: async () => {
+        if (failRead) throw new Error("availability unavailable");
+        return {
+          slots: [],
+          participantIds: d.participantIds,
+          date: "2099-10-29",
+          durationMinutes: 30,
+          timezone: "Asia/Almaty",
+        };
+      },
+    },
+  );
+  await assert.rejects(writer.preflight(d), /больше не свободно/);
+  await writer.preflight(d, true);
+  await assert.rejects(
+    writer.preflight({ ...d, availabilityUnconfirmed: false }, true),
+    /больше не свободно/,
+  );
+  failRead = true;
+  await assert.rejects(writer.preflight(d, true), /availability unavailable/);
+  failRead = false;
+  duplicate = true;
+  await assert.rejects(writer.preflight(d, true), /уже существует/);
+  duplicate = false;
+  await writer.create(d, true);
+  assert.equal(force, true);
+  await writer.create(d);
+  assert.equal(force, false);
+});

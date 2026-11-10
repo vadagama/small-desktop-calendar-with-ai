@@ -71,6 +71,9 @@ export function MeetingDraftCard({ draft: initial }: { draft: MeetingDraft }) {
       const reply = await window.smallDesktop.meetings[action]({
         id: draft.id,
         revision: draft.revision,
+        ...(action === "confirm" && draft.availabilityUnconfirmed
+          ? { allowUnconfirmed: true }
+          : {}),
       });
       accept(reply);
       if (reply.ok && reply.data.phase === "succeeded") {
@@ -116,12 +119,21 @@ export function MeetingDraftCard({ draft: initial }: { draft: MeetingDraft }) {
             {draft.conferenceUrl}
           </p>
         )}
-        {view.phase === "preview" && !error && !view.message && (
-          <p className="assistant-meeting-checked">
-            <CheckCheck size={16} aria-hidden="true" />
-            Нет пересечений у участников
+        {view.phase === "preview" && draft.availabilityUnconfirmed && (
+          <p role="status">
+            Выбранный интервал не подтверждён для всех участников. Вы
+            действительно хотите поставить встречу?
           </p>
         )}
+        {view.phase === "preview" &&
+          !draft.availabilityUnconfirmed &&
+          !error &&
+          !view.message && (
+            <p className="assistant-meeting-checked">
+              <CheckCheck size={16} aria-hidden="true" />
+              Нет пересечений у участников
+            </p>
+          )}
         {view.phase !== "succeeded" && !!view.message && (
           <p role="status">{view.message}</p>
         )}
@@ -133,7 +145,11 @@ export function MeetingDraftCard({ draft: initial }: { draft: MeetingDraft }) {
             disabled={busy || !!error || view.phase !== "preview"}
             onClick={() => void act("confirm")}
           >
-            {busy ? "Проверяю…" : "Создать встречу"}
+            {busy
+              ? "Проверяю…"
+              : draft.availabilityUnconfirmed
+                ? "Да, поставить встречу"
+                : "Создать встречу"}
           </button>
         )}
         {(view.phase === "unknown" || view.phase === "blocked") && (

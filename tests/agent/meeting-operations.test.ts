@@ -292,3 +292,88 @@ test("deletion checks never release a previous attempt with an unknown outcome",
     assert.equal((await restarted.confirm("a", second.id, 1)).phase, "blocked");
     assert.equal(calls, 1);
   }));
+
+test("unconfirmed preview requires a separate current-version UI confirmation", async () =>
+  fixture(async (dir) => {
+    let writes = 0;
+    const service = new MeetingOperations(
+      new MeetingJournal(dir),
+      writer(async () => {
+        writes++;
+        return "42";
+      }),
+    );
+    const d = service.register({ ...draft(), availabilityUnconfirmed: true });
+    const withoutConsent = await service.confirm("a", d.id, 1);
+    assert.equal(withoutConsent.phase, "preview");
+    assert.equal(writes, 0);
+    assert.match(
+      withoutConsent.message,
+      /Вы действительно хотите поставить встречу/,
+    );
+    await assert.rejects(service.confirm("other", d.id, 1, () => {}, true));
+    await assert.rejects(service.confirm("a", d.id, 2, () => {}, true));
+    const confirmed = await service.confirm("a", d.id, 1, () => {}, true);
+    assert.equal(confirmed.phase, "succeeded");
+    assert.equal(writes, 1);
+    await service.confirm("a", d.id, 1, () => {}, true);
+    assert.equal(writes, 1);
+  }));
+
+test("a conflict discovered before sending returns a preview requiring a new confirmation", async () =>
+  fixture(async (dir) => {
+    const { CalendarConflictError } =
+      await import("../../src/main/calendar-conflict.js");
+    let writes = 0;
+    const service = new MeetingOperations(new MeetingJournal(dir), {
+      preflight: async (_draft, consent) => {
+        if (!consent) throw new CalendarConflictError();
+      },
+      create: async (_draft, consent) => {
+        assert.equal(consent, true);
+        writes++;
+        return "42";
+      },
+      verify: async () => true,
+    });
+    const d = service.register(draft());
+    const conflict = await service.confirm("a", d.id, 1);
+    assert.equal(conflict.phase, "preview");
+    assert.equal(conflict.draft.availabilityUnconfirmed, true);
+    assert.equal(writes, 0);
+    await service.confirm("a", d.id, 1);
+    assert.equal(writes, 0);
+    assert.equal(
+      (await service.confirm("a", d.id, 1, () => {}, true)).phase,
+      "succeeded",
+    );
+    assert.equal(writes, 1);
+  }));
+
+test("a definitive participant-conflict rejection releases the claim and asks for consent", async () =>
+  fixture(async (dir) => {
+    const { MeetingCreateRejected } =
+      await import("../../src/main/meeting-create-error.js");
+    let attempts = 0;
+    const service = new MeetingOperations(new MeetingJournal(dir), {
+      preflight: async () => {},
+      create: async (_draft, consent) => {
+        attempts++;
+        if (!consent) throw new MeetingCreateRejected(422, undefined, ["p"]);
+        return "42";
+      },
+      verify: async () => true,
+    });
+    const d = service.register(draft());
+    const rejected = await service.confirm("a", d.id, 1);
+    assert.equal(rejected.phase, "preview");
+    assert.equal(rejected.draft.availabilityUnconfirmed, true);
+    assert.equal(attempts, 1);
+    await service.confirm("a", d.id, 1);
+    assert.equal(attempts, 1);
+    assert.equal(
+      (await service.confirm("a", d.id, 1, () => {}, true)).phase,
+      "succeeded",
+    );
+    assert.equal(attempts, 2);
+  }));

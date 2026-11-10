@@ -6,6 +6,7 @@ import { MeetingPeoplePicker } from "./MeetingPeoplePicker";
 import { MeetingSchedule } from "./MeetingSchedule";
 import { useNewMeeting } from "./useNewMeeting";
 import { SmallAuthNotice } from "./SmallAuthNotice";
+import { MeetingConflictDialog } from "./MeetingConflictDialog";
 export function NewMeeting(
   props: Parameters<typeof useNewMeeting>[0] & {
     notice?: import("react").ReactNode;
@@ -248,6 +249,14 @@ export function NewMeeting(
         <DiscardMeetingDialog
           keepEditing={() => setConfirmClose(false)}
           discard={close}
+        />
+      )}
+      {data.conflict && (
+        <MeetingConflictDialog
+          editing={!!props.editEvent}
+          names={data.conflict.names}
+          cancel={data.cancelConflict}
+          confirm={() => void data.confirmConflict()}
         />
       )}
     </>

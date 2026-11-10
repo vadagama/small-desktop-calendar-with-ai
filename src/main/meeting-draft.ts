@@ -55,12 +55,10 @@ export async function prepareMeetingDraft(
       : {}),
   });
   signal.throwIfAborted();
-  if (
-    !result.slots.some(
-      (slot) =>
-        Date.parse(slot.start) === start && Date.parse(slot.end) === end,
-    )
-  )
+  const availabilityUnconfirmed = !result.slots.some(
+    (slot) => Date.parse(slot.start) === start && Date.parse(slot.end) === end,
+  );
+  if (availabilityUnconfirmed && !q.allowUnconfirmed)
     throw new CalendarError(
       "invalid",
       "Выбранный интервал не подтверждён для всех участников. Подберите другое время.",
@@ -88,6 +86,7 @@ export async function prepareMeetingDraft(
     recurrence: "none",
     visibility: "private",
     availabilityCheckedAt: new Date().toISOString(),
+    ...(availabilityUnconfirmed ? { availabilityUnconfirmed: true } : {}),
     ...(policy ? { memoryPolicy: policy } : {}),
   };
 }
