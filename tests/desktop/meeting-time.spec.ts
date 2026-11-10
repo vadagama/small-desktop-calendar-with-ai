@@ -12,6 +12,7 @@ test("time picker opens at the current time and duration helpers support midnigh
   try {
     await mockSmall(app, "2099-10-29");
     const page = await app.firstWindow();
+    await page.setViewportSize({ width: 1440, height: 960 });
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.clock.setFixedTime(new Date("2099-10-29T00:00:00Z"));
@@ -47,13 +48,15 @@ test("time picker opens at the current time and duration helpers support midnigh
     });
     const selected = list.getByRole("option", { name: "14:00", exact: true });
     await expect(selected).toHaveAttribute("aria-selected", "true");
-    expect(
-      await selected.evaluate((el) => {
-        const item = el.getBoundingClientRect(),
-          menu = el.parentElement!.getBoundingClientRect();
-        return item.top >= menu.top && item.bottom <= menu.bottom;
-      }),
-    ).toBe(true);
+    await expect
+      .poll(async () =>
+        selected.evaluate((el) => {
+          const item = el.getBoundingClientRect(),
+            menu = el.parentElement!.getBoundingClientRect();
+          return item.top >= menu.top && item.bottom <= menu.bottom;
+        }),
+      )
+      .toBe(true);
     expect(await selected.evaluate((el) => getComputedStyle(el).fontSize)).toBe(
       "12px",
     );
@@ -65,6 +68,9 @@ test("time picker opens at the current time and duration helpers support midnigh
     await start.press("Escape");
     await expect(list).not.toBeVisible();
     await expect(form).toBeVisible();
+    await expect(
+      page.getByRole("dialog", { name: "Отменить несохранённые изменения?" }),
+    ).toHaveCount(0);
     await start.fill("14:00");
     const helpers = form.getByRole("group", { name: "Длительность встречи" });
     for (const [label, expected] of [
@@ -97,6 +103,7 @@ test("time picker opens at the current time and duration helpers support midnigh
       ).toBe(true);
     }
     await page.screenshot({ path: "/tmp/small-meeting-time-helpers.png" });
+    await page.setViewportSize({ width: 1440, height: 960 });
     // Save inside Small's existing working-hours policy.
     await start.fill("14:00");
     await helpers.getByRole("button", { name: "Полтора", exact: true }).click();

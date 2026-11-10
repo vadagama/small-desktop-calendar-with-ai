@@ -96,14 +96,15 @@ export function MeetingTimePicker({
           popup.current?.hidePopover();
         }}
         onKeyDown={(event) => {
-          if (event.key === "Escape" && open) {
+          const expanded = popup.current?.matches(":popover-open") ?? false;
+          if (event.key === "Escape" && expanded) {
             event.preventDefault();
             event.stopPropagation();
             popup.current?.hidePopover();
           } else if (event.key === "Tab") popup.current?.hidePopover();
           else if (["ArrowDown", "ArrowUp"].includes(event.key)) {
             event.preventDefault();
-            if (!open) show();
+            if (!expanded) show();
             else
               setActive((index) =>
                 Math.max(
@@ -114,10 +115,10 @@ export function MeetingTimePicker({
                   ),
                 ),
               );
-          } else if (open && event.key === "Enter") {
+          } else if (expanded && event.key === "Enter") {
             event.preventDefault();
             select(options[active]!);
-          } else if (open && ["Home", "End"].includes(event.key)) {
+          } else if (expanded && ["Home", "End"].includes(event.key)) {
             event.preventDefault();
             setActive(event.key === "Home" ? 0 : options.length - 1);
           }
