@@ -211,7 +211,7 @@ export async function streamCalendarTurn(
       }),
       prepareMeetingDraft: tool({
         description:
-          "Подготовить разовый личный черновик после проверки выбранного интервала. Не создаёт встречу и не отправляет приглашения.",
+          "Подготовить разовый личный черновик после проверки выбранного интервала. Если пользователь настаивает на неподтверждённом времени, передай allowUnconfirmed:true для карточки с отдельной кнопкой согласия. Не создаёт встречу и не отправляет приглашения.",
         inputSchema: meetingDraftInput.extend({
           title: meetingDraftInput.shape.title.optional(),
           agenda: meetingDraftInput.shape.agenda.optional(),

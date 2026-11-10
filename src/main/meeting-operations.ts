@@ -1,6 +1,7 @@
 import { MeetingCreateRejected } from "./meeting-create-error.js";
 import { CalendarWriteNotStarted } from "./calendar-write-error.js";
 import { CalendarError } from "./calendar.js";
+import { CalendarConflictError } from "./calendar-conflict.js";
 import { createHash } from "node:crypto";
 import {
   meetingDraftSchema,
@@ -13,8 +14,8 @@ import { meetingPayload } from "./meeting-request.js";
 
 export class MeetingOperationError extends Error {}
 export interface MeetingWriter {
-  preflight(draft: MeetingDraft): Promise<void>;
-  create(draft: MeetingDraft): Promise<string>;
+  preflight(draft: MeetingDraft, allowUnconfirmed?: boolean): Promise<void>;
+  create(draft: MeetingDraft, allowUnconfirmed?: boolean): Promise<string>;
   verify(draft: MeetingDraft, eventId?: string): Promise<boolean>;
   /** Read-only proof that a previously verified event has been deleted. */
   wasDeleted?(draft: MeetingDraft, eventId: string): Promise<boolean>;
@@ -141,9 +142,15 @@ export class MeetingOperations {
     id: string,
     revision: number,
     assertCurrent: () => void = () => {},
+    allowUnconfirmed = false,
   ) {
     const entry = this.entry(accountId, id, revision);
     if (entry.phase !== "preview") return structuredClone(entry);
+    if (entry.draft.availabilityUnconfirmed && !allowUnconfirmed) {
+      entry.message =
+        "Выбранный интервал не подтверждён для всех участников. Вы действительно хотите поставить встречу?";
+      return structuredClone(entry);
+    }
     entry.phase = "submitting";
     entry.message = "Проверяю и отправляю…";
     let claimed = false,
@@ -154,7 +161,9 @@ export class MeetingOperations {
       await this.restore(entry);
       if (entry.phase !== "submitting") return structuredClone(entry);
       journalAccess = false;
-      await this.writer.preflight(entry.draft);
+      const override =
+        entry.draft.availabilityUnconfirmed === true && allowUnconfirmed;
+      await this.writer.preflight(entry.draft, override);
       assertCurrent();
       journalAccess = true;
       claimed = await this.journal.claim(
@@ -163,7 +172,7 @@ export class MeetingOperations {
       );
       if (!claimed) return await this.restore(entry);
       assertCurrent();
-      const eventId = await this.writer.create(entry.draft);
+      const eventId = await this.writer.create(entry.draft, override);
       entry.eventId = eventId;
       await this.journal.finish(this.operationKey(entry), {
         phase: "unknown",
@@ -188,6 +197,14 @@ export class MeetingOperations {
           await this.journal.releaseRejected(this.operationKey(entry));
           entry.phase = "preview";
           entry.message = error.message;
+          if (
+            error instanceof MeetingCreateRejected &&
+            error.conflictingParticipantIds
+          ) {
+            entry.draft.availabilityUnconfirmed = true;
+            entry.message =
+              "У участников есть пересечения с выбранным временем. Подтвердите создание встречи.";
+          }
           return structuredClone(entry);
         } catch {
           // Keep the retry blocked if durable cleanup could not be confirmed.
@@ -214,6 +231,8 @@ export class MeetingOperations {
         }
       } else {
         entry.phase = "preview";
+        if (error instanceof CalendarConflictError)
+          entry.draft.availabilityUnconfirmed = true;
         entry.message =
           error instanceof CalendarError
             ? error.message

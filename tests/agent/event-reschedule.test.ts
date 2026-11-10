@@ -787,3 +787,56 @@ test("full editor can replace attachments with files uploaded in this session", 
     "uploaded-file",
   ]);
 });
+
+test("editor exposes participant conflicts and only forces after explicit confirmation", async () => {
+  let value = { ...event };
+  const forced: boolean[] = [];
+  const service = new EventRescheduleService(
+    {
+      readCalendar: async (_account, action) =>
+        action(async () => Response.json({ data: value }), "person-a"),
+      updateCalendarEvent: async (_account, _id, body, allowConflicts) => {
+        forced.push(allowConflicts ?? false);
+        if (!allowConflicts)
+          return Response.json(
+            {
+              status: "error",
+              message: "Validation failed",
+              errors: { participant_ids: ["person-a"] },
+            },
+            { status: 422 },
+          );
+        value = { ...value, title: body.title };
+        return Response.json({ data: value });
+      },
+    },
+    journal(),
+  );
+  const before = {
+    title: event.title,
+    description: event.description,
+    location: event.location,
+    starts_at: event.starts_at,
+    ends_at: event.ends_at,
+    calendar_ids: [1],
+    participant_ids: ["person-a"],
+    notification_recipient_ids: [],
+    attachments: [],
+  };
+  const q = {
+    accountId: "account-a",
+    eventId: "42",
+    before,
+    after: { ...before, title: "Updated" },
+  };
+  await assert.rejects(
+    service.update(q),
+    (e: unknown) =>
+      e instanceof CalendarError &&
+      "participantIds" in e &&
+      JSON.stringify(e.participantIds) === '["person-a"]',
+  );
+  assert.deepEqual(forced, [false]);
+  await service.update({ ...q, allowConflicts: true });
+  assert.deepEqual(forced, [false, true]);
+});

@@ -91,6 +91,7 @@ export type CalendarReply<T> =
       error: string;
       /** Set only for writes: they may have been applied, so do not treat this as a refusal. */
       unknownOutcome?: true;
+      conflictingParticipantIds?: string[];
     };
 export const calendarChannels = {
   people: "calendar:people",

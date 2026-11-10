@@ -3,6 +3,7 @@ export class MeetingCreateRejected extends Error {
   constructor(
     public readonly status: number,
     recovery?: string,
+    public readonly conflictingParticipantIds?: string[],
   ) {
     super(
       recovery ??

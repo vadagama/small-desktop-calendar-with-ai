@@ -27,6 +27,7 @@ export class CalendarConversation {
   ambiguous = new Map<string, number>();
   selected: string[] = [];
   selectionConfirmed = false;
+  unconfirmedIntervals = new Map<string, number>();
   turn = 0;
   memoryRevision: number | undefined;
   taskPreferences: TaskPreferences = {};
@@ -104,6 +105,7 @@ export class CalendarConversation {
     if (this.accountId === id) return;
     this.accountId = id;
     this.availability = undefined;
+    this.unconfirmedIntervals.clear();
     this.memoryReview.clear();
     this.turns = [];
     this.people.clear();

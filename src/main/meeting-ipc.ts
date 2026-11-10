@@ -3,7 +3,11 @@ import { manualMeetingInput } from "../shared/meeting-draft.js";
 import { prepareMeetingDraft } from "./meeting-draft.js";
 import type { AvailabilityService } from "./availability.js";
 import { CalendarError } from "./calendar.js";
-import { meetingReference, meetingEdit } from "../shared/meeting-validation.js";
+import {
+  meetingReference,
+  meetingEdit,
+  meetingConfirmation,
+} from "../shared/meeting-validation.js";
 import { ipcMain, type IpcMainInvokeEvent } from "electron";
 import {
   meetingChannels,
@@ -60,7 +64,7 @@ export function registerMeetingHandlers(
       const { options, ...base } = parsed.data;
       const draft = await prepareMeetingDraft(
         state.profile,
-        base,
+        { ...base, allowUnconfirmed: true },
         availability,
         new AbortController().signal,
         true,
@@ -97,7 +101,11 @@ export function registerMeetingHandlers(
         if (!trusted(event))
           return { ok: false, error: "Доступ к операциям встречи отклонён." };
         const parsed = (
-          action === "edit" ? meetingEdit : meetingReference
+          action === "edit"
+            ? meetingEdit
+            : action === "confirm"
+              ? meetingConfirmation
+              : meetingReference
         ).safeParse(input);
         if (!parsed.success)
           return {
@@ -127,6 +135,7 @@ export function registerMeetingHandlers(
                     q.id,
                     q.revision,
                     assertCurrent,
+                    "allowUnconfirmed" in q && q.allowUnconfirmed === true,
                   )
                 : await service[action](state.profile.id, q.id, q.revision);
           assertCurrent();

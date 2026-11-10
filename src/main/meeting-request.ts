@@ -3,6 +3,8 @@ import { z } from "zod";
 import { participantIds } from "./availability-request.js";
 import type { MeetingDraft } from "../shared/meeting-draft.js";
 export const meetingCreatePath = "/gate/team/api/calendar/events?force=false";
+export const confirmedMeetingCreatePath =
+  "/gate/team/api/calendar/events?force=true";
 export const meetingCreateBody = z
   .strictObject({
     title: z.string().trim().min(1).max(200),
@@ -51,6 +53,7 @@ export function meetingPayload(draft: MeetingDraft) {
 }
 export function isMeetingCreateRequest(path: string, body: unknown) {
   return (
-    path === meetingCreatePath && meetingCreateBody.safeParse(body).success
+    (path === meetingCreatePath || path === confirmedMeetingCreatePath) &&
+    meetingCreateBody.safeParse(body).success
   );
 }

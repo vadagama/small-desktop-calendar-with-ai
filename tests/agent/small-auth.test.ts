@@ -368,7 +368,7 @@ test("calendar domain failures retain safe kinds and messages across session bou
 });
 
 test("calendar creation checks the account and never replays a rejected POST", async () => {
-  const { meetingCreatePath } =
+  const { meetingCreatePath, confirmedMeetingCreatePath } =
     await import("../../src/main/meeting-request.js");
   const f = setup();
   await f.auth.login({
@@ -411,6 +411,19 @@ test("calendar creation checks the account and never replays a rejected POST", a
     f.auth.createCalendarEvent("employee-a", { ...body, force: true }),
   );
   assert.equal(writes, 1);
+  f.transport.request = async (path, init) => {
+    if (path === confirmedMeetingCreatePath) {
+      writes++;
+      assert.equal(init.method, "POST");
+      return new Response(null, { status: 409 });
+    }
+    return original(path, init);
+  };
+  assert.equal(
+    (await f.auth.createCalendarEvent("employee-a", body, true)).status,
+    409,
+  );
+  assert.equal(writes, 2);
 });
 
 test("calendar updates and replies send JSON bodies once without replaying an unauthorized write", async () => {
