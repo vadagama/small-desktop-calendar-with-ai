@@ -48,6 +48,7 @@ export function eventFingerprint(event: CalendarEvent): string {
     [...event.calendarIds].sort(byText),
     event.participation ?? null,
     event.accepted ?? null,
+    event.participationStatus ?? null,
     event.organizer,
     event.organizerId ?? null,
     event.description,

@@ -385,9 +385,11 @@ test("calendar reads Small events and details, distinguishes partial/empty/error
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: "Месяц", exact: true }).click();
     const monthRange = calendarRange(calendarToday(), "month");
-    const monthCellCount =
-      (Date.parse(monthRange.end) - Date.parse(monthRange.start)) / 86_400_000;
-    await expect(page.locator(".month-day")).toHaveCount(monthCellCount);
+    await expect(page.locator(".month-day")).toHaveCount(
+      Math.round(
+        (Date.parse(monthRange.end) - Date.parse(monthRange.start)) / 86400000,
+      ),
+    );
     await expect(page.locator(".month-event")).toHaveCount(1);
     const room = page.getByRole("checkbox", {
       name: "Тестовая переговорная",

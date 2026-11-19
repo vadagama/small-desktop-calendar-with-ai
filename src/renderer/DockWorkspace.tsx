@@ -32,7 +32,10 @@ const opposite: Record<Placement, Placement> = {
   above: "below",
   below: "above",
 };
-const Panels = createContext<{ calendar: ReactNode; assistant: ReactNode }>({
+const Panels = createContext<{
+  calendar: ReactNode;
+  assistant: ReactNode;
+}>({
   calendar: null,
   assistant: null,
 });
@@ -75,9 +78,13 @@ export function DockWorkspace({
   calendar,
   assistant,
   settingsOpen,
+  availability,
+  availabilityActive = false,
   hidden = false,
   closeSettings,
 }: {
+  availability?: { id: string; content: ReactNode };
+  availabilityActive?: boolean;
   hidden?: boolean;
   settingsOpen: boolean;
   closeSettings: () => void;
@@ -158,7 +165,18 @@ export function DockWorkspace({
     >
       <Panels.Provider
         value={{
-          calendar: calendar(swap),
+          calendar: (
+            <>
+              <div className="dock-main-view" hidden={availabilityActive}>
+                {calendar(swap)}
+              </div>
+              {availability && (
+                <div className="dock-main-view" hidden={!availabilityActive}>
+                  {availability.content}
+                </div>
+              )}
+            </>
+          ),
           assistant: assistant(swap, assistantHeader),
         }}
       >

@@ -19,6 +19,12 @@ import {
   type CalendarStore,
 } from "../shared/calendar-view-state.js";
 
+function transitionCalendar(update: () => void) {
+  // View-transition snapshots paint above the top layer, including modal dialogs.
+  if (document.querySelector("dialog:modal")) update();
+  else startTransition(update);
+}
+
 export function useSmallCalendar(
   accountId: string | null,
   date: string,
@@ -165,7 +171,7 @@ export function useSmallCalendar(
       };
       // Only a real change may animate; a silent revalidation must not start a transition.
       if (isEmptyDiff(change.diff)) apply();
-      else startTransition(apply);
+      else transitionCalendar(apply);
     });
     // key includes every query field, so the closure above always matches it.
   }, [accountId, key, expired]);
@@ -176,7 +182,7 @@ export function useSmallCalendar(
     // renewal below only reconcile, instead of waiting for the network.
     if (write && removed) {
       const gone = new Set(write.eventIds);
-      startTransition(() =>
+      transitionCalendar(() =>
         setStore((previous) => {
           const data = previous[key];
           if (!data) return previous;
@@ -219,7 +225,7 @@ export function useSmallCalendar(
     /** Shows a meeting Small just created at once; the renewal after the write confirms it. */
     addEvent: (event: CalendarEvent) => {
       ownEvents.current.add(event.key);
-      startTransition(() =>
+      transitionCalendar(() =>
         setStore((previous) => insertCalendarEvent(previous, key, event)),
       );
     },

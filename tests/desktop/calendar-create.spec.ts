@@ -154,16 +154,23 @@ test("calendar cells create timed drafts and protect unsaved changes", async () 
     await form
       .getByLabel("Наименование", { exact: false })
       .fill("Синтетическое выделение");
-    await app.evaluate((_, date) => {
-      (
-        globalThis as typeof globalThis & {
-          syntheticAvailableSlots: { start: string; end: string }[];
-        }
-      ).syntheticAvailableSlots = [
-        { start: `${date}T13:00:00+05:00`, end: `${date}T14:15:00+05:00` },
-      ];
-    }, tomorrow);
     await form.getByRole("button", { name: "Создать", exact: true }).click();
+    // The selected interval overlaps lunch; creating it requires explicit consent.
+    const conflict = page.getByRole("dialog", {
+      name: "Есть пересечения",
+      exact: true,
+    });
+    await expect(conflict).toBeVisible();
+    expect(
+      await app.evaluate(
+        () =>
+          (globalThis as typeof globalThis & { syntheticMeetingWrites: number })
+            .syntheticMeetingWrites,
+      ),
+    ).toBe(0);
+    await conflict
+      .getByRole("button", { name: "Создать встречу", exact: true })
+      .click();
     await expect(form).toHaveCount(0);
     await expect(confirmation).toHaveCount(0);
     await expect(page.locator('[data-new-event="true"]')).toContainText(

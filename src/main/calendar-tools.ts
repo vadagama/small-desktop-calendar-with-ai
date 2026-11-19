@@ -1,3 +1,9 @@
+import { editableEvent } from "../shared/event-edit.js";
+import {
+  analysisQuery,
+  analysisToolInput,
+} from "../shared/availability-analysis.js";
+import { calendarToday } from "../shared/calendar-time.js";
 import { readEventList } from "./event-list.js";
 import { eventListInput } from "../shared/event-list.js";
 import { seriesTarget } from "../shared/series-scope.js";
@@ -24,6 +30,8 @@ import { meetingDraftInput } from "../shared/meeting-draft.js";
 import { prepareMeetingDraft } from "./meeting-draft.js";
 import {
   meetingDeletionInput,
+  meetingParticipantsInput,
+  meetingParticipantsSchema,
   peopleToolInput,
   selectParticipantsInput,
   participantMemoryInput,
@@ -111,6 +119,75 @@ export function createCalendarToolExecutor(
         if (data.complete)
           for (const event of data.events)
             conversation.observedMeetings.set(event.key, event);
+      } else if (name === "prepareMeetingParticipants") {
+        const q = meetingParticipantsInput.parse(input);
+        if (
+          !conversation.selectionConfirmed ||
+          q.participantIds.some(
+            (id) =>
+              !conversation.selected.includes(id) ||
+              !conversation.people.has(id),
+          )
+        )
+          throw new CalendarError(
+            "invalid",
+            "Сначала найдите и подтвердите новых участников через searchPeople и selectParticipants.",
+          );
+        const result = await collectEvents(
+          accountId,
+          { from: q.date, to: q.date },
+          calendar,
+          signal,
+        );
+        const listed = result.events.find((event) => event.key === q.key);
+        if (result.issues.length || !listed || !calendar.detail)
+          throw new CalendarError(
+            "invalid",
+            "Не удалось однозначно найти встречу. Обновите расписание.",
+          );
+        const event = await calendar.detail({
+          accountId,
+          lookup: listed.lookup,
+        });
+        if (
+          event.participation !== "organizer" ||
+          !("id" in event.lookup) ||
+          event.recurring ||
+          event.originalEventId ||
+          event.recurrenceRule
+        )
+          throw new CalendarError(
+            "denied",
+            "Добавление участников доступно организатору разовой встречи. Для серии откройте редактор календаря.",
+          );
+        if (
+          calendarDateAt(event.startsAt) < calendarToday() ||
+          !event.participants?.length
+        )
+          throw new CalendarError(
+            "invalid",
+            "Нужна актуальная встреча с полным составом участников.",
+          );
+        const before = editableEvent(event);
+        const additions = [...new Set(q.participantIds)].filter(
+          (id) => !before.participant_ids.includes(id),
+        );
+        if (!additions.length)
+          throw new CalendarError(
+            "invalid",
+            "Выбранные участники уже приглашены.",
+          );
+        data = meetingParticipantsSchema.parse({
+          kind: "meeting-participants",
+          accountId,
+          eventId: event.lookup.id,
+          before,
+          after: {
+            ...before,
+            participant_ids: [...before.participant_ids, ...additions],
+          },
+          people: additions.map((id) => conversation.people.get(id)!),
+        });
       } else if (name === "prepareMeetingDeletion") {
         const q = meetingDeletionInput.parse(input);
         const result = await collectEvents(
@@ -420,6 +497,114 @@ export function createCalendarToolExecutor(
         data = {
           kind: "memory" as const,
           people: await memory.read(accountId),
+        };
+      } else if (name === "showAvailabilityAnalysis") {
+        const q = analysisToolInput.parse(input);
+        if (!organizerParticipantId)
+          throw new CalendarError(
+            "invalid",
+            "Не удалось определить организатора. Выполните вход в Small заново.",
+          );
+        const requested = q.participantIds.filter(
+          (id) => id !== organizerParticipantId,
+        );
+        const selected = conversation.selected.filter(
+          (id) => id !== organizerParticipantId,
+        );
+        if (
+          !conversation.selectionConfirmed ||
+          requested.length !== selected.length ||
+          requested.some((id) => !selected.includes(id))
+        )
+          throw new CalendarError(
+            "invalid",
+            "Сначала уточните и выберите полный состав участников.",
+          );
+        const people = requested
+          .map((id) => conversation.people.get(id))
+          .filter((p): p is CalendarPerson => Boolean(p));
+        if (people.length !== requested.length)
+          throw new CalendarError(
+            "invalid",
+            "Проверьте участников в каталоге.",
+          );
+        const organizer = people.find(
+          (p) => p.participantId === organizerParticipantId,
+        ) ?? {
+          participantId: organizerParticipantId,
+          name: organizerName,
+          position: "",
+        };
+        const organizerIndex = people.findIndex(
+          (p) => p.participantId === organizerParticipantId,
+        );
+        if (organizerIndex >= 0) people.splice(organizerIndex, 1);
+        people.unshift(organizer);
+        if (people.length > 20)
+          throw new CalendarError(
+            "invalid",
+            "Можно выбрать не более 19 сотрудников помимо организатора.",
+          );
+        if (!people.length)
+          throw new CalendarError(
+            "invalid",
+            "Выберите хотя бы одного сотрудника.",
+          );
+        const stored = assistantMemory
+          ? await assistantMemory.store.read(accountId)
+          : undefined;
+        const raw =
+          typeof input === "object" && input !== null
+            ? (input as Record<string, unknown>)
+            : {};
+        const preferences = resolveMeetingPreferences(
+          stored?.preferences ?? {},
+          conversation.taskPreferences,
+          conversation.preset?.durationMinutes !== undefined
+            ? { durationMinutes: conversation.preset.durationMinutes }
+            : {},
+          conversation.meetingSource
+            ? { durationMinutes: conversation.meetingSource.durationMinutes }
+            : {},
+        ).values;
+        const query = analysisQuery.parse({
+          accountId,
+          participantIds: people.map((p) => p.participantId),
+          date:
+            q.date ?? conversation.availability?.query.date ?? calendarToday(),
+          period:
+            raw.period !== undefined
+              ? q.period
+              : (conversation.availability?.query.period ?? q.period),
+          includeWeekends:
+            (raw.includeWeekends !== undefined
+              ? q.includeWeekends
+              : (conversation.availability?.query.includeWeekends ??
+                q.includeWeekends)) ||
+            (q.period === "day" &&
+              [0, 6].includes(
+                new Date(`${q.date ?? calendarToday()}T12:00:00Z`).getUTCDay(),
+              )),
+          bufferMinutes: preferences.bufferMinutes ?? 0,
+          ...(organizerParticipantId ? { organizerParticipantId } : {}),
+          durationMinutes:
+            raw.durationMinutes !== undefined
+              ? q.durationMinutes
+              : (preferences.durationMinutes ?? 60),
+          timeFrom:
+            raw.timeFrom !== undefined
+              ? q.timeFrom
+              : (preferences.timeFrom ?? "09:00"),
+          timeTo:
+            raw.timeTo !== undefined
+              ? q.timeTo
+              : (preferences.timeTo ?? "18:00"),
+        });
+        data = { kind: "availability-analysis" as const, query, people };
+        conversation.availability = data;
+        conversation.taskPreferences = {
+          ...conversation.taskPreferences,
+          durationMinutes: query.durationMinutes,
         };
       } else if (name === "findSlots" || name === "prepareMeetingDraft") {
         const stored = assistantMemory

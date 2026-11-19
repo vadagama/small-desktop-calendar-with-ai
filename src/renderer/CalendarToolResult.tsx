@@ -1,9 +1,14 @@
+import { MeetingParticipantsCard } from "./MeetingParticipantsCard";
+import { availabilityOpeningSchema } from "../shared/availability-analysis.js";
 import {
   TemplateMarkdown,
   useAssistantPresentation,
 } from "./AssistantPresentation";
 import { MeetingDeletionCard } from "./MeetingDeletionCard";
-import { meetingDeletionSchema } from "../shared/calendar-tools.js";
+import {
+  meetingDeletionSchema,
+  meetingParticipantsSchema,
+} from "../shared/calendar-tools.js";
 import { meetingDraftSchema } from "../shared/meeting-draft.js";
 import { MeetingDraftCard } from "./MeetingDraftCard";
 import { z } from "zod";
@@ -12,8 +17,10 @@ const resultSchema = z.discriminatedUnion("ok", [
   z.object({
     ok: z.literal(true),
     data: z.union([
+      availabilityOpeningSchema,
       meetingDraftSchema,
       meetingDeletionSchema,
+      meetingParticipantsSchema,
       z.object({
         people: z.array(
           z.object({
@@ -61,6 +68,21 @@ export function CalendarToolResult({ output }: { output: unknown }) {
   if (!parsed.success) return <p>Результат недоступен.</p>;
   if (!parsed.data.ok) return <p>{parsed.data.error}</p>;
   const data = parsed.data.data;
+  if ("kind" in data && data.kind === "availability-analysis")
+    return (
+      <button
+        className="secondary"
+        onClick={() =>
+          window.dispatchEvent(
+            new CustomEvent("small:open-availability", { detail: data }),
+          )
+        }
+      >
+        Открыть свободные слоты
+      </button>
+    );
+  if ("kind" in data && data.kind === "meeting-participants")
+    return <MeetingParticipantsCard change={data} />;
   if ("kind" in data)
     return data.kind === "meeting-delete" ? (
       <MeetingDeletionCard deletion={data} />

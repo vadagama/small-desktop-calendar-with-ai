@@ -548,3 +548,21 @@ test("auth expiry while reading a recurrence template is reported", async () => 
     { kind: "auth" },
   );
 });
+
+test("detail identifies an invited participant without the list-only is_informed flag", async () => {
+  const f = setup(() =>
+    Response.json({
+      data: {
+        ...event,
+        creator_id: "other",
+        participants: [{ id: "person-a", status: "declined" }],
+      },
+    }),
+  );
+  const detail = await f.service.detail({
+    accountId: "account-a",
+    lookup: { id: "42" },
+  });
+  assert.equal(detail.participation, "invited");
+  assert.equal(detail.participationStatus, "declined");
+});

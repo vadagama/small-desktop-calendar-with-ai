@@ -8,9 +8,7 @@ import { mockSmall } from "./fixtures/small-api.js";
 import { calendarToday } from "../../src/shared/calendar-time.js";
 
 test("calendar tools cross utility/main boundary and render trusted results", async () => {
-  // This end-to-end journey runs multiple model/tool turns, writes and screenshots.
-  // It takes about 25 seconds locally; macOS CI needs headroom beyond the 30s default.
-  test.setTimeout(90_000);
+  test.setTimeout(60_000);
   const userData = await mkdtemp(join(tmpdir(), "small-chat-calendar-"));
   type ModelMessage = {
     role: string;
@@ -379,6 +377,23 @@ test("calendar tools cross utility/main boundary and render trusted results", as
       (
         globalThis as typeof globalThis & { syntheticAvailableSlots: unknown[] }
       ).syntheticAvailableSlots = [];
+      (
+        globalThis as typeof globalThis & {
+          syntheticAvailabilityByDay: Record<
+            string,
+            { busy: { start: string; end: string }[] }
+          >;
+        }
+      ).syntheticAvailabilityByDay = {
+        "synthetic-b:2099-10-29": {
+          busy: [
+            {
+              start: "2099-10-29T14:00:00+05:00",
+              end: "2099-10-29T14:30:00+05:00",
+            },
+          ],
+        },
+      };
     });
     await draft
       .getByRole("button", {
@@ -389,6 +404,13 @@ test("calendar tools cross utility/main boundary and render trusted results", as
     await expect(draft).toContainText("Время больше не свободно");
     await expect(draft).not.toContainText("Нет пересечений у участников");
     expect(await writes()).toBe(0);
+    await app.evaluate(() => {
+      delete (
+        globalThis as typeof globalThis & {
+          syntheticAvailabilityByDay?: unknown;
+        }
+      ).syntheticAvailabilityByDay;
+    });
     await setSlots("2099-10-29");
     await app.evaluate(() => {
       (
@@ -629,6 +651,127 @@ test("calendar tools cross utility/main boundary and render trusted results", as
       .locator(".calendar-event")
       .filter({ hasText: "Синтетическая встреча A" });
     await expect(calendarEvent).toBeVisible();
+
+    // Existing meeting: verified additions are a read-only preview until confirmation.
+    const readComposition = () =>
+      page.evaluate(() =>
+        window.smallDesktop.calendar.detail({
+          accountId: "employee-a",
+          lookup: { id: "42" },
+        }),
+      );
+    const eventExtraBefore = await app.evaluate(
+      () =>
+        (
+          globalThis as typeof globalThis & {
+            syntheticEventExtra?: Record<string, unknown> | undefined;
+          }
+        ).syntheticEventExtra,
+    );
+    const beforeAddition = await readComposition();
+    expect(beforeAddition.ok).toBe(true);
+    const updateCount = () =>
+      app.evaluate(
+        () =>
+          (
+            globalThis as typeof globalThis & {
+              syntheticUpdateForces?: string[];
+            }
+          ).syntheticUpdateForces?.length ?? 0,
+      );
+    const writesBefore = await updateCount();
+    turn++;
+    plan = [
+      { name: "listMeetings", input: { period: "today" } },
+      { name: "searchPeople", input: { query: "Тест", page: 2 } },
+      {
+        name: "selectParticipants",
+        input: { participantIds: ["synthetic-c"] },
+      },
+      {
+        name: "prepareMeetingParticipants",
+        input: {
+          key: "event:42",
+          date: calendarToday(),
+          participantIds: ["synthetic-c"],
+        },
+      },
+    ];
+    answer = "Участники уже добавлены";
+    await send("Добавь Другого сотрудника в Синтетическую встречу A сегодня");
+    const addition = page.getByRole("region", {
+      name: "Добавление участников",
+      exact: true,
+    });
+    await expect(addition).toContainText("Другой сотрудник");
+    await expect(addition.locator("p").first()).toHaveCSS("font-size", "14px");
+    await addition.screenshot({
+      path: "test-results/desktop/assistant-participants-preview.png",
+    });
+    await expect(
+      page.getByText("Участники уже добавлены", { exact: true }),
+    ).toHaveCount(0);
+    expect(await updateCount()).toBe(writesBefore);
+    const previewComposition = await readComposition();
+    expect(previewComposition).toEqual(beforeAddition);
+    await app.evaluate(() => {
+      const state = globalThis as typeof globalThis & {
+        syntheticUpdateDelayMs: number;
+        syntheticUpdateConflict: boolean;
+      };
+      state.syntheticUpdateDelayMs = 250;
+      state.syntheticUpdateConflict = true;
+    });
+    await addition
+      .getByRole("button", { name: "Добавить участников", exact: true })
+      .click();
+    const conflict = page.getByRole("dialog", { name: "Есть пересечения" });
+    await expect(conflict).toBeVisible();
+    expect(await readComposition()).toEqual(beforeAddition);
+    await conflict
+      .getByRole("button", { name: "Сохранить изменения", exact: true })
+      .click();
+    await expect(addition.getByRole("status")).toHaveText(
+      "Участники добавлены",
+    );
+    const afterAddition = await readComposition();
+    expect(afterAddition.ok).toBe(true);
+    if (afterAddition.ok && beforeAddition.ok) {
+      expect(
+        afterAddition.data.participants?.map((person) => person.id),
+      ).toEqual([
+        ...beforeAddition.data.participants!.map((person) => person.id),
+        "synthetic-c",
+      ]);
+      for (const field of [
+        "title",
+        "startsAt",
+        "endsAt",
+        "description",
+        "location",
+        "calendarIds",
+        "attachments",
+        "notificationRecipients",
+      ] as const)
+        expect(afterAddition.data[field]).toEqual(beforeAddition.data[field]);
+    }
+    expect(await updateCount()).toBe(writesBefore + 2);
+    await app.evaluate(() => {
+      const state = globalThis as typeof globalThis & {
+        syntheticUpdateDelayMs: number;
+        syntheticUpdateConflict: boolean;
+      };
+      state.syntheticUpdateDelayMs = 0;
+      state.syntheticUpdateConflict = false;
+    });
+    // Later scenarios intentionally recreate the original two-person fixture.
+    await app.evaluate((_, extra) => {
+      (
+        globalThis as typeof globalThis & {
+          syntheticEventExtra?: Record<string, unknown> | undefined;
+        }
+      ).syntheticEventExtra = extra;
+    }, eventExtraBefore);
 
     turn++;
     plan = [

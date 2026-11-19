@@ -13,3 +13,6 @@ prototype/playwright-report/
 .impeccable/mocks/
 
 /native/voice/
+
+# Local scratch files and isolated Electron profiles
+/tmp/

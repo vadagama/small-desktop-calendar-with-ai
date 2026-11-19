@@ -287,3 +287,59 @@ test("copy selection cannot reread meetings when the schedule skill is disabled"
   await result.consumeStream();
   assert.deepEqual(called, ["assistantMemory"]);
 });
+
+test("participant change is available to the SDK when schedule is enabled", async () => {
+  const { loadAgentDefaults } =
+    await import("../../src/agent/agent-content.js");
+  const configuration = await loadAgentDefaults();
+  configuration.settings.skills.find((s) => s.id === "schedule")!.enabled =
+    true;
+  const called: string[] = [];
+  const model = new MockLanguageModelV4({
+    doStream: async () => ({
+      stream: simulateReadableStream({
+        initialDelayInMs: null,
+        chunkDelayInMs: null,
+        chunks: [
+          {
+            type: "tool-call",
+            toolCallId: "copy",
+            toolName: "prepareMeetingParticipants",
+            input:
+              '{"participantIds":["new"],"key":"event:synthetic","date":"2099-11-20"}',
+          },
+          {
+            type: "finish",
+            finishReason: { unified: "tool-calls", raw: undefined },
+            usage: {
+              inputTokens: {
+                total: 1,
+                noCache: 1,
+                cacheRead: undefined,
+                cacheWrite: undefined,
+              },
+              outputTokens: { total: 1, text: 1, reasoning: undefined },
+            },
+          },
+        ],
+      }),
+    }),
+  });
+  const result = await streamCalendarTurn(
+    model,
+    { prompt: "Копия", abortSignal: new AbortController().signal },
+    async (name) => {
+      called.push(name);
+      return { ok: false, kind: "denied", error: "synthetic" };
+    },
+    configuration,
+  );
+  await result.consumeStream();
+  assert.ok(called.includes("prepareMeetingParticipants"));
+  assert.ok(
+    model.doStreamCalls[0]?.tools?.some(
+      (tool) =>
+        tool.type === "function" && tool.name === "prepareMeetingParticipants",
+    ),
+  );
+});
