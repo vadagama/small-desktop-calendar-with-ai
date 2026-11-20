@@ -150,6 +150,12 @@ export function MeetingPeoplePicker({
           </button>
         </div>
       </div>
+      {data.selected.length >= data.selectionLimit && (
+        <p role="status">
+          Можно выбрать не более {data.selectionLimit} сотрудников. Чтобы
+          добавить другого, уберите одного из выбранных.
+        </p>
+      )}
       {data.searching && <p role="status">Ищу сотрудников…</p>}
       {data.searchError && (
         <p role="alert" className="form-error">
@@ -195,7 +201,7 @@ export function MeetingPeoplePicker({
               key={p.participantId}
               type="button"
               className="meeting-person-option"
-              disabled={data.selected.length >= 20}
+              disabled={data.selected.length >= data.selectionLimit}
               onClick={() => select(p)}
             >
               <span className="meeting-person-avatar" aria-hidden="true">

@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type { CalendarEvent } from "./calendar.js";
+export const eventEditPeopleLimit = 100;
 const ids = z.array(z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)).max(100);
+const peopleIds = ids.max(eventEditPeopleLimit);
 export const eventEditFields = z.strictObject({
   title: z.string().trim().min(1).max(200),
   description: z.string().max(20000),
@@ -8,15 +10,15 @@ export const eventEditFields = z.strictObject({
   starts_at: z.iso.datetime({ offset: true }),
   ends_at: z.iso.datetime({ offset: true }),
   calendar_ids: z.array(z.number().int().positive()).max(100),
-  participant_ids: ids,
-  notification_recipient_ids: ids,
+  participant_ids: peopleIds,
+  notification_recipient_ids: peopleIds,
   attachments: ids,
 });
 export const eventEditQuery = z.strictObject({
   accountId: z.string().min(1),
   eventId: z.string().regex(/^[A-Za-z0-9_-]{1,128}$/),
   before: eventEditFields,
-  after: eventEditFields.extend({ participant_ids: ids.min(1) }),
+  after: eventEditFields.extend({ participant_ids: peopleIds.min(1) }),
   allowConflicts: z.boolean().optional(),
 });
 export type EventEditQuery = z.infer<typeof eventEditQuery>;
