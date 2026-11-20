@@ -570,13 +570,19 @@ test("an unknown materialization outcome blocks the series and never sends the w
 test("concurrent actions on one series are rejected while other series stay independent", async () => {
   const t = await setup();
   try {
-    let release: () => void = () => {};
-    t.backend.onMaterialize = () => new Promise<void>((r) => (release = r));
+    let started!: () => void;
+    const materializing = new Promise<void>((resolve) => (started = resolve));
+    let release!: () => void;
+    t.backend.onMaterialize = () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+        started();
+      });
     const first = t.run(
       t.approve("rename", "occurrence", "2026-11-12"),
       rename("Н"),
     );
-    await new Promise((r) => setTimeout(r, 20));
+    await materializing;
     await assert.rejects(
       t.run(t.approve("rename", "occurrence", "2026-11-05"), rename("Д")),
       /уже сохраняется/,
