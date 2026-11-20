@@ -57,6 +57,90 @@ async function open(
   }
 }
 
+for (const count of [2, 21, 99, 100]) {
+  test(`manual editing adds or replaces an employee with ${count} existing participants`, async () => {
+    await open(async (app, page) => {
+      await app.evaluate((_, count) => {
+        (
+          globalThis as typeof globalThis & {
+            syntheticEventExtra: Record<string, unknown>;
+          }
+        ).syntheticEventExtra = {
+          participants: [
+            {
+              id: "synthetic-organizer",
+              name: "Синтетический организатор",
+              status: "accepted",
+            },
+            ...Array.from({ length: count - 1 }, (_, i) => ({
+              id: `existing-${i}`,
+              name: `Участник ${i}`,
+              status: "pending",
+            })),
+          ],
+        };
+      }, count);
+      await page.getByRole("button", { name: "День", exact: true }).click();
+      await page
+        .locator(".calendar-event")
+        .filter({ hasText: "Синтетическая встреча A" })
+        .click();
+      await page
+        .locator("dialog.small-event-details")
+        .getByLabel("Действия со встречей")
+        .click();
+      await page
+        .getByRole("button", { name: "Редактировать", exact: true })
+        .click();
+      const form = page.getByRole("dialog", {
+        name: "Редактирование события",
+        exact: true,
+      });
+      await expect(form.locator(".meeting-chips > span")).toHaveCount(count);
+      await form.getByLabel("Поиск участников", { exact: true }).fill("Тест");
+      const candidate = form.getByRole("button", {
+        name: /Тестовый сотрудник.*Отдел A/,
+      });
+      if (count === 100) {
+        await expect(candidate).toBeDisabled();
+        const limit = form.getByRole("status");
+        await expect(limit).toContainText(
+          "Можно выбрать не более 100 сотрудников",
+        );
+        await expect(limit).toHaveCSS("font-size", "14px");
+        await form
+          .getByRole("button", { name: "Убрать Участник 0", exact: true })
+          .click();
+        await expect(limit).toHaveCount(0);
+      }
+      await expect(candidate).toBeEnabled();
+      await expect(candidate).toHaveCSS("font-size", "13px");
+      await candidate.click();
+      await expect(form.locator(".meeting-chips > span")).toHaveCount(
+        Math.min(count + 1, 100),
+      );
+      await form
+        .getByRole("button", { name: "Сохранить", exact: true })
+        .click();
+      await expect(form).toHaveCount(0);
+      const participants = await app.evaluate(() =>
+        (
+          globalThis as typeof globalThis & {
+            syntheticEventExtra: { participants: { id: string }[] };
+          }
+        ).syntheticEventExtra.participants.map((p) => p.id),
+      );
+      expect(participants).toEqual([
+        "synthetic-organizer",
+        ...Array.from({ length: count - 1 }, (_, i) => `existing-${i}`).filter(
+          (id) => count !== 100 || id !== "existing-0",
+        ),
+        "synthetic-a",
+      ]);
+    });
+  });
+}
+
 test("manual creation asks before writing a conflicting meeting and preserves the form on cancel", async () => {
   await open(async (app, page) => {
     await page

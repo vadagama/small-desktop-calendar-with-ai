@@ -1,4 +1,4 @@
-import { editableEvent } from "../shared/event-edit.js";
+import { editableEvent, eventEditPeopleLimit } from "../shared/event-edit.js";
 import type { EventEditQuery } from "../shared/event-edit.js";
 import type { MeetingDraft } from "../shared/meeting-draft.js";
 import {
@@ -157,6 +157,7 @@ export function useNewMeeting({
             },
           ]
         : [],
+      editing ? eventEditPeopleLimit : undefined,
     ),
     recipients = useAvailability(
       account.id,
@@ -166,6 +167,8 @@ export function useNewMeeting({
         name: p.name,
         position: "",
       })),
+      [],
+      editing ? eventEditPeopleLimit : undefined,
     );
   const snapshot = JSON.stringify({
     title,

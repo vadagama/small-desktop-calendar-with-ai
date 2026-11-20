@@ -11,6 +11,7 @@ export function useAvailability(
   expired: () => void,
   initialPeople: CalendarPerson[] = [],
   protectedPeople: CalendarPerson[] = [],
+  selectionLimit = 20,
 ) {
   const [people, setPeople] = useState<PeoplePage | null>(null);
   const [searching, setSearching] = useState(false);
@@ -91,7 +92,7 @@ export function useAvailability(
     setSelected((current) =>
       current.some((p) => p.participantId === person.participantId)
         ? current.filter((p) => p.participantId !== person.participantId)
-        : current.length < 20
+        : current.length < selectionLimit
           ? [...current, person]
           : current,
     );
@@ -127,6 +128,7 @@ export function useAvailability(
     }
   }
   return {
+    selectionLimit,
     people,
     searching,
     searchError,
