@@ -154,6 +154,7 @@ test("prompt automatically opens availability dashboard, picker and draft remain
       ];
     });
     const page = await app.firstWindow();
+    await page.setViewportSize({ width: 1440, height: 960 });
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
     await page
@@ -237,6 +238,12 @@ test("prompt automatically opens availability dashboard, picker and draft remain
       "font-size",
       "16px",
     );
+    await page.setViewportSize({ width: 1000, height: 800 });
+    await expect(panel.locator(".analysis-period-heading h2")).toHaveCSS(
+      "font-size",
+      "14px",
+    );
+    await page.setViewportSize({ width: 1440, height: 960 });
     await expect(
       page.getByRole("button", { name: "10 ноября 2099 г.", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
