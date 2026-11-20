@@ -35,10 +35,35 @@ export default defineConfig({
     root: "src/renderer",
     publicDir: resolve("resources/renderer"),
     resolve: { dedupe: ["react", "react-dom"] },
+    css: {
+      lightningcss: {
+        // DockWorkspace uses themeLight only. Keep its rules and all shared
+        // Dockview styles; revisit this list when adding a theme selector.
+        unusedSymbols: [
+          "dockview-theme-abyss",
+          "dockview-theme-abyss-spaced",
+          "dockview-theme-catppuccin-mocha",
+          "dockview-theme-catppuccin-mocha-spaced",
+          "dockview-theme-dark",
+          "dockview-theme-dracula",
+          "dockview-theme-github-dark",
+          "dockview-theme-github-dark-spaced",
+          "dockview-theme-github-light",
+          "dockview-theme-github-light-spaced",
+          "dockview-theme-light-spaced",
+          "dockview-theme-monokai",
+          "dockview-theme-nord",
+          "dockview-theme-nord-spaced",
+          "dockview-theme-solarized-light",
+          "dockview-theme-solarized-light-spaced",
+          "dockview-theme-vs",
+        ],
+      },
+    },
     server: { host: "127.0.0.1", port: 5174, strictPort: true },
     build: {
       minify: true,
-      cssMinify: true,
+      cssMinify: "lightningcss",
       rollupOptions: { input: resolve("src/renderer/index.html") },
     },
   },
