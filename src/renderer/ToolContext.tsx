@@ -12,8 +12,10 @@ const labels: Record<string, string> = {
   listMeetings: "Расписание",
   showEventList: "Поиск событий списком",
   findSlots: "Общее время",
+  showAvailabilityAnalysis: "Свободные слоты",
   meetingAnalytics: "Аналитика",
   prepareMeetingDraft: "Подготовка встречи",
+  prepareMeetingParticipants: "Добавление участников",
   prepareMeetingDeletion: "Подготовка удаления",
 };
 

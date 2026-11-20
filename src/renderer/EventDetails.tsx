@@ -126,6 +126,7 @@ export function EventDetails({
         if (!active) return;
         if (reply.ok) {
           setEvent(reply.data);
+          setResponse(null);
           setGone(false);
         } else {
           setError(reply.error);
@@ -199,7 +200,7 @@ export function EventDetails({
       if (reply.ok) {
         setResponse(status);
         notifySuccess("Ответ на приглашение сохранён");
-        changed?.({ eventIds: [event.lookup.id], windows: [] }, true);
+        changed?.({ eventIds: [event.lookup.id], windows: [] });
       } else {
         notifyError("сохранить ответ", reply.kind);
         if (reply.kind === "auth") expired();
@@ -620,7 +621,10 @@ export function EventDetails({
             </button>
             <button
               disabled={responding || gone}
-              aria-pressed={response === "declined"}
+              aria-pressed={
+                response === "declined" ||
+                (!response && event.participationStatus === "declined")
+              }
               onClick={() => void respond("declined")}
             >
               Нет

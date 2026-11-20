@@ -1,0 +1,62 @@
+[
+  {
+    "id": "week-names",
+    "prompt": "Найди свободные слоты на этой неделе для Анны Тестовой и Ивана Тестового",
+    "expected": {
+      "period": "week",
+      "date": "2026-11-09",
+      "durationMinutes": 60,
+      "participants": ["anna", "ivan", "self"]
+    }
+  },
+  {
+    "id": "tuesday-group",
+    "prompt": "Найди свободное время для встречи с тимлидами во вторник",
+    "expected": {
+      "period": "day",
+      "date": "2026-11-10",
+      "durationMinutes": 60,
+      "participants": ["anna", "ivan", "self"]
+    }
+  },
+  {
+    "id": "tomorrow-half-hour",
+    "prompt": "Когда мы с Анной Тестовой можем встретиться завтра на полчаса?",
+    "expected": {
+      "period": "day",
+      "date": "2026-11-10",
+      "durationMinutes": 30,
+      "participants": ["anna", "self"]
+    }
+  },
+  {
+    "id": "negative-count",
+    "prompt": "Сколько у меня встреч на этой неделе?",
+    "expected": {
+      "open": false
+    }
+  },
+  {
+    "id": "ambiguous-person",
+    "prompt": "Найди свободное время с Сашей завтра",
+    "expected": {
+      "open": false
+    }
+  },
+  {
+    "id": "followup-thursday-half-hour",
+    "prompt": "Теперь в четверг на полчаса",
+    "context": {
+      "date": "2026-11-10",
+      "period": "day",
+      "durationMinutes": 60,
+      "participants": ["anna", "ivan"]
+    },
+    "expected": {
+      "date": "2026-11-12",
+      "period": "day",
+      "durationMinutes": 30,
+      "participants": ["anna", "ivan", "self"]
+    }
+  }
+]

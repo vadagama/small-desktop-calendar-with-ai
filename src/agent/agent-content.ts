@@ -74,7 +74,18 @@ export async function loadAgentDefaults(
 export async function migrateBundledSkills(
   state: AgentSettingsState,
 ): Promise<AgentSettingsState> {
-  if (state.settings.version === 6) return state;
+  if (state.settings.version === 6) {
+    const skill = state.settings.skills.find((s) => s.id === "availability");
+    const old = await readFile(
+      new URL("./content/legacy/availability-v6.md", import.meta.url),
+      "utf8",
+    );
+    if (skill?.content.trim() === old.trim())
+      skill.content = (await loadAgentDefaults()).settings.skills.find(
+        (s) => s.id === "availability",
+      )!.content;
+    return state;
+  }
   const defaults = await loadAgentDefaults();
   for (const skill of state.settings.skills) {
     if (

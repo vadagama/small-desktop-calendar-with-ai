@@ -8,6 +8,21 @@ import { MemoryReviewSession } from "./memory-review.js";
 export class CalendarConversation {
   private accountId: string | null = null;
   private turns: ModelMessage[][] = [];
+  availability:
+    | import("../shared/availability-analysis.js").AvailabilityOpening
+    | undefined;
+  get boundAccount() {
+    return this.accountId;
+  }
+  matchesAccount(id: string) {
+    return this.accountId === id;
+  }
+  clearAvailability() {
+    if (!this.availability) return;
+    this.availability = undefined;
+    this.selected = [];
+    this.selectionConfirmed = false;
+  }
   people = new Map<string, CalendarPerson>();
   ambiguous = new Map<string, number>();
   selected: string[] = [];
@@ -90,6 +105,7 @@ export class CalendarConversation {
     if (this.accountId === id) return;
     this.accountId = id;
     this.unconfirmedIntervals.clear();
+    this.availability = undefined;
     this.memoryReview.clear();
     this.turns = [];
     this.people.clear();

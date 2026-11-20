@@ -1,3 +1,4 @@
+import { eventEditQuery } from "./event-edit.js";
 import type { MeetingDraft } from "./meeting-draft.js";
 import { z } from "zod";
 import { validCalendarDate } from "./calendar-time.js";
@@ -7,6 +8,28 @@ import type {
   SlotsResult,
   CalendarPerson,
 } from "./calendar.js";
+
+export const meetingParticipantsInput = z.strictObject({
+  key: z.string().min(1).max(300),
+  date: z.string().refine(validCalendarDate),
+  participantIds: z
+    .array(z.string().regex(/^[A-Za-z0-9_-]{1,128}$/))
+    .min(1)
+    .max(20),
+});
+export const meetingParticipantsSchema = eventEditQuery
+  .omit({ allowConflicts: true })
+  .extend({
+    kind: z.literal("meeting-participants"),
+    people: z.array(
+      z.object({
+        participantId: z.string(),
+        name: z.string(),
+        position: z.string(),
+      }),
+    ),
+  });
+export type MeetingParticipants = z.infer<typeof meetingParticipantsSchema>;
 
 export const meetingDeletionInput = z.strictObject({
   key: z.string().min(1).max(300),
@@ -78,9 +101,11 @@ export type CalendarToolResult = CalendarReply<
   | import("./schedule.js").ScheduleResult
   | import("./analytics.js").AnalyticsResult
   | PeoplePage
+  | import("./availability-analysis.js").AvailabilityOpening
   | SlotsResult
   | MeetingDraft
   | MeetingDeletion
+  | MeetingParticipants
   | { kind: "participants"; people: CalendarPerson[] }
   | {
       kind: "memory";

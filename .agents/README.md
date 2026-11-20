@@ -24,3 +24,10 @@ Installed locally on 2026-10-28, including each skill's references and supportin
 Both skill manifests declare MIT licensing. The TypeScript source repository's license is preserved in `LICENSE.typescript-pro`; the Electron source has no root license file in the verified revision, so its license declaration remains in the unchanged `SKILL.md`.
 
 These extend the 25 Addy Osmani workflows; there are now 27 local skills. The root `AGENTS.md` includes their selection rules. Electron analysis and scaffolding scripts require Deno; installation does not execute them or install Deno. Review scripts before running them. Apply TypeScript configuration and library recommendations to the actual project rather than treating example dependencies as an approved stack.
+
+## Project-owned workflows
+
+`skills/build-release/SKILL.md` — проектный навык для команды «собери релиз»:
+production-приложение с чистыми настройками, GitHub Release, Changelog и
+GitLab Pages с актуальным DMG. Создан по требованиям пользователя; не является
+частью vendored upstream-коллекций выше и не меняет их ревизии и лицензии.

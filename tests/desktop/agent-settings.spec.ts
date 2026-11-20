@@ -31,21 +31,15 @@ test("assistant instructions and skills can be edited, persisted and restored", 
       .click();
     let dialog = page.getByRole("dialog", { name: "Настройки AI-помощника" });
     await dialog.getByLabel("Шаблон 1", { exact: true }).fill("Сложи 2 и 3");
-    await expect(dialog.getByLabel("Шаблон 4", { exact: true })).toHaveValue(
-      "Найди все события за месяц, где организатором была Жанна",
-    );
-    await dialog
-      .getByRole("button", { name: "Удалить шаблон 4", exact: true })
-      .click();
-    await dialog
-      .getByRole("button", { name: "Добавить шаблон", exact: true })
-      .click();
+    // Defaults can grow; exercise the five-template limit from the actual count.
+    while ((await dialog.locator(".prompt-template-row").count()) < 5) {
+      await dialog
+        .getByRole("button", { name: "Добавить шаблон", exact: true })
+        .click();
+    }
     await dialog
       .getByLabel("Шаблон 4", { exact: true })
       .fill("Какие встречи завтра?");
-    await dialog
-      .getByRole("button", { name: "Добавить шаблон", exact: true })
-      .click();
     await dialog
       .getByLabel("Шаблон 5", { exact: true })
       .fill("Покажи следующую неделю");

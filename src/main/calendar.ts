@@ -127,12 +127,18 @@ function normalize(value: unknown, participantId?: string): CalendarEvent {
       e.participants?.some(
         (p) => p.id === participantId && p.status === "accepted",
       ) ?? false,
+    participationStatus:
+      e.participants?.find((p) => p.id === participantId)?.status ?? "unknown",
     participation:
       Boolean(participantId) && e.creator_id === participantId
         ? "organizer"
         : e.is_informed === true
           ? "informed"
-          : e.is_informed === false
+          : e.is_informed === false ||
+              Boolean(
+                participantId &&
+                e.participants?.some((p) => p.id === participantId),
+              )
             ? "invited"
             : "unknown",
     ...(e.original_event_id ? { originalEventId: e.original_event_id } : {}),

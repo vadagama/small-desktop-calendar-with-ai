@@ -227,6 +227,7 @@ export async function runMemoryTool(
         "Укажите точную цитату текущей или предыдущей просьбы пользователя. Для ответа «да» или номера сначала предложите параметры через offerTask.",
       );
     if (q.resetTask) {
+      conversation.availability = undefined;
       conversation.taskOptions = undefined;
       conversation.meetingSource = undefined;
       conversation.observedMeetings.clear();

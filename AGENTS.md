@@ -54,6 +54,7 @@ All skill paths use `.agents/skills/<name>/SKILL.md`.
 | Add runtime diagnostics | `observability-and-instrumentation` |
 | Document decisions | `documentation-and-adrs` |
 | Configure delivery or release | `ci-cd-and-automation`, `shipping-and-launch` |
+| «Собери релиз»: приложение, GitHub Release и GitLab Pages | `build-release` |
 | Migrate or retire behavior | `deprecation-and-migration` |
 
 ## Project context
@@ -169,3 +170,13 @@ If defaults populate any of these fields, fix those defaults rather than hiding
 the values in the UI. This is a rebuild/delivery rule, not a reset on every app
 startup: data explicitly entered afterwards persists according to the normal
 session and settings rules within that profile.
+
+## Команда «собери релиз»
+
+При запросе «собери релиз» прочитай и выполни
+`.agents/skills/build-release/SKILL.md`. Запрос включает production-сборку и DMG
+без credentials и пользовательских данных, проверку пустых настроек в чистом
+профиле, публикацию GitHub Release, Changelog в инструкции и публикацию
+инструкции на GitLab Pages с актуальной ссылкой DMG для установки/обновления.
+Это поручение полного выпуска; простой перезапуск или локальная пересборка
+сами по себе публикацию не запускают.

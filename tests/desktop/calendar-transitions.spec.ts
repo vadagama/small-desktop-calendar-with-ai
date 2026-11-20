@@ -92,6 +92,21 @@ test("a real server change runs one view transition and silent revalidations run
     await expect(
       page.getByRole("dialog", { name: "Событие для перехода" }),
     ).toBeVisible();
+    await serve({
+      title: "Событие для перехода",
+      starts_at: `${date}T11:00:00+05:00`,
+      ends_at: `${date}T11:30:00+05:00`,
+    });
+    await expect(card).toContainText("11:00 – 11:30");
+    expect(await spy()).toEqual({ calls: 1, finished: 1, skipped: 0 });
+    await page.getByRole("button", { name: "Закрыть событие" }).click();
+    await serve({
+      title: "Событие для перехода",
+      starts_at: `${date}T12:00:00+05:00`,
+      ends_at: `${date}T12:30:00+05:00`,
+    });
+    await expect(card).toContainText("12:00 – 12:30");
+    await expect.poll(async () => (await spy()).finished).toBe(2);
     expect(errors).toEqual([]);
   } finally {
     await signOutOfApp(app);

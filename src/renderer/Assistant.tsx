@@ -143,7 +143,10 @@ export function DesktopAssistant({
                 className="icon-button"
                 aria-label="Новый диалог"
                 disabled={busy || voiceBusy}
-                onClick={() => setChatId(crypto.randomUUID())}
+                onClick={() => {
+                  window.dispatchEvent(new Event("small:new-conversation"));
+                  setChatId(crypto.randomUUID());
+                }}
               >
                 <RotateCcw size={17} />
               </button>

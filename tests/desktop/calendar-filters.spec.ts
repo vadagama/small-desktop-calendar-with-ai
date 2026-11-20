@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { mockSmall } from "./fixtures/small-api.js";
 import { calendarToday } from "../../src/shared/calendar-time.js";
 
-test("personal participation filters work locally in every view and preserve room calendars", async () => {
+test("personal participation filters work locally in every view and survive availability navigation", async () => {
   const userData = await mkdtemp(join(tmpdir(), "small-filters-e2e-"));
   const executablePath = process.env.SMALL_APP_EXECUTABLE;
   const app = await _electron.launch({
@@ -90,13 +90,15 @@ test("personal participation filters work locally in every view and preserve roo
       );
     }
     await page
-      .getByRole("button", { name: "Переговорные", exact: true })
+      .getByRole("button", { name: "Свободные слоты", exact: true })
       .click();
+    await expect(
+      page.getByRole("region", { name: "Свободные слоты", exact: true }),
+    ).toBeVisible();
+    await expect(invited).toHaveCount(0);
     await page
-      .getByRole("checkbox", { name: "Тестовая переговорная", exact: true })
-      .check();
-    await expect(page.locator(".calendar-event")).toHaveCount(2);
-    await page.getByRole("button", { name: "Календарь", exact: true }).click();
+      .getByRole("button", { name: "Показать календари", exact: true })
+      .click();
     await expect(invited).not.toBeChecked();
     await expect(page.locator(".calendar-event")).toHaveCount(1);
 

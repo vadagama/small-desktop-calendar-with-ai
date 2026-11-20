@@ -94,6 +94,7 @@ const calendarEvent = z.strictObject({
     .enum(["organizer", "invited", "informed", "unknown"])
     .optional(),
   accepted: z.boolean().optional(),
+  participationStatus: z.string().optional(),
   organizer: z.string(),
   organizerId: z.string().optional(),
   description: z.string(),

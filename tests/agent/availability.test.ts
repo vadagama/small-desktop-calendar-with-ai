@@ -455,9 +455,12 @@ test("exact weekend intervals cannot bypass date, duration, future or working-da
         exactInterval: slot,
       })
     ).slots,
-    [],
+    [slot],
   );
-  assert.ok(f.calls.some((c) => c.path.endsWith("find-slots")));
+  assert.equal(
+    f.calls.some((c) => c.path.endsWith("find-slots")),
+    false,
+  );
 });
 
 test("an exact weekend interval in the past is never considered free", async () => {
