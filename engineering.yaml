@@ -1,0 +1,567 @@
+---
+schema_version: '1.2'
+profile: custom
+platform:
+  source: go-product-platform
+  revision: sha256:11bf6902699be553f383d0caca407a9814e79a3f4e9414e96328a215a79858d4
+policy:
+  file: docs/agent-policy.md
+ui:
+  mode: skills
+  docs_path: docs/ui
+  kit: shadcn / Dockview
+  target:
+    path: src/renderer
+    stack: React / TypeScript / Wails
+  prototypes:
+    enabled: true
+    root: prototype
+    stack: React / TypeScript / Vite
+ai:
+  surfaces:
+  - codex
+  primary_surface: codex
+  harnesses:
+  - codex
+  roles:
+    documentation: ordo-codex
+    code: ordo-codex
+    ui: ordo-codex
+    code_review: ordo-codex
+    design_review: ordo-codex
+    requirements: ordo-codex
+    architecture: ordo-codex
+  assignments:
+  - id: ordo-codex
+    surface: codex
+    harness: codex
+    provider: openai
+    model: gpt-6.2-astra
+    status: verified
+    config_paths:
+    - ".codex/config.toml"
+    launch: codex
+    verification: MANUAL.md
+  fallback: ask
+skills:
+- name: accessibility-engineering
+  source: addyosmani/agent-skills
+  revision: 8c99fa36d90068c82d547f7c12a9d67a3e95f4ee
+  checksum: sha256:46554d4a211abe99112ba2ed3790cedfdfdb500740a9168a40d7cc7b95b44153
+  paths:
+  - ".agents/skills/accessibility-engineering/"
+  - ".claude/skills/accessibility-engineering/"
+  purpose: Audits existing interfaces for WCAG 2.2 AA conformance and remediates the
+    violations found. Use when auditing a page or component for accessibility, running
+    axe-core or pa11y, triaging a11y violations, or checking screen reader and contrast
+    issues before shipping.
+  status: current
+- name: ai-sdk
+  source: vercel/ai
+  revision: c39dedf99de495531017b7805dd7a99209798828
+  checksum: sha256:cb81cf21a76e4799d8213d4c9ffbd5b9f135d0ff6e1c152e9a756d64e3bc9205
+  paths:
+  - ".agents/skills/ai-sdk/"
+  - ".claude/skills/ai-sdk/"
+  purpose: 'Answer questions about the AI SDK and help build AI-powered features.
+    Use when developers: (1) Ask about AI SDK functions like generateText, streamText,
+    ToolLoopAgent, embed, or tools, (2) Want to build AI agents, chatbots, RAG systems,
+    or text generation features, (3) Have questions about AI providers (OpenAI, Anthropic,
+    Google, etc.), streaming, tool calling, structured output, or embeddings, (4)
+    Use React hooks like useChat or useCompletion. Triggers on: "AI SDK", "Vercel
+    AI SDK", "generateText", "streamText", "add AI to my app", "build an agent", "tool
+    calling", "structured output", "useChat".'
+  status: current
+- name: api-and-interface-design
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:bd790804abcd42d5f04df0a4715c85aea23898ddf5cd658ff56c66dcc9c8f342
+  paths:
+  - ".agents/skills/api-and-interface-design/"
+  - ".claude/skills/api-and-interface-design/"
+  purpose: Guides stable API and interface design. Use when designing APIs, module
+    boundaries, or any public interface. Use when creating REST or GraphQL endpoints,
+    defining type contracts between modules, or establishing boundaries between frontend
+    and backend.
+  status: current
+- name: browser-testing-with-devtools
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:e0b59408b5eb57a809a0046ef28d4b091594db6c121f92906c501e09abc186aa
+  paths:
+  - ".agents/skills/browser-testing-with-devtools/"
+  - ".claude/skills/browser-testing-with-devtools/"
+  purpose: Tests in real browsers via Chrome DevTools MCP. Use when building or debugging
+    anything that runs in a browser. Use when you need to inspect the DOM, capture
+    console errors, analyze network requests, profile performance, or verify visual
+    output with real runtime data. Requires the chrome-devtools MCP server to be configured.
+  status: current
+- name: build-release
+  source: Ordo
+  revision: sha256:05bcdc858823cae891ca87f65cf1f169a1e4335653451e506848be245648a05f
+  checksum: sha256:05bcdc858823cae891ca87f65cf1f169a1e4335653451e506848be245648a05f
+  paths:
+  - ".agents/skills/build-release/"
+  - ".claude/skills/build-release/"
+  purpose: Выпуск приложения, DMG и публикация инструкции.
+  status: current
+- name: ci-cd-and-automation
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:85f41f4765728eda64069ebb7638bea2c78e312c283a5add2559b840dfef49ee
+  paths:
+  - ".agents/skills/ci-cd-and-automation/"
+  - ".claude/skills/ci-cd-and-automation/"
+  purpose: Automates CI/CD pipeline setup. Use when setting up or modifying build
+    and deployment pipelines. Use when you need to automate quality gates, configure
+    test runners in CI, or establish deployment strategies.
+  status: current
+- name: code-review-and-quality
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:2eeb817951e731aaaa07e6ab5a94b925c9e18252cedf0ee40957d3b99353956d
+  paths:
+  - ".agents/skills/code-review-and-quality/"
+  - ".claude/skills/code-review-and-quality/"
+  purpose: Conducts multi-axis code review. Use before merging any change. Use when
+    reviewing code written by yourself, another agent, or a human. Use when you need
+    to assess code quality across multiple dimensions before it enters the main branch.
+    Use when asked to review a diff or a pull request, even when the diff is pasted
+    inline.
+  status: current
+- name: code-simplification
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:561ea12ac6e5d1bcc9f0acffa827fd1cc4a88f223639ef65e4fbeffa7ab37ff8
+  paths:
+  - ".agents/skills/code-simplification/"
+  - ".claude/skills/code-simplification/"
+  purpose: Simplifies code for clarity. Use when refactoring code for clarity without
+    changing behavior. Use when code works but is harder to read, maintain, or extend
+    than it should be. Use when reviewing code that has accumulated unnecessary complexity.
+  status: current
+- name: constraint-driven-development
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:da88bc92d21c8f2feafc035205ef988eddd6a39d05584d0e22b06591f3cd85e4
+  paths:
+  - ".agents/skills/constraint-driven-development/"
+  - ".claude/skills/constraint-driven-development/"
+  purpose: Establishes a project's quality bar as a written contract and stops agents
+    quietly lowering it. Interviews the user on which dimensions matter, supplies
+    sane default thresholds when they have no number in mind, records everything in
+    CONSTRAINTS.md, and watches the diff for a weakened bar — new @ts-ignore or eslint-disable
+    suppressions, skipped or deleted tests, assertions stripped out, unimplemented
+    stubs, thresholds edited down. Use when no quality bar is written down, when the
+    user says "set up constraints" or "define our standards", when the user wants
+    dimensions they care about — accessibility, web performance, coverage — set up
+    as enforced constraints, when an agent keeps silencing checks or skipping tests
+    to get to green, when you need a coverage or performance threshold and don't know
+    what number to pick, or when an agent writes more code than anyone will read.
+  status: current
+- name: context-engineering
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:45da3695fb32d64922e6616abc96739e03f9c15777b2dd95caecfb62de40ac4e
+  paths:
+  - ".agents/skills/context-engineering/"
+  - ".claude/skills/context-engineering/"
+  purpose: Optimizes agent context setup. Use when starting a new session, when agent
+    output quality degrades, when switching between tasks, or when you need to configure
+    rules files and context for a project.
+  status: current
+- name: debugging-and-error-recovery
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:7ff8f6567faed37834f46472d8efbed7aa1a0803d5c5f70649c34f9f4c397273
+  paths:
+  - ".agents/skills/debugging-and-error-recovery/"
+  - ".claude/skills/debugging-and-error-recovery/"
+  purpose: Guides systematic root-cause debugging. Use when tests fail, builds break,
+    something that worked yesterday broke, behavior doesn't match expectations, or
+    you encounter any unexpected error. Use when you need to figure out what broke
+    and why — a systematic approach to finding and fixing the root cause rather than
+    guessing.
+  status: current
+- name: deprecation-and-migration
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:4f668b882eb69349a865a35938589b5aceb873dd52114e82a1304114351e2c14
+  paths:
+  - ".agents/skills/deprecation-and-migration/"
+  - ".claude/skills/deprecation-and-migration/"
+  purpose: Manages deprecation and migration. Use when removing old systems, APIs,
+    or features. Use when migrating users from one implementation to another. Use
+    when migrating a database schema in production, such as renaming or dropping a
+    column without downtime (expand/contract). Use when deciding whether to maintain
+    or sunset existing code.
+  status: current
+- name: documentation-and-adrs
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:2c4759e66b619261a4cd38a70c7ae03014114d8253d496edc682f7211a9b9572
+  paths:
+  - ".agents/skills/documentation-and-adrs/"
+  - ".claude/skills/documentation-and-adrs/"
+  purpose: Records decisions and documentation. Use when you need to document an architecture
+    decision (ADR) or the reasoning behind a design choice, when changing public APIs,
+    shipping features, or when you need to record context that future engineers and
+    agents will need to understand the codebase.
+  status: current
+- name: doubt-driven-development
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:84a22601902f586d9d1e8cb113f3b84cc91b8708e35bfbc33855d5cc638a8330
+  paths:
+  - ".agents/skills/doubt-driven-development/"
+  - ".claude/skills/doubt-driven-development/"
+  purpose: Subjects every non-trivial decision to a fresh-context adversarial review
+    before it stands. Use when you want every assumption cross-examined before proceeding,
+    when stress-testing a plan for hidden failure modes, when correctness matters
+    more than speed, when working in unfamiliar code, when stakes are high (production
+    auth, security-sensitive logic, a high-stakes migration, irreversible operations),
+    or any time a confident output would be cheaper to verify now than to debug later.
+  status: current
+- name: frontend-ui-engineering
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:a8dc2c7ae4126c0ec1d3d5e66a1f8225f4e6124efad2b93675d8c095c1f7d648
+  paths:
+  - ".agents/skills/frontend-ui-engineering/"
+  - ".claude/skills/frontend-ui-engineering/"
+  purpose: Builds production-quality, accessible, responsive user-facing UIs. Use
+    when building or modifying interfaces and pages, creating components, implementing
+    layouts, meeting WCAG accessibility requirements, managing state, or when the
+    output needs to look and feel production-quality rather than AI-generated.
+  status: current
+- name: git-workflow-and-versioning
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:d3d4255c158a7142d35eb254963a27bcaf1ef70f44ced74e79cbdfa82f876362
+  paths:
+  - ".agents/skills/git-workflow-and-versioning/"
+  - ".claude/skills/git-workflow-and-versioning/"
+  purpose: Structures git workflow practices. Use when making any code change. Use
+    when committing, branching, resolving conflicts, splitting uncommitted work in
+    a messy working tree into clean atomic commits, opening or reviewing a pull request
+    (PR), pushing to a remote, or when you need to organize work across multiple parallel
+    streams. Use when cutting a release, choosing a semantic version bump, tagging,
+    or writing a changelog.
+  status: current
+- name: go-platform-bootstrap
+  source: go-product-platform
+  revision: sha256:678b1eed0b023a9cb30cbc69e6e8230b8b28482c412ceb62e8ab9f2b0ab518dc
+  checksum: sha256:678b1eed0b023a9cb30cbc69e6e8230b8b28482c412ceb62e8ab9f2b0ab518dc
+  paths:
+  - ".agents/skills/go-platform-bootstrap/"
+  - ".claude/skills/go-platform-bootstrap/"
+  purpose: Подготовить новый или существующий Git-продукт к разработке по Go Product
+    Platform через опрос в чате. Начать с технической основы, описания идеи или анализа
+    готовых требований из документов и ссылок; затем настроить стек, окружение и навыки
+    и проверить готовность. Также управлять профилем и явно запрошенными обновлениями.
+  status: current
+- name: go-product-modernization
+  source: go-product-platform
+  revision: sha256:18e0ed97f946a084359bf1cb894350b076edb6a2faadf16d8f90920c0b60d421
+  checksum: sha256:18e0ed97f946a084359bf1cb894350b076edb6a2faadf16d8f90920c0b60d421
+  paths:
+  - ".agents/skills/go-product-modernization/"
+  - ".claude/skills/go-product-modernization/"
+  purpose: 'Обследовать и модернизировать существующий продукт из локального Git-репозитория
+    или Git URL: рефакторинг на текущем стеке либо поэтапная миграция на другой стек
+    с сохранением согласованного поведения. Использовать для аудита готового продукта,
+    подготовки перехода, реализации этапа или продолжения миграции; обычные новые
+    фичи вести через SDD.'
+  status: current
+- name: go-project-platform-manager
+  source: go-product-platform
+  revision: sha256:393e66f2a96c70d4704cd0328f141f2b358a54e00978fbab423ba8b320c41f8a
+  checksum: sha256:393e66f2a96c70d4704cd0328f141f2b358a54e00978fbab423ba8b320c41f8a
+  paths:
+  - ".agents/skills/go-project-platform-manager/"
+  - ".claude/skills/go-project-platform-manager/"
+  purpose: Управление настройкой Go Product Platform и активными AI-навыками конкретного
+    продукта. Читать, когда пользователь просит инициализировать ADE, выбрать навыки
+    для проекта, проверить глобальные установки, найти новые версии навыков, одобрить
+    глобальные обновления, настроить UI-набор для целевого приложения и прототипов,
+    сменить модели/харнесы по ролям, настроить Codex, Claude Code, OpenCode, Orca
+    или Zed, начать или продолжить модернизацию готового продукта, заменить canvas
+    или восстановить локальные файлы платформы проекта.
+  status: current
+- name: golang-design-patterns
+  source: samber/cc-skills-golang
+  revision: sha256:ee227624421b319b70a8fd602b03139cbf44173709c7c89c930873ed2b3b4fe3
+  checksum: sha256:ee227624421b319b70a8fd602b03139cbf44173709c7c89c930873ed2b3b4fe3
+  paths:
+  - ".agents/skills/golang-design-patterns/"
+  - ".claude/skills/golang-design-patterns/"
+  purpose: Idiomatic Golang design patterns — functional options, constructor APIs,
+    `init()` and global-state avoidance, enums, panic vs error decisions, resource
+    management and lifecycle, graceful shutdown, timeouts and retries, streaming and
+    iterators, and architecture styles (clean, hexagonal, DDD, flat). Apply when choosing
+    between architectural patterns, implementing functional options, designing constructor
+    APIs, setting up graceful shutdown, applying resilience patterns, or asking which
+    idiomatic Go pattern fits a specific problem. Not for wiring a DI container or
+    comparing DI libraries (→ See `samber/cc-skills-golang@golang-dependency-injection`
+    skill), nor for error wrapping, `errors.Is`/`As`, or logging mechanics (→ See
+    `samber/cc-skills-golang@golang-error-handling` skill).
+  status: current
+- name: golang-testing
+  source: samber/cc-skills-golang
+  revision: sha256:6e43171612d7abd03eb52289da2fbcfcf655940f2d7f0d946277b4ee98a6cb79
+  checksum: sha256:6e43171612d7abd03eb52289da2fbcfcf655940f2d7f0d946277b4ee98a6cb79
+  paths:
+  - ".agents/skills/golang-testing/"
+  - ".claude/skills/golang-testing/"
+  purpose: Production-ready Golang tests — table-driven tests, testify suites and
+    mocks, parallel tests, fuzzing, fixtures, goroutine leak detection with goleak,
+    snapshot testing, code coverage, integration tests, idiomatic test naming. Use
+    when writing or reviewing Go tests, choosing a testing approach, setting up Go
+    test CI, or debugging flaky/slow tests. For testify-specific APIs see `samber/cc-skills-golang@golang-stretchr-testify`;
+    for measurement methodology see `samber/cc-skills-golang@golang-benchmark`.
+  status: current
+- name: graphify
+  source: Graphify-Labs/graphify
+  revision: sha256:1869c2dd88a9794bc42112dadc85b5ebc236e9a1d223d5aba240ae609f37ef5a
+  checksum: sha256:1869c2dd88a9794bc42112dadc85b5ebc236e9a1d223d5aba240ae609f37ef5a
+  paths:
+  - ".agents/skills/graphify/"
+  - ".claude/skills/graphify/"
+  purpose: Use for any question about a codebase, its architecture, file relationships,
+    or project content — especially when graphify-out/ exists, where the question
+    should be treated as a graphify query first. Turns any input (code, docs, papers,
+    images, videos) into a persistent knowledge graph with god nodes, community detection,
+    and query/path/explain tools.
+  status: current
+- name: idea-refine
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:54f721e49621b38324cb553360b3ebea3d95b549ba2e7dd014d3bbdb3d9a8fe1
+  paths:
+  - ".agents/skills/idea-refine/"
+  - ".claude/skills/idea-refine/"
+  purpose: Refines raw ideas into sharp, actionable concepts through structured divergent
+    and convergent thinking. Use when an idea is still vague, when you need to stress-test
+    assumptions before committing to a plan, or when you want to expand options before
+    converging on one. Triggers on "ideate", "refine this idea", or "stress-test my
+    plan".
+  status: current
+- name: impeccable
+  source: pbakaus/impeccable
+  revision: sha256:566e08a633f51c724717b6b13c5e54ca67c0be95c43bf28466893f8951aeefa4
+  checksum: sha256:566e08a633f51c724717b6b13c5e54ca67c0be95c43bf28466893f8951aeefa4
+  paths:
+  - ".agents/skills/impeccable/"
+  - ".claude/skills/impeccable/"
+  purpose: 'Use when the user wants to design, redesign, shape, critique, audit, polish,
+    simplify, harden, animate, or otherwise improve a frontend interface: websites,
+    landing pages, dashboards, product UI, components, forms, settings, onboarding,
+    empty states, and native iOS or Android screens. Handles UX review, hierarchy,
+    layout, typography, color, motion, UX copy, accessibility, responsive behavior,
+    edge cases, and capturing or documenting design systems (DESIGN.md, tokens). Also
+    for making bland UI bolder, loud UI quieter, or ambitious visual effects. Not
+    for backend-only or non-UI tasks.'
+  status: current
+- name: incremental-implementation
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:f320efc64736866edaec994a16cc26d3903f8c6edf802d7d24417692f424a007
+  paths:
+  - ".agents/skills/incremental-implementation/"
+  - ".claude/skills/incremental-implementation/"
+  purpose: Delivers changes incrementally in thin, verifiable slices. Use when implementing
+    any feature or change that touches more than one file, or when picking up the
+    next task from a plan. Use when rolling a change out behind a feature flag, when
+    you're about to write a large amount of code at once, or when a task feels too
+    big to land in one step.
+  status: current
+- name: interview-me
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:1c67bb39f88662d87eefbfb67ba5d1602d7b933657548c5fc79f93daa9a49955
+  paths:
+  - ".agents/skills/interview-me/"
+  - ".claude/skills/interview-me/"
+  purpose: Extracts what the user actually wants instead of what they think they should
+    want. Achieves this through one-question-at-a-time interview until ~95% confidence
+    about the underlying intent. Use when an ask is underspecified ("build me X" without
+    "for whom" or "why now"), when the user explicitly invokes ("interview me", "grill
+    me", "are we sure?", "stress-test my thinking"), or when you catch yourself silently
+    filling in ambiguous requirements before any plan, spec, or code exists.
+  status: current
+- name: observability-and-instrumentation
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:1e8d2894e2c7527e466e508180813c84f558517029f5ad22c4e71fc10cc6173b
+  paths:
+  - ".agents/skills/observability-and-instrumentation/"
+  - ".claude/skills/observability-and-instrumentation/"
+  purpose: Instruments code so production behavior is visible and diagnosable. Use
+    when adding logging, metrics, tracing, or alerting. Use when shipping any feature
+    that runs in production and you need evidence it works. Use when production issues
+    are reported but you can't tell what happened from the available data.
+  status: current
+- name: performance-optimization
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:7554fb3ceec2c7d5e7cd22ebf6212a176a66b1cca815afa0bfcc25740a7a5b8f
+  paths:
+  - ".agents/skills/performance-optimization/"
+  - ".claude/skills/performance-optimization/"
+  purpose: Optimizes application performance across frontend, backend, queries, and
+    databases. Use when performance requirements exist, when you suspect performance
+    regressions, when Core Web Vitals or load times need improvement, when N+1 query
+    patterns need fixing, or when profiling reveals bottlenecks.
+  status: current
+- name: planning-and-task-breakdown
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:6d37d856d15806b18d57c92abca91fcdfa4855387b4a13470dbf93982045c417
+  paths:
+  - ".agents/skills/planning-and-task-breakdown/"
+  - ".claude/skills/planning-and-task-breakdown/"
+  purpose: Breaks work into ordered tasks. Use when you have a spec or clear requirements
+    and need to break work into implementable tasks. Use when a task feels too large
+    to start, when you need to estimate scope, or when parallel work is possible.
+  status: current
+- name: playwright-cli
+  source: microsoft/playwright-cli
+  revision: sha256:6a95d7e1c5339ea5daae0e43e535197fed89f322a7711161042cdcb1f6f693cc
+  checksum: sha256:6a95d7e1c5339ea5daae0e43e535197fed89f322a7711161042cdcb1f6f693cc
+  paths:
+  - ".agents/skills/playwright-cli/"
+  - ".claude/skills/playwright-cli/"
+  purpose: Automate browser interactions, test web pages and work with Playwright
+    tests.
+  status: current
+- name: security-and-hardening
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:8baf9146388ba0d433c63c1f619800e06f9470caae8fa840551c1768f6c6565d
+  paths:
+  - ".agents/skills/security-and-hardening/"
+  - ".claude/skills/security-and-hardening/"
+  purpose: Hardens code against vulnerabilities. Use when auditing an input handler
+    for vulnerabilities, when handling user input, authentication, data storage, or
+    external integrations, or when checking a login flow is safe against the OWASP
+    Top Ten. Use when building any feature that accepts untrusted data, manages user
+    sessions, or interacts with third-party services. Use when auditing dependencies
+    for known vulnerabilities, triaging package-manager audit findings, or assessing
+    supply-chain risk in a new package. Use when personal data or privacy compliance
+    (GDPR, CCPA) is involved.
+  status: current
+- name: shipping-and-launch
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:b29126f0d147a142d9124ff6a438384d8e00380df88d361b39357e799657545f
+  paths:
+  - ".agents/skills/shipping-and-launch/"
+  - ".claude/skills/shipping-and-launch/"
+  purpose: Prepares production launches. Use when preparing to deploy to production,
+    or when asking what needs to be in place before shipping. Use when you need a
+    pre-launch checklist, when setting up monitoring, when planning a staged rollout,
+    or when you need a rollback strategy.
+  status: current
+- name: source-driven-development
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:c65f92f57bdaef5c9db2a40b7646106917a112ff265e6fa47db4088ccd063037
+  paths:
+  - ".agents/skills/source-driven-development/"
+  - ".claude/skills/source-driven-development/"
+  purpose: Grounds every implementation decision in official documentation. Use when
+    you want to verify an approach against the official docs before implementing it,
+    or when you want authoritative, source-cited code free from outdated patterns.
+    Use when building with any framework or library where correctness matters.
+  status: current
+- name: spec-driven-development
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:0fe4bf1adbc082c4b86f7337c5d26292eff14baf558fe413667a64ff1be5c55e
+  paths:
+  - ".agents/skills/spec-driven-development/"
+  - ".claude/skills/spec-driven-development/"
+  purpose: Creates specs before coding. Use when starting a new project, feature,
+    or significant change and no specification exists yet. Use when drafting a PRD
+    or requirements document with objectives and scope, or when requirements are unclear,
+    ambiguous, or only exist as a vague idea. Use when a single requirement spans
+    several independently testable capabilities and needs decomposing into a capability
+    map of modules before specifying.
+  status: current
+- name: test-driven-development
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:680bf3d8074ae216a1174ba0f9a0d4e7230821e2cc2f484ca0905f7936a5adde
+  paths:
+  - ".agents/skills/test-driven-development/"
+  - ".claude/skills/test-driven-development/"
+  purpose: Drives development with tests using the red-green-refactor loop. Use when
+    implementing any logic, fixing any bug, or changing any behavior. Use when you
+    need to prove that code works, when a bug report arrives, or when you're about
+    to modify existing functionality. Use when asked to add tests to a function, fix
+    a bug in it or change its behavior, even when the code is pasted inline and the
+    request does not mention tests.
+  status: current
+- name: typescript-pro
+  source: jeffallan/claude-skills
+  revision: 190e05a380b624187f5770451e1f41b9187cb63c
+  checksum: sha256:f2588e85557fa21e4a8d55cf3e0d6a7c8c5958029839f6f0a764d03e632b10dc
+  paths:
+  - ".agents/skills/typescript-pro/"
+  - ".claude/skills/typescript-pro/"
+  purpose: Implements advanced TypeScript type systems, creates custom type guards,
+    utility types, and branded types, and configures tRPC for end-to-end type safety.
+    Use when building TypeScript applications requiring advanced generics, conditional
+    or mapped types, discriminated unions, monorepo setup, or full-stack type safety
+    with tRPC.
+  status: current
+- name: using-agent-skills
+  source: addyosmani/agent-skills
+  revision: aeac41d4d005999432bb7312f7ff06383a91d59d
+  checksum: sha256:965e39a39ef67836b4049bcd20a954485ff0112ebc98d5ea6f33fa003adda8fa
+  paths:
+  - ".agents/skills/using-agent-skills/"
+  - ".claude/skills/using-agent-skills/"
+  purpose: Discovers and invokes agent skills. Use when starting a session, or when
+    you need to decide which skill or workflow applies to the piece of work at hand.
+    This is the meta-skill that governs how all other skills are discovered and invoked.
+  status: current
+- name: vercel-react-best-practices
+  source: vercel-labs/agent-skills
+  revision: sha256:6e378f2e9f569a6c9f47ce2742963fd2db310131295f26a1e4ef6d20bc35ad1d
+  checksum: sha256:6e378f2e9f569a6c9f47ce2742963fd2db310131295f26a1e4ef6d20bc35ad1d
+  paths:
+  - ".agents/skills/vercel-react-best-practices/"
+  - ".claude/skills/vercel-react-best-practices/"
+  purpose: React and Next.js performance optimization guidelines from Vercel Engineering.
+    This skill should be used when writing, reviewing, or refactoring React/Next.js
+    code to ensure optimal performance patterns. Triggers on tasks involving React
+    components, Next.js pages, data fetching, bundle optimization, or performance
+    improvements.
+  status: current
+- name: wails
+  source: spf13/go-skills
+  revision: sha256:3f702934702596185a71eb418e66a207fe7cecae9a5aa8cae0e4dc730e0fc88b
+  checksum: sha256:3f702934702596185a71eb418e66a207fe7cecae9a5aa8cae0e4dc730e0fc88b
+  paths:
+  - ".agents/skills/wails/"
+  - ".claude/skills/wails/"
+  purpose: Разработка и проверка нативной оболочки Go/Wails.
+  status: current
+- name: web-design-guidelines
+  source: vercel-labs/agent-skills
+  revision: sha256:b6849640846e0e39a09629c4cebfd25529b67a1174eb4d3d86f49783094669f9
+  checksum: sha256:b6849640846e0e39a09629c4cebfd25529b67a1174eb4d3d86f49783094669f9
+  paths:
+  - ".agents/skills/web-design-guidelines/"
+  - ".claude/skills/web-design-guidelines/"
+  purpose: Review UI code for Web Interface Guidelines compliance. Use when asked
+    to "review my UI", "check accessibility", "audit design", "review UX", or "check
+    my site against best practices".
+  status: current
+agents:
+- ".agents/agents"
+- ".claude/agents"
+references:
+- ".agents/references"
+- ".claude/references"

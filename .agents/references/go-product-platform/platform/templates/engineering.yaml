@@ -1,0 +1,69 @@
+# Инженерный профиль продукта (глава 20 руководства): единственное место
+# фиксации состава набора — навыков, агентов и референсов с источниками и
+# ревизиями проектных копий. Ведёт агент при каждой установке или обновлении;
+# изменения согласуются в чате. Для не-Git источника фиксируйте версию или
+# дату снимка с контрольной суммой; ревизии описывают проектные копии и не
+# меняются от глобального обновления. Версии CLI Graphify и Orca — в MANUAL.md.
+schema_version: "1.2"
+platform:
+  source: "go-product-platform"
+  revision: "<git-sha ревизии платформы>"
+profile: "<go-api | web | desktop | mobile-native | ai | custom>"
+policy:
+  file: "docs/agent-policy.md"
+# В старом профиле отсутствие блоков означает «не настроено», а не готовность.
+ui:
+  mode: "none" # skills | canvas | none | both; legacy prototype -> skills
+  docs_path: "docs/ui"
+  kit: null
+  target:
+    path: null # фактическое приложение: web/, frontend/ и т.п.
+    stack: null
+  prototypes:
+    enabled: false # независимо от ui.mode
+    root: "prototypes"
+    naming: "PROTOTYPE-{number:04d}-{slug}"
+    stack: null # единый согласованный стек экспериментов
+    items: [] # {id, path, status, target_specs}; path от корня: prototypes/PROTOTYPE-0001-name
+ai:
+  # Не конфигурация исполняемого диспетчера: агент создаёт адаптеры и проверяет их.
+  # Выбранные ADE; настройка только выбранных интеграций, не всех приложений.
+  surfaces: [] # codex | claude-code | opencode | orca | zed
+  primary_surface: null # одно из surfaces; null = ещё не выбрано
+  # Фактические исполнители: codex | claude-code | opencode | zed (встроенный).
+  # Для Orca и внешних агентов Zed указать запускаемый харнес отдельно от ADE.
+  harnesses: []
+  assignments: []
+  # Каждая запись assignments:
+  # - id: "ui-worker"
+  #   surface: "opencode"
+  #   harness: "opencode"
+  #   provider: "<проверенный ID провайдера>"
+  #   model: "<точный доступный ID модели>"
+  #   variant: null
+  #   status: "configured" # configured | verified | blocked
+  #   config_paths: [".opencode/agents/ui-development.md"]
+  #   launch: "<проверенная команда или способ выбора в ADE>"
+  #   verification: null # ссылка на результат в MANUAL; без секретов
+  roles:
+    documentation: null # id из assignments; null = ещё не выбрано
+    code: null
+    ui: null
+    code_review: null
+    design_review: null
+    requirements: null
+    architecture: null
+  fallback: "ask" # без молчаливой смены модели/харнеса
+# Необязательный процесс рефакторинга/миграции; null = не заведён.
+# Формат — skills/go-product-modernization/references/profile.md материалов платформы.
+modernization: null
+skills:
+  - name: "go-platform-bootstrap"
+    source: "<репозиторий платформы>"
+    revision: "<SHA>"
+    paths: [".agents/skills/go-platform-bootstrap/", ".claude/skills/go-platform-bootstrap/"]
+    purpose: "настройка платформы"
+    status: "current"
+  # Добавляйте записи по факту установки: базовые навыки, процесс,
+  # профильные дополнения, Orca, canvas и другие согласованные навыки.
+  # Удалённые навыки убирайте; решение фиксируйте в комментарии коммита.

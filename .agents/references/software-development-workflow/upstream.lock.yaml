@@ -1,0 +1,9 @@
+lock_version: 1
+source:
+  repository: https://github.com/addyosmani/agent-skills
+  revision: 8c99fa36d90068c82d547f7c12a9d67a3e95f4ee
+  release_label: "0.6.17"
+  reviewed_on: "2026-11-21"
+reuse_mode: unmodified
+patches: []
+# Фиксирует исходную версию; сам по себе не устанавливает skills.
