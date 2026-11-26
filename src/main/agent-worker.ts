@@ -1,3 +1,4 @@
+import { parentPort } from "node:worker_threads";
 import { assistantErrorMessage } from "../agent/assistant-error.js";
 import type { AgentSettingsState } from "../shared/agent-settings.js";
 import { streamCalendarTurn } from "../agent/calendar-runtime.js";
@@ -16,8 +17,9 @@ import type {
   AgentRequest,
 } from "../shared/assistant.js";
 
-const port = process.parentPort;
-if (!port) throw new Error("Assistant requires an Electron utility process");
+if (!parentPort)
+  throw new Error("Assistant requires a supervised worker process");
+const port = parentPort;
 const controller = new AbortController();
 const send = (event: AgentEvent) => port.postMessage(event);
 
@@ -104,7 +106,7 @@ async function run(
     send({ requestId, type: "end" });
   }
 }
-port.on("message", ({ data }: { data: AgentControl }) => {
+const receive = (data: AgentControl) => {
   if (data.type === "cancel") controller.abort();
   else if (data.type === "calendar-result") {
     const resolve = pending.get(data.callId);
@@ -119,4 +121,5 @@ port.on("message", ({ data }: { data: AgentControl }) => {
       data.history,
       data.availability,
     );
-});
+};
+port.on("message", receive);

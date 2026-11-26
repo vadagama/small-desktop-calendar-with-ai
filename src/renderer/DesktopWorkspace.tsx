@@ -19,13 +19,7 @@ import {
 } from "./notification-events.js";
 import { NewMeeting } from "./NewMeeting";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  CalendarClock,
-  CalendarDays,
-  Settings2,
-  UsersRound,
-  Plus,
-} from "lucide-react";
+import { CalendarClock, CalendarDays, Settings2, Plus } from "lucide-react";
 import { Calendar } from "./ui/CalendarView";
 import type { Meeting, Slot } from "./ui/types";
 import { DesktopAssistant } from "./Assistant";
@@ -470,10 +464,15 @@ export function DesktopWorkspace() {
     <div
       className={`app-shell desktop-workspace ${helpOpen ? "help-active" : ""} ${filtersOpen ? "sidebar-open" : ""}`}
     >
-      <nav className="icon-rail" aria-label="Разделы Small">
-        <div className="small-emblem" title="Small">
-          <UsersRound size={22} />
-        </div>
+      <nav className="icon-rail" aria-label="Разделы Ordo">
+        <img
+          className="ordo-emblem"
+          src="/favicon.svg"
+          alt="Ordo"
+          title="Ordo"
+          width={40}
+          height={40}
+        />
         <button
           className={!helpOpen && !availabilityActive ? "active" : ""}
           aria-current={!helpOpen && !availabilityActive ? "page" : undefined}

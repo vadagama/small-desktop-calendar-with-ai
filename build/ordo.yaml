@@ -1,0 +1,19 @@
+schema_version: 1
+name: "Ordo"
+symbol: "outline:frame"
+style: "chromatic"
+accent: "#79B5EF"
+gradient: true
+glyphGradient: true
+depth: 29
+gloss: 20
+radius: 23
+thickness: 6
+scale: 62
+angle: 0
+gradientStrength: 36
+shadow: true
+rim: true
+direction: "diagonal"
+padding: 9
+source: "Unit Icon Studio — custom outline glyph."

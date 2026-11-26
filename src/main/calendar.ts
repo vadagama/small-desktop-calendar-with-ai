@@ -209,7 +209,8 @@ export async function calendarJson(response: Response): Promise<unknown> {
     if (!reader)
       throw new CalendarError("invalid", "Пустой ответ календаря Small.");
     let size = 0;
-    const chunks: Uint8Array[] = [];
+    const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
+    const chunks: string[] = [];
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -221,9 +222,10 @@ export async function calendarJson(response: Response): Promise<unknown> {
           "Ответ Small слишком большой. Данные неполные.",
         );
       }
-      chunks.push(value);
+      chunks.push(decoder.decode(value, { stream: true }));
     }
-    return JSON.parse(Buffer.concat(chunks).toString("utf8")) as unknown;
+    chunks.push(decoder.decode());
+    return JSON.parse(chunks.join("")) as unknown;
   } catch (error) {
     if (error instanceof CalendarError) throw error;
     throw new CalendarError(

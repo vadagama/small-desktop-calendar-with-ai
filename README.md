@@ -1,4 +1,4 @@
-# Small Desktop Calendar
+# Ordo
 
 Десктоп-клиент календаря Small для macOS с настраиваемым рабочим пространством:
 виджеты календаря и AI-ассистента можно размещать в любой области окна
@@ -10,66 +10,75 @@
 подтверждения. Данные хранятся локально для аккаунта и переживают перезапуск;
 история чатов остаётся в бэклоге. [Устройство и проверки памяти](docs/implementation/assistant-memory.md).
 
-## Состояние проекта
+## Установка Ordo
 
-Цели и границы первой версии согласованы на этапе discovery 28 октября 2026 года.
-Спецификация подготовлена для ревью. Реализованы T01–T03: локальное окно
-Electron и диалог через Vercel AI SDK с безопасным синтетическим инструментом,
-streaming и отменой. Упакованная arm64 `.app` проверена на macOS 15.1.
-Реализованы вход Small и чтение календаря; реальная интеграционная проверка
-остаётся открытой. Для проверки UI добавлен
-отдельный [интерактивный React-стенд](docs/prototypes/ui-validation.md) в `prototype/`.
-Запуск: `cd prototype`, `npm ci`, `npm run dev`; адрес http://127.0.0.1:5173.
-Все люди, встречи и ответы ассистента в стенде демонстрационные.
+[Скачать Ordo 0.3.0 для Apple Silicon](https://github.com/vadagama/small-desktop-calendar-with-ai/releases/download/v0.3.0/Ordo-0.3.0-arm64.dmg).
+Приложение и DMG подписаны Apple Developer ID и нотариализованы. Перенесите
+Ordo.app в «Программы» и запустите его. Последующие стабильные обновления
+доступны в приложении; установка требует подтверждения перезапуска.
+[Инструкция и Changelog](https://vadagama.github.io/small-desktop-calendar-with-ai/).
 
-Из корня репозитория на Node.js ≥22.12.0: `npm ci`, затем `npm run dev`
-для запуска Electron. Перед первой упаковкой соберите локальный движок речи:
-`npm run voice:build` (CMake и Xcode Command Line Tools).
-Веса Whisper скачиваются пользователем отдельно в настройках AI-помощника;
-[голосовой ввод: устройство и проверка](docs/implementation/voice-input.md).
-Локальная упаковка: `npm run package:mac`; результат —
-`release/Small Calendar-darwin-arm64/Small Calendar.app`.
-Установщик для локальной проверки на Apple Silicon: `npm run package:dmg:local`.
-Результат — `release/Small-Calendar-0.1.0-arm64-local.dmg` (версия берётся из
-`package.json`). Откройте DMG, перетащите Small Calendar в «Программы», затем
-запустите приложение из этой папки и извлеките образ. Перед заменой старой версии
-завершите приложение. Копирование и подтверждение замены выполняет Finder.
-Сборка DMG требует macOS, Command Line Tools и доступа сборочного процесса к
-Finder для сохранения оформления окна. Используется локальная ad-hoc подпись;
-Developer ID и notarization в эту команду не входят. Такой образ предназначен
-для локальной проверки, а не публичного релиза.
-Окно установки: светлый фон, заголовок Small Calendar, две иконки со стрелкой
-и короткая инструкция. Вход в аккаунт, настройка AI и запрос уведомлений
-выполняются в приложении после установки.
-Иконка приложения: `build/app.icns` для macOS-сборки,
-`prototype/public/app-icon.png` для окна и Dock, `prototype/public/favicon.svg`
-для локального интерфейса и UI-стенда.
-В чате можно проверить «Сложи 2 и 3», неверные аргументы, «Ошибка модели» и отмену.
-Ключи для локального режима не нужны. Полная интеграция календаря пока впереди.
+## Разработка и сборка macOS
 
-Проверки: `npm test`, `npm run typecheck`, `npm run build`, `npm run format:check`,
-`npm run build:desktop`, `npm run test:desktop`.
-`build` компилирует ядро/тесты в `dist/`, `build:desktop` — приложение в `out/`.
-[Результаты T01](docs/implementation/t01-sdk-runtime.md) и
-[запуск, bridge и ограничения T02–T03](docs/implementation/t02-t03-desktop.md).
+Ordo использует Go и Wails, React и TypeScript, shadcn, Dockview Community
+и Vercel AI SDK. Настройки, сессия и память хранятся в файлах профиля.
+Целевая платформа — macOS 15.1 и новее на Apple Silicon.
 
-- [Результаты discovery](docs/discovery.md) — подтверждённые цели, сценарии и ограничения.
-- [Спецификация первой версии](docs/spec-v1.md) — требования, критерии приёмки и статус вопросов.
-- [Исследование API Team Small](docs/research/team-small-api.md) — факты из текущей сборки и ограничения проверки.
-- [Предложения по правилам встреч](docs/proposals/meeting-rules.md) — серии, аналитика и напоминания.
-- [ADR-002: десктопный стек](docs/decisions/002-desktop-stack.md) — оболочка, UI и интеграция с macOS.
-- [ADR-003: AI-харнес](docs/decisions/003-agent-harness.md) — принятый выбор Vercel AI SDK и рассмотренные альтернативы.
-- [План реализации](tasks/plan.md) и [задачи](tasks/todo.md) — следующий этап и проверки.
+Для сборки нужны Node.js ≥22.12.0, Go из `desktop-wails/go.mod`,
+Xcode Command Line Tools и CMake. Из корня репозитория:
 
-Направление для AI-харнеса — TypeScript; рассматриваются GLM и DeepSeek Flash.
-Доступ к моделям — Small vLLM либо персональный OpenAI-совместимый endpoint.
-Для харнеса принят Vercel AI SDK (Core + UI), см. ADR-003.
-Electron + React + Dockview Community приняты пользователем в ADR-002.
-Dockview интегрирован в T07; desktop переиспользует календарную сетку UI-стенда.
-Первая целевая система — macOS 15.1 на Apple Silicon.
-Прежнее упоминание Rust в README не было утверждённым решением.
+```sh
+npm ci
+npm run voice:build
+npm run package:wails:mac
+```
 
-Существующий календарь: [team.small.kz/calendar](https://team.small.kz/calendar).
+Локальный DMG появится в `release/wails-macos-stage/`. Откройте образ и
+скопируйте Ordo.app в «Программы». Локальный установщик подписан ad-hoc. Для
+публичного выпуска нужны Developer ID и нотариализация Apple.
+Бинарник Node.js и движок Whisper входят в пакет. Веса Whisper скачиваются
+пользователем в приложении.
+
+Для фоновой проверки установленной сборки с чистым профилем:
+
+```sh
+"/Applications/Ordo.app/Contents/MacOS/small-calendar" -smoke \
+  -user-data-dir "$(mktemp -d -t ordo-smoke)"
+```
+
+Проверки выполняются командами `npm run format:check`, `npm run typecheck`,
+`npm test`, `npm run build` и `npm run test:wails`. Нативные сценарии Wails
+используют скрытые окна и синтетические сервисы. Для браузерного прототипа
+выполните `npm ci --prefix prototype`, затем `npm run dev --prefix prototype`.
+
+- [Решение о переходе на Go и Wails](docs/decisions/006-go-wails-migration.md)
+- [Этапы миграции](docs/initiatives/INIT-0001-wails-migration.md)
+- [Проверки интеграций macOS](docs/specs/SPEC-0004-wails-macos/verification.md)
+- [Подготовка автообновлений](docs/implementation/auto-updates.md)
+
+Рабочий календарь доступен в [Small](https://team.small.kz/calendar).
+
+### Импорт профиля Electron
+
+Импорт выполняется отдельной командой в новый каталог. Завершите Electron через
+Cmd+Q. Укажите каталог профиля Electron и новый путь для Wails. Родительский
+каталог назначения должен существовать.
+
+```sh
+app="/Applications/Ordo.app/Contents/MacOS/small-calendar"
+source_profile="$HOME/Library/Application Support/Small Calendar"
+target_profile="$HOME/Library/Application Support/Small Calendar Wails"
+"$app" -import-electron-profile "$source_profile" -user-data-dir "$target_profile"
+```
+
+Если каталог Wails уже существует, укажите другой новый путь и запускайте
+приложение с этим путём через `-user-data-dir`. Для проверки входа после импорта
+требуется связь со Small. Если Wails обнаружит незавершённую операцию Electron,
+сверьте её в Electron и повторите импорт в новый каталог перед переходом.
+Для возврата завершите Wails и запустите Electron с исходным профилем. При
+истечении или ротации сессии Electron может снова запросить вход. Изменения,
+сделанные после перехода, остаются в профиле Wails и на сервере Small. Перед
+возвратом сверяйте их отдельно. [Репетиция переноса и границы отката](docs/specs/SPEC-0005-wails-profile/verification.md).
 
 ### Профиль модели (T04)
 
@@ -85,8 +94,7 @@ Dockview интегрирован в T07; desktop переиспользует �
 «Удалить ключ» удаляет ключ и профиль. При смене origin нужен новый
 ключ; автоматического fallback нет.
 Без активного профиля чат предлагает открыть настройки модели. Если профиль
-уже сохранён, выберите его в меню рядом с полем сообщения — повторный ввод ключа не нужен. Тестовый
-сценарий сложения доступен только при явном `SMALL_TEST_SYNTHETIC=1`.
+уже сохранён, выберите его в меню рядом с полем сообщения.
 Реальная GLM требует отдельной проверки с вашим ключом.
 
 [Проверки и ограничения T04](docs/implementation/t04-llm-profiles.md).
@@ -203,21 +211,9 @@ AI-профиль не нужен. Проверка занятости выпо�
 приложение. Системные баннеры требуют подписанной macOS-сборки и разрешения ОС.
 [Поведение, проверки и ограничения](docs/implementation/t11-reminders.md).
 
-Для реальных уведомлений на этом Mac: `npm run package:mac:local`, затем
-`open 'release/Small Calendar-darwin-arm64/Small Calendar.app'`.
-В колокольчике доступна кнопка «Отправить тестовое уведомление» с проверкой
-истории доставки macOS. Это локальная ad-hoc сборка, не релиз для распространения.
-[Проверки и ограничения подписи](docs/implementation/macos-notification-delivery.md).
-
-### Архитектурные исправления и проверка пакета
-
-Результаты аудита, локальные исправления, размеры и оставшиеся внешние проверки:
-[отчёт реализации](docs/implementation/architecture-hardening.md).
-Рабочий общий UI расположен в `src/renderer/ui`; prototype импортирует его,
-но не требуется для production-сборки. `npm run check:size` проверяет бюджет
-renderer, `npm run package:mac:hardened` создаёт локально подписанный пакет с
-проверкой целостности ASAR. Условия корпоративного выпуска и команды проверки
-пакета описаны в отчёте; локальная подпись не заменяет Developer ID/notarization.
+Для проверки системных уведомлений установите Ordo из DMG. Откройте
+колокольчик и нажмите «Отправить тестовое уведомление». macOS может запросить
+разрешение для текущей сборки.
 
 ### Настройка речи и диктовка
 

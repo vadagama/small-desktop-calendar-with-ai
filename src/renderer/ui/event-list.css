@@ -66,9 +66,12 @@
   border-bottom: 1px solid #f0f1f3;
   font-size: var(--font-compact);
 }
-.event-list-row:hover,
-.event-list-row:focus-visible {
+.event-list-row:hover {
   background: #f4f5f7;
+}
+.event-list-row:focus-visible {
+  background: var(--focus-fill);
+  outline-color: var(--focus-fill-outline);
 }
 .list-calendar-dot {
   width: 7px;

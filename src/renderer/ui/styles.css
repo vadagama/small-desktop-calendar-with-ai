@@ -4,6 +4,9 @@
   --font-compact: 13px;
   --font-body: 14px;
   --font-dialog-title: 18px;
+  --focus-border: #8a8a8a;
+  --focus-fill: #ebebeb;
+  --focus-fill-outline: transparent;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   font-weight: 400;
@@ -42,14 +45,16 @@ button {
     background-color 0.16s,
     color 0.16s;
 }
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible,
-[tabindex]:focus-visible {
-  outline: 2px solid #6b6b6b;
-  outline-offset: 3px;
+:focus-visible,
+input:where(:not([type="checkbox"], [type="radio"], [type="range"])):focus,
+textarea:focus {
+  outline: 1px solid var(--focus-border);
+  outline-offset: -1px;
+}
+@media (forced-colors: active) {
+  :root {
+    --focus-fill-outline: Highlight;
+  }
 }
 button:hover:not(:disabled) {
   filter: brightness(0.98);
@@ -200,8 +205,8 @@ strong {
   margin: 0;
 }
 .calendar-filters input:focus-visible + .custom-check {
-  outline: 2px solid var(--primary);
-  outline-offset: 3px;
+  outline: 1px solid var(--focus-border);
+  outline-offset: 2px;
 }
 .custom-check {
   width: 18px;
@@ -685,7 +690,6 @@ strong {
 }
 .composer textarea {
   border: 0;
-  outline: 0 !important;
   resize: none;
   width: 100%;
   line-height: 1.7;
@@ -1499,14 +1503,6 @@ strong {
 body {
   background: #fff;
 }
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-textarea:focus-visible,
-select:focus-visible,
-[tabindex]:focus-visible {
-  outline-color: #0999e8;
-}
 ::selection {
   background: #ccecff;
   color: #111;
@@ -1536,6 +1532,10 @@ select:focus-visible,
 }
 .icon-button:hover {
   background: #f1f1f1;
+}
+.icon-button:focus-visible {
+  background: var(--focus-fill);
+  outline-color: var(--focus-fill-outline);
 }
 .status-dot {
   background: #7b8490;
@@ -1935,6 +1935,7 @@ select:focus-visible,
 .splitter:hover,
 .splitter:focus-visible {
   background: #e5e5e5;
+  outline-color: var(--focus-fill-outline);
 }
 .workspace.drop-active {
   outline-color: #159cde;
@@ -2007,7 +2008,10 @@ select:focus-visible,
   padding: 10px;
 }
 .composer:focus-within {
-  border-color: #999;
+  border-color: var(--focus-border);
+}
+.composer textarea:focus {
+  outline: none;
 }
 .composer textarea {
   font-size: 14px;
@@ -2583,9 +2587,8 @@ select:focus-visible,
   background: #f0f9ff;
 }
 .calendar-slot:focus-visible {
-  outline: 2px solid #38bdf8;
-  outline-offset: -2px;
-  background: #f0f9ff;
+  background: var(--focus-fill);
+  outline-color: var(--focus-fill-outline);
 }
 .calendar-selection {
   position: absolute;

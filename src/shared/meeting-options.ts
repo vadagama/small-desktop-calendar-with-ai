@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { validCalendarDate } from "./calendar-time.js";
+
+export const meetingParticipantLimit = 100;
+export const meetingNotificationRecipientLimit = 20;
+
 export const recurrenceRule = z.strictObject({
   FREQ: z.literal("WEEKLY"),
   BYDAY: z
@@ -11,7 +15,7 @@ export const recurrenceRule = z.strictObject({
 });
 const ids = z
   .array(z.string().regex(/^[A-Za-z0-9_-]{1,128}$/))
-  .max(20)
+  .max(meetingNotificationRecipientLimit)
   .refine((a) => new Set(a).size === a.length);
 export const meetingOptions = z.strictObject({
   calendarIds: z.array(z.number().int().positive()).max(1),

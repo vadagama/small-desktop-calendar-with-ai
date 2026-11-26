@@ -1,0 +1,7 @@
+.agents/
+.impeccable/
+desktop-wails/assistant-dist/
+desktop-wails/dist/
+native/
+release/
+tmp/

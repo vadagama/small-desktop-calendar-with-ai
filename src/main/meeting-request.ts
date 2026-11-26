@@ -1,4 +1,7 @@
-import { recurrenceRule } from "../shared/meeting-options.js";
+import {
+  meetingNotificationRecipientLimit,
+  recurrenceRule,
+} from "../shared/meeting-options.js";
 import { z } from "zod";
 import { participantIds } from "./availability-request.js";
 import type { MeetingDraft } from "../shared/meeting-draft.js";
@@ -21,7 +24,7 @@ export const meetingCreateBody = z
     participant_ids: participantIds,
     notification_recipient_ids: z
       .array(z.string().regex(/^[A-Za-z0-9_-]{1,128}$/))
-      .max(20),
+      .max(meetingNotificationRecipientLimit),
     attachments: z.array(z.string().regex(/^[A-Za-z0-9_-]{1,128}$/)).max(5),
   })
   .refine((q) => Date.parse(q.starts_at) < Date.parse(q.ends_at))

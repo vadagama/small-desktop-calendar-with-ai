@@ -43,6 +43,10 @@
 .desktop-workspace .icon-rail .rail-avatar {
   margin-top: 3px;
 }
+.ordo-emblem {
+  flex: 0 0 auto;
+  margin-bottom: 20px;
+}
 .small-sidebar-scroll {
   flex: 1;
   min-height: 0;
@@ -606,6 +610,34 @@
   display: block;
   color: var(--muted);
 }
+.meeting-people-results[data-side="top"] {
+  position: fixed;
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 12%);
+  margin: 0;
+  padding: 4px;
+  overscroll-behavior: contain;
+}
+.meeting-people-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: var(--font-body);
+  font-weight: 400;
+  line-height: 1.35;
+}
+.meeting-people-status .loading-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+}
+@media (prefers-reduced-motion: reduce) {
+  .meeting-people-status .loading-icon {
+    animation: none;
+  }
+}
 .meeting-chips {
   display: flex;
   flex-wrap: wrap;
@@ -768,8 +800,10 @@
 .new-meeting .modal-header .icon-button {
   width: 32px;
   height: 32px;
-  background: var(--soft);
   border-radius: 8px;
+}
+.new-meeting .modal-header .icon-button:not(:focus-visible) {
+  background: var(--soft);
 }
 .new-meeting .modal-header svg {
   width: 20px;
@@ -798,6 +832,11 @@
   display: flex;
   padding: 6px;
 }
+.new-meeting .meeting-chips {
+  max-block-size: 112px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 .new-meeting .meeting-chips > span {
   overflow-wrap: anywhere;
   min-width: 0;
@@ -811,11 +850,6 @@
     justify-self: end;
   }
 }
-/* Draw focus inside controls so scrolling cannot clip the indicator. */
-.new-meeting :is(input, textarea, select, button):focus-visible {
-  outline-offset: -2px;
-}
-
 [data-new-event="true"] {
   z-index: 6;
   animation: meeting-created 900ms ease-out;
@@ -879,8 +913,8 @@
 .event-actions-menu summary::-webkit-details-marker {
   display: none;
 }
-.event-actions-menu[open] summary {
-  outline: 2px solid #b8b8b8;
+.event-actions-menu[open] > summary {
+  background: var(--focus-fill);
 }
 .event-menu-items {
   position: fixed;
@@ -909,6 +943,10 @@
 }
 .event-menu-items button:hover {
   background: #f6f6f6;
+}
+.event-menu-items button:focus-visible {
+  background: var(--focus-fill);
+  outline-color: var(--focus-fill-outline);
 }
 .event-menu-items svg {
   flex-shrink: 0;
@@ -1061,6 +1099,14 @@
   background: #d1fae5;
   box-shadow: inset 0 0 0 1px #009b72;
 }
+.event-rsvp .decline-response {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.event-rsvp .decline-response[aria-pressed="true"] {
+  background: #fecaca;
+  box-shadow: inset 0 0 0 1px #b42318;
+}
 @media (max-width: 480px) {
   .event-rsvp {
     margin: 16px -16px -16px;
@@ -1144,6 +1190,8 @@
   width: 26px;
   height: 26px;
   border-radius: 8px;
+}
+.discard-meeting .icon-button:not(:focus-visible) {
   background: #f8f8f8;
 }
 .discard-meeting-actions {
@@ -2018,9 +2066,12 @@
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
-.model-picker-menu button:hover:not(:disabled),
-.model-picker-menu button:focus-visible {
+.model-picker-menu button:hover:not(:disabled) {
   background: var(--soft);
+}
+.model-picker-menu button:focus-visible {
+  background: var(--focus-fill);
+  outline-color: var(--focus-fill-outline);
 }
 .model-picker-menu small,
 .model-picker-menu p span {
@@ -2035,18 +2086,23 @@
   line-height: 1.35;
 }
 
-.meeting-people-input:focus-within {
-  outline: 1px solid var(--ink);
-  outline-offset: -1px;
+.new-meeting .meeting-people-input:has(input:focus) {
+  border-color: var(--focus-border);
+}
+.new-meeting .meeting-people-search input:focus {
+  outline: none;
 }
 .meeting-people-results .meeting-person-option {
   font-size: var(--font-compact);
   border-radius: 8px;
   cursor: pointer;
 }
-.meeting-people-results .meeting-person-option:hover,
-.meeting-people-results .meeting-person-option:focus-within {
+.meeting-people-results .meeting-person-option:hover {
   background: var(--soft);
+}
+.meeting-people-results .meeting-person-option:focus-visible {
+  background: var(--focus-fill);
+  outline-color: var(--focus-fill-outline);
 }
 .meeting-people-results small,
 .meeting-chips > span {

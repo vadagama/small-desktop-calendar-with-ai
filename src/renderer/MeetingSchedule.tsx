@@ -2,8 +2,9 @@ import { calendarToday } from "../shared/calendar-time.js";
 import { MeetingTimePicker } from "./MeetingTimePicker";
 import { endAfterDuration } from "../shared/meeting-time.js";
 import { Clock } from "lucide-react";
-import { addDateDays, validCalendarDate } from "../shared/calendar-time.js";
 import type { useNewMeeting } from "./useNewMeeting";
+import { Checkbox } from "./ui/shadcn/checkbox";
+import { MeetingRecurrenceDate } from "./MeetingRecurrenceDate";
 const weekdays = [
   ["MO", "Пн"],
   ["TU", "Вт"],
@@ -15,8 +16,12 @@ const weekdays = [
 ] as const;
 export function MeetingSchedule({
   data,
+  disabled,
+  overlayRoot,
 }: {
   data: ReturnType<typeof useNewMeeting>;
+  disabled: boolean;
+  overlayRoot: HTMLDivElement | null;
 }) {
   const {
     date,
@@ -32,6 +37,8 @@ export function MeetingSchedule({
     setDays,
     until,
     setUntil,
+    recurrenceEndLimit,
+    recurrenceEndInvalid,
   } = data;
   return (
     <>
@@ -145,37 +152,37 @@ export function MeetingSchedule({
       )}
       {repeat && (
         <div className="recurrence-controls">
-          <p>Еженедельно</p>
-          <div className="recurrence-days">
-            {weekdays.map(([id, label]) => (
-              <label key={id}>
-                <input
-                  type="checkbox"
-                  checked={days.includes(id)}
-                  onChange={() =>
-                    setDays((old) =>
-                      old.includes(id)
-                        ? old.filter((d) => d !== id)
-                        : [...old, id],
-                    )
-                  }
-                />
-                {label}
-              </label>
-            ))}
-          </div>
-          <label>
-            Повторять до
-            <input
-              type="date"
-              required
-              min={date}
-              max={validCalendarDate(date) ? addDateDays(date, 90) : undefined}
-              value={until}
-              onChange={(e) => setUntil(e.target.value)}
-            />
-          </label>
-          <small>
+          <fieldset className="recurrence-weekdays">
+            <legend>Еженедельно</legend>
+            <div className="recurrence-days">
+              {weekdays.map(([id, label]) => (
+                <label key={id}>
+                  <Checkbox
+                    checked={days.includes(id)}
+                    disabled={disabled}
+                    onCheckedChange={(checked) =>
+                      setDays((old) =>
+                        checked === true
+                          ? [...old, id]
+                          : old.filter((d) => d !== id),
+                      )
+                    }
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <MeetingRecurrenceDate
+            value={until}
+            min={recurrenceEndLimit ? date : undefined}
+            max={recurrenceEndLimit}
+            invalid={recurrenceEndInvalid}
+            disabled={disabled}
+            overlayRoot={overlayRoot}
+            onChange={setUntil}
+          />
+          <small id="meeting-recurrence-note">
             До 32 встреч за 90 дней. Занятость проверяется для каждого
             повторения.
           </small>

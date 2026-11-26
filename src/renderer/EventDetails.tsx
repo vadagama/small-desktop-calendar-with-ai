@@ -620,6 +620,7 @@ export function EventDetails({
               Да
             </button>
             <button
+              className="decline-response"
               disabled={responding || gone}
               aria-pressed={
                 response === "declined" ||

@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { validCalendarDate } from "../shared/calendar-time.js";
+import { meetingParticipantLimit } from "../shared/meeting-options.js";
 
 export const participantIds = z
   .array(z.string().regex(/^[A-Za-z0-9_-]{1,128}$/))
   .min(1)
-  .max(20)
+  .max(meetingParticipantLimit)
   .refine((ids) => new Set(ids).size === ids.length);
 export const availabilityDate = z.string().refine(validCalendarDate);
 export const durationMinutes = z.number().int().min(1).max(480);

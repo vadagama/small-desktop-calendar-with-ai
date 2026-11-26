@@ -27,6 +27,7 @@ import type { CalendarPerson } from "../shared/calendar.js";
 import type { ParticipantMemory } from "./participant-memory.js";
 import type { MeetingDraft } from "../shared/meeting-draft.js";
 import { meetingDraftInput } from "../shared/meeting-draft.js";
+import { meetingParticipantLimit } from "../shared/meeting-options.js";
 import { prepareMeetingDraft } from "./meeting-draft.js";
 import {
   meetingDeletionInput,
@@ -372,6 +373,15 @@ export function createCalendarToolExecutor(
           // This exact set comes from the selected source, not an ambiguous name search.
           for (const id of ids) conversation.ambiguous.delete(id);
         }
+        if (
+          participantIds.length === meetingParticipantLimit &&
+          organizerParticipantId &&
+          !participantIds.includes(organizerParticipantId)
+        )
+          throw new CalendarError(
+            "invalid",
+            `Вместе с организатором допустимо до ${meetingParticipantLimit} участников.`,
+          );
         const saved =
           rememberedAliases.length && memory
             ? await memory.read(accountId)
@@ -540,10 +550,10 @@ export function createCalendarToolExecutor(
         );
         if (organizerIndex >= 0) people.splice(organizerIndex, 1);
         people.unshift(organizer);
-        if (people.length > 20)
+        if (people.length > meetingParticipantLimit)
           throw new CalendarError(
             "invalid",
-            "Можно выбрать не более 19 сотрудников помимо организатора.",
+            `Вместе с организатором допустимо до ${meetingParticipantLimit} участников.`,
           );
         if (!people.length)
           throw new CalendarError(

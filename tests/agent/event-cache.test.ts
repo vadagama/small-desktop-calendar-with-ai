@@ -28,11 +28,15 @@ class FakeCipher implements CacheCipher {
   hold: Promise<void> | null = null;
   /** Same for the availability check, which comes before any directory is created. */
   holdAvailability: Promise<void> | null = null;
+  onAvailabilityCheck?: () => void;
+  onEncrypt?: () => void;
   async isAvailable() {
+    this.onAvailabilityCheck?.();
     await this.holdAvailability;
     return this.available;
   }
   async encrypt(text: string) {
+    this.onEncrypt?.();
     await this.hold;
     return Buffer.from(
       Buffer.from("fake:" + text, "utf8").map((byte) => byte ^ 0x5a),
@@ -464,10 +468,6 @@ test("a file that cannot be read cannot prove its range untouched and is dropped
   });
 });
 
-const settle = async () => {
-  for (let index = 0; index < 20; index++)
-    await new Promise((resolve) => setImmediate(resolve));
-};
 const clears = [
   (cache: EventCache) => cache.clearAll(),
   (cache: EventCache) => cache.clear("a"),
@@ -482,8 +482,11 @@ test("a write that began before a clear does not recreate the cache after it", a
       cipher.holdAvailability = new Promise<void>(
         (resolve) => (release = resolve),
       );
+      const checking = new Promise<void>((resolve) => {
+        cipher.onAvailabilityCheck = resolve;
+      });
       const write = cache.putEvents("a", "k", complete(event()));
-      await settle();
+      await checking;
       await clear(cache);
       cipher.holdAvailability = null;
       release();
@@ -501,8 +504,11 @@ test("an old write cannot land in the directory a newer write recreated after a 
       let release!: () => void;
       // The old write is stopped while encrypting; its directory then disappears.
       cipher.hold = new Promise<void>((resolve) => (release = resolve));
+      const encrypting = new Promise<void>((resolve) => {
+        cipher.onEncrypt = resolve;
+      });
       const old = cache.putEvents("a", "old", complete(event("event:1")));
-      await settle();
+      await encrypting;
       await clear(cache);
       cipher.hold = null;
       await cache.putEvents("a", "new", complete(event("event:2")));
@@ -522,12 +528,15 @@ test("a write that began before an invalidation does not bring the range back", 
     cipher.holdAvailability = new Promise<void>(
       (resolve) => (release = resolve),
     );
+    const checking = new Promise<void>((resolve) => {
+      cipher.onAvailabilityCheck = resolve;
+    });
     const write = cache.putEvents(
       "a",
       weekOf.first,
       complete(event("event:1")),
     );
-    await settle();
+    await checking;
     await cache.invalidateEvents("a", { eventIds: ["1"], windows: [] });
     cipher.holdAvailability = null;
     release();

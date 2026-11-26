@@ -6,6 +6,7 @@ import {
   validCalendarDate,
 } from "./calendar-time.js";
 import type { CalendarPerson } from "./calendar.js";
+import { meetingParticipantLimit } from "./meeting-options.js";
 
 export { availabilityAnalysisChannels } from "./availability-channels.js";
 const clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
@@ -14,7 +15,7 @@ export const analysisParams = z.strictObject({
   participantIds: z
     .array(z.string().regex(/^[A-Za-z0-9_-]{1,128}$/))
     .min(1)
-    .max(20)
+    .max(meetingParticipantLimit)
     .refine((ids) => new Set(ids).size === ids.length),
   date: z.string().refine(validCalendarDate),
   period: z.enum(["day", "week"]).default("week"),
@@ -189,7 +190,7 @@ export const availabilityOpeningSchema = z
           position: z.string().max(500),
         }),
       )
-      .max(20),
+      .max(meetingParticipantLimit),
   })
   .refine(
     (v) =>

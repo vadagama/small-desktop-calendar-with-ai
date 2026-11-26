@@ -1,6 +1,5 @@
 node_modules/
 dist/
-out/
 release/
 test-results/
 *.tsbuildinfo
@@ -14,5 +13,8 @@ prototype/playwright-report/
 
 /native/voice/
 
-# Local scratch files and isolated Electron profiles
+# Local scratch files and isolated test profiles
 /tmp/
+
+/desktop-wails/assistant-dist/
+/graphify-out/

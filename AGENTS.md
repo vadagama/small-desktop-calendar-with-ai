@@ -1,4 +1,4 @@
-# Small Desktop Calendar — agent instructions
+# Ordo — agent instructions
 
 These project instructions apply to Codex (desktop, CLI and IDE integrations),
 Zed Agent, and compatible external agents working in this repository.
@@ -42,7 +42,7 @@ All skill paths use `.agents/skills/<name>/SKILL.md`.
 | Implement a change | `incremental-implementation`, `git-workflow-and-versioning` |
 | Implement or change behavior | `test-driven-development` |
 | Build UI | `frontend-ui-engineering`, `browser-testing-with-devtools` |
-| Build, package, secure, or test Electron | `electron-best-practices` |
+| Build or test the macOS shell | `wails` |
 | Write or review TypeScript contracts and configuration | `typescript-pro` |
 | Define APIs or module contracts | `api-and-interface-design` |
 | Verify approaches against official docs | `source-driven-development` |
@@ -63,11 +63,8 @@ All skill paths use `.agents/skills/<name>/SKILL.md`.
 - Calendar: <https://team.small.kz/calendar>.
 - Existing frontend: <https://gitlab16.skiftrade.kz/staff/team-small-kz-frontend>.
 - Existing backend: <https://gitlab16.skiftrade.kz/staff/team-small-kz-backend>.
-- This repository currently contains a README and agent resources; application
-  code, dependency manifests, and build/test commands have not been added yet.
-- Pake/Tauri versus Electron and Pi Durable versus Hermes are under evaluation.
-  Earlier recommendations are not an approved technology decision. Verify
-  current repository state and accepted decisions before scaffolding an app.
+- Ordo uses Go and Wails, React and TypeScript, Dockview Community, and Vercel AI SDK.
+- See `docs/decisions/006-go-wails-migration.md` for the migration decision.
 
 ## Working conventions
 
@@ -88,25 +85,18 @@ All skill paths use `.agents/skills/<name>/SKILL.md`.
   or bypass scheduling conflicts automatically.
 - Do not store secrets, access tokens, real meeting payloads, or personal data
   in repository files or test fixtures.
-- Discover verification commands from real manifests and CI configuration.
-  Do not invent `npm`, Rust, or Electron commands before those tools exist here.
+- Discover verification commands from the manifests and CI configuration.
 - Run checks appropriate to the change. Report what passed, what could not be
   checked, and remaining limitations; never claim a check that was not run.
 
-## Фоновый запуск Playwright E2E
+## Фоновый запуск E2E
 
 - По умолчанию запускайте все Playwright E2E в фоновом режиме, чтобы они
   не мешали работе пользователя и не перехватывали фокус клавиатуры.
 - Браузерные E2E запускайте в headless-режиме. Не используйте `--headed`,
   `--ui`, `--debug` или `PWDEBUG=1` без явного запроса пользователя.
-- Для Electron E2E обеспечивайте скрытый запуск тестового приложения:
-  окна не должны показываться, активироваться или забирать фокус, включая
-  повторный запуск приложения и открытие дополнительных окон. Настройка
-  Playwright `headless` сама по себе не скрывает окна Electron.
-- Если текущий тестовый запуск Electron показывает окна, сначала настройте
-  фоновый режим тестового запуска. Не запускайте видимые E2E как обходной путь
-  без явного запроса пользователя. Тестовый режим не должен менять обычный
-  запуск приложения.
+- Запускайте нативные сценарии Wails через `npm run test:wails`. Окна WKWebView
+  в этих сценариях скрыты и не забирают фокус.
 - Запуск команды с `&` не заменяет headless или скрытый режим приложения.
   Проверки UI, скриншоты и trace собирайте без вывода тестовых окон на экран;
   отчёты и trace viewer не открывайте автоматически.
@@ -141,14 +131,14 @@ For every UI change, read `docs/design/typography.md` and use the shared
 content 13 px, form/body text 14 px, dialog titles 18 px. Do not derive CSS
 font sizes from screenshot pixels: screenshots may be Retina or zoomed.
 Preserve the compact desktop density; do not increase font sizes or spacing
-unless the user requests it. Verify computed font sizes in Electron.
+unless the user requests it. Verify computed font sizes in WKWebView.
 
 ## Clean rebuilds and initial application state
 
 Every rebuilt application must be delivered and launched with a clean initial
 profile by default. Do not reuse the developer's or user's existing `userData`
 for a post-build launch unless the user explicitly requests that profile.
-Use a new, isolated `--user-data-dir` for each rebuild launch; do not delete an
+Use a new, isolated `-user-data-dir` for each rebuild launch; do not delete an
 existing personal profile to achieve a clean start.
 
 Required initial state:

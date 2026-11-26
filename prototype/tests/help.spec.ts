@@ -7,7 +7,7 @@ test("help searches and inserts an editable prompt without losing a draft", asyn
   const input = page.locator(".assistant-panel textarea");
   await input.fill("Мой черновик");
   await page.getByRole("button", { name: "Помощь", exact: true }).click();
-  const help = page.getByRole("region", { name: "Руководство Small" });
+  const help = page.getByRole("region", { name: "Руководство Ordo" });
   await help.getByRole("searchbox").fill("несуществующая тема");
   await expect(help.getByText("Ничего не найдено")).toBeVisible();
   await help.getByRole("button", { name: "Сбросить поиск" }).click();
@@ -29,7 +29,7 @@ test("help is a full section and preserves the lesson after an interactive actio
   await page.goto("/");
   const trigger = page.getByRole("button", { name: "Помощь", exact: true });
   await trigger.click();
-  const help = page.getByRole("region", { name: "Руководство Small" });
+  const help = page.getByRole("region", { name: "Руководство Ordo" });
   await expect(help).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.locator(".calendar-panel")).not.toBeVisible();
@@ -68,7 +68,7 @@ test("images load, actions navigate and help fits narrow windows", async ({
   await page.goto("/");
   const trigger = page.getByRole("button", { name: "Помощь", exact: true });
   await trigger.click();
-  const help = page.getByRole("region", { name: "Руководство Small" });
+  const help = page.getByRole("region", { name: "Руководство Ordo" });
   for (const title of [
     "С чего начать",
     "Аутентификация",

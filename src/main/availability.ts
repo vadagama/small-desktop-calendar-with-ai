@@ -19,6 +19,7 @@ import {
   participantIds,
 } from "./availability-request.js";
 import { addDateDays, calendarRange } from "../shared/calendar-time.js";
+import { meetingParticipantLimit } from "../shared/meeting-options.js";
 
 const interval = z
   .strictObject({
@@ -77,7 +78,7 @@ const busyResponse = z.strictObject({
           busy_slots: record.busy_slots,
         })),
     )
-    .max(20),
+    .max(meetingParticipantLimit),
 });
 
 export class AvailabilityService {

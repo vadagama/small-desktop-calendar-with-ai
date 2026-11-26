@@ -7,6 +7,18 @@ import { MeetingSchedule } from "./MeetingSchedule";
 import { useNewMeeting } from "./useNewMeeting";
 import { SmallAuthNotice } from "./SmallAuthNotice";
 import { MeetingConflictDialog } from "./MeetingConflictDialog";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/shadcn/select";
+import "./ui/shadcn/meeting-controls.css";
+
+const noRoom = "no-room";
+
 export function NewMeeting(
   props: Parameters<typeof useNewMeeting>[0] & {
     notice?: import("react").ReactNode;
@@ -15,6 +27,7 @@ export function NewMeeting(
   const { close, authRequired } = props;
   const data = useNewMeeting(props);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [overlayRoot, setOverlayRoot] = useState<HTMLDivElement | null>(null);
   function requestClose() {
     if (data.busy) return;
     if (data.dirty && !data.locked) setConfirmClose(true);
@@ -46,6 +59,7 @@ export function NewMeeting(
     create,
     reconcile,
   } = data;
+  const fieldsDisabled = busy || locked || !!authRequired || !!props.disabled;
   return (
     <>
       <dialog
@@ -89,10 +103,7 @@ export function NewMeeting(
           }}
         >
           <div className="new-meeting-body">
-            <fieldset
-              disabled={busy || locked || authRequired || props.disabled}
-              className="new-meeting-fields"
-            >
+            <fieldset disabled={fieldsDisabled} className="new-meeting-fields">
               <label>
                 Наименование <span className="required-mark">*</span>
                 <input
@@ -135,7 +146,12 @@ export function NewMeeting(
                 <p className="meeting-organizer">
                   Организатор: {data.organizerName}
                 </p>
-                <MeetingPeoplePicker data={people} label="участников" />
+                <MeetingPeoplePicker
+                  data={people}
+                  label="участников"
+                  overlayRoot={overlayRoot}
+                  disabled={fieldsDisabled}
+                />
               </div>
               <button
                 type="button"
@@ -147,25 +163,48 @@ export function NewMeeting(
                 Информируемые
               </button>
               {inform && (
-                <MeetingPeoplePicker data={recipients} label="информируемых" />
+                <MeetingPeoplePicker
+                  data={recipients}
+                  label="информируемых"
+                  overlayRoot={overlayRoot}
+                  disabled={fieldsDisabled}
+                />
               )}
-              <label>
-                Переговорная
-                <select
-                  aria-label="Переговорная"
-                  value={room}
-                  onChange={(e) => setRoom(e.target.value)}
+              <div className="meeting-room-field">
+                <label htmlFor="meeting-room">Переговорная</label>
+                <Select
+                  value={room || noRoom}
+                  disabled={fieldsDisabled}
+                  onValueChange={(value) =>
+                    setRoom(value === noRoom ? "" : value)
+                  }
                 >
-                  <option value="">Без переговорной</option>
-                  {rooms.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  <SelectTrigger id="meeting-room">
+                    <SelectValue />
+                  </SelectTrigger>
+                  {overlayRoot && (
+                    <SelectContent
+                      container={overlayRoot}
+                      collisionBoundary={overlayRoot.parentElement}
+                    >
+                      <SelectGroup>
+                        <SelectItem value={noRoom}>Без переговорной</SelectItem>
+                        {rooms.map((r) => (
+                          <SelectItem key={r.id} value={r.id}>
+                            {r.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  )}
+                </Select>
+              </div>
               {roomError && <p className="form-error">{roomError}</p>}
-              <MeetingSchedule data={data} />
+              <MeetingSchedule
+                data={data}
+                disabled={fieldsDisabled}
+                overlayRoot={overlayRoot}
+              />
               <button
                 type="button"
                 className="meeting-link-action"
@@ -244,6 +283,8 @@ export function NewMeeting(
             )}
           </div>
         </form>
+        {/* Keep portals inside the modal's top layer and outside the scrollable form. */}
+        <div ref={setOverlayRoot} />
       </dialog>
       {confirmClose && (
         <DiscardMeetingDialog

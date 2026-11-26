@@ -18,12 +18,11 @@ Installed locally on 2026-10-28, including each skill's references and supportin
 
 | Skill | Source | Verified source revision |
 | --- | --- | --- |
-| `electron-best-practices` | [jwynia/agent-skills](https://github.com/jwynia/agent-skills/tree/main/skills/tech/development/tooling/electron-best-practices) | `e02ec7e226a6e4f8419fd3b88a1d8e472d421b32` |
 | `typescript-pro` | [jeffallan/claude-skills](https://github.com/jeffallan/claude-skills/tree/main/skills/typescript-pro) | `190e05a380b624187f5770451e1f41b9187cb63c` |
 
-Both skill manifests declare MIT licensing. The TypeScript source repository's license is preserved in `LICENSE.typescript-pro`; the Electron source has no root license file in the verified revision, so its license declaration remains in the unchanged `SKILL.md`.
+The TypeScript source repository's MIT license is preserved in `LICENSE.typescript-pro`.
 
-These extend the 25 Addy Osmani workflows; there are now 27 local skills. The root `AGENTS.md` includes their selection rules. Electron analysis and scaffolding scripts require Deno; installation does not execute them or install Deno. Review scripts before running them. Apply TypeScript configuration and library recommendations to the actual project rather than treating example dependencies as an approved stack.
+The TypeScript skill extends the 25 Addy Osmani workflows. The root `AGENTS.md` specifies how to select them.
 
 ## Project-owned workflows
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { meetingParticipantLimit } from "./meeting-options.js";
 
 const id = z.string().min(1).max(128);
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
@@ -42,7 +43,7 @@ export const memoryEntry = z.strictObject({
 const members = z
   .array(id)
   .min(1)
-  .max(20)
+  .max(meetingParticipantLimit)
   .refine((ids) => new Set(ids).size === ids.length);
 const person = z.strictObject({
   participantId: id,
@@ -52,7 +53,7 @@ const person = z.strictObject({
 export const memoryGroupValue = z.strictObject({
   name: z.string().trim().min(1).max(100),
   participantIds: members,
-  people: z.array(person).max(20).optional(),
+  people: z.array(person).max(meetingParticipantLimit).optional(),
 });
 export const memoryPresetValue = z
   .strictObject({
@@ -62,7 +63,7 @@ export const memoryPresetValue = z
     durationMinutes: z.number().int().min(1).max(480).optional(),
     participantIds: members.optional(),
     groupId: id.optional(),
-    people: z.array(person).max(20).optional(),
+    people: z.array(person).max(meetingParticipantLimit).optional(),
   })
   .refine(
     (p) => !(p.groupId && p.participantIds),
@@ -92,6 +93,16 @@ export const assistantMemoryState = z.strictObject({
   participants: z.array(rememberedParticipant).max(100),
 });
 export type AssistantMemoryState = z.infer<typeof assistantMemoryState>;
+export const emptyAssistantMemory = (): AssistantMemoryState => ({
+  version: 1,
+  revision: 0,
+  preferences: {},
+  preferenceSources: {},
+  entries: [],
+  groups: [],
+  presets: [],
+  participants: [],
+});
 export type MemoryGroup = z.infer<typeof memoryGroup>;
 export type MemoryPreset = z.infer<typeof memoryPreset>;
 export type MemorySource = z.infer<typeof memorySource>;

@@ -12,6 +12,13 @@ const body = {
 test("only the two read-only POST contracts are allowed", () => {
   assert.equal(isAvailabilityRequest(path, body), true);
   assert.equal(
+    isAvailabilityRequest(path, {
+      ...body,
+      participant_ids: Array.from({ length: 100 }, (_, i) => `guest-${i}`),
+    }),
+    true,
+  );
+  assert.equal(
     isAvailabilityRequest("/gate/team/api/calendar/events/busy-intervals", {
       participant_ids: ["synthetic-a"],
       date: "2026-10-29",

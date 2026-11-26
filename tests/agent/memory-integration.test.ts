@@ -7,6 +7,7 @@ import { MemoryProposals } from "../../src/main/memory-proposals.js";
 import { CalendarConversation } from "../../src/main/calendar-conversation.js";
 import { createCalendarToolExecutor } from "../../src/main/calendar-tools.js";
 import { runMemoryTool } from "../../src/main/memory-tools.js";
+import { meetingPayload } from "../../src/main/meeting-request.js";
 
 function setup() {
   const values = new Map<string, string>();
@@ -870,70 +871,96 @@ test("an explicit saved group id checks members without searching the group name
   assert.equal(s.conversation.selectionConfirmed, true);
 });
 
-test("copying a source meeting preserves its composition and hour over memory's 25 minutes", async () => {
-  const s = setup();
-  let state = await s.store.read("a");
-  state = await s.store.write("a", {
-    revision: state.revision,
-    requestId: randomUUID(),
-    change: { action: "preferences", value: { durationMinutes: 25 } },
+for (const participantCount of [21, 100]) {
+  test(`copying a meeting preserves all ${participantCount} participants and its original duration`, async () => {
+    const s = setup();
+    const guests = Array.from({ length: participantCount - 1 }, (_, i) => ({
+      participantId: `fixture-guest-${i}`,
+      name: `Тестовый участник ${i}`,
+      position: "",
+    }));
+    const guestIds = guests.map((p) => p.participantId);
+    const fullComposition = [...guestIds, "organizer"];
+    s.calendar.searchPeople = async ({ query }) => ({
+      people: guests.filter((p) => p.name === query),
+      page: 1,
+      nextPage: null,
+    });
+    let state = await s.store.read("a");
+    state = await s.store.write("a", {
+      revision: state.revision,
+      requestId: randomUUID(),
+      change: { action: "preferences", value: { durationMinutes: 25 } },
+    });
+    s.conversation.forgetMemoryEvidence(state.revision);
+    s.calendar.events = async () => ({
+      issues: [],
+      events: [
+        {
+          key: "event:synthetic-source",
+          lookup: { id: "synthetic-source" },
+          title: "Synthetic source",
+          description: "Synthetic agenda",
+          location: "Synthetic room",
+          organizer: "Synthetic organizer",
+          calendarIds: [],
+          startsAt: "2099-11-02T05:00:00Z",
+          endsAt: "2099-11-02T06:00:00Z",
+          participants: [
+            {
+              id: "organizer",
+              name: "Тестовый организатор",
+              organizer: true,
+              status: "accepted",
+            },
+            ...guests.map((p) => ({
+              id: p.participantId,
+              name: p.name,
+              organizer: false,
+              status: "accepted" as const,
+            })),
+          ],
+        },
+      ],
+    });
+    let execute = s.execute("Сделай копию исходной встречи");
+    await execute("listMeetings", {
+      period: "custom",
+      from: "2099-11-02",
+      to: "2099-11-02",
+    });
+    const selected = await execute("selectParticipants", {
+      participantIds: [],
+      sourceEventKey: "event:synthetic-source",
+    });
+    assert.ok(selected.ok, JSON.stringify(selected));
+    assert.deepEqual(s.conversation.selected, guestIds);
+    execute = s.execute("да");
+    const draft = await execute("prepareMeetingDraft", {
+      participantIds: guestIds,
+      startsAt: "2099-11-02T05:00:00Z",
+      conference: { mode: "none" },
+    });
+    assert.ok(draft.ok, JSON.stringify(draft));
+    if (
+      !draft.ok ||
+      !("kind" in draft.data) ||
+      draft.data.kind !== "meeting-draft"
+    )
+      assert.fail("Expected a meeting draft");
+    assert.equal(draft.data.title, "Synthetic source");
+    assert.equal(draft.data.agenda, "Synthetic agenda");
+    assert.equal(draft.data.location, "Synthetic room");
+    assert.equal(draft.data.durationMinutes, 60);
+    assert.match(draft.data.memoryPolicy?.summary ?? "", /исходной встречи/);
+    assert.deepEqual(s.calls.at(-1)?.participantIds, fullComposition);
+    assert.deepEqual(draft.data.participantIds, fullComposition);
+    assert.deepEqual(
+      meetingPayload(draft.data).participant_ids,
+      fullComposition,
+    );
   });
-  s.conversation.forgetMemoryEvidence(state.revision);
-  s.calendar.events = async () => ({
-    issues: [],
-    events: [
-      {
-        key: "event:synthetic-source",
-        lookup: { id: "synthetic-source" },
-        title: "Synthetic source",
-        description: "Synthetic agenda",
-        location: "Synthetic room",
-        organizer: "Synthetic organizer",
-        calendarIds: [],
-        startsAt: "2099-11-02T05:00:00Z",
-        endsAt: "2099-11-02T06:00:00Z",
-        participants: [
-          {
-            id: s.person.participantId,
-            name: s.person.name,
-            organizer: false,
-            status: "accepted",
-          },
-        ],
-      },
-    ],
-  });
-  let execute = s.execute("Сделай копию исходной встречи");
-  await execute("listMeetings", {
-    period: "custom",
-    from: "2099-11-02",
-    to: "2099-11-02",
-  });
-  const selected = await execute("selectParticipants", {
-    participantIds: [],
-    sourceEventKey: "event:synthetic-source",
-  });
-  assert.equal(selected.ok, true);
-  assert.deepEqual(s.conversation.selected, [s.person.participantId]);
-  execute = s.execute("да");
-  const draft = await execute("prepareMeetingDraft", {
-    participantIds: [s.person.participantId],
-    startsAt: "2099-11-02T05:00:00Z",
-    conference: { mode: "none" },
-  });
-  assert.equal(draft.ok, true);
-  if (
-    !draft.ok ||
-    !("kind" in draft.data) ||
-    draft.data.kind !== "meeting-draft"
-  )
-    return;
-  assert.equal(draft.data.title, "Synthetic source");
-  assert.equal(draft.data.agenda, "Synthetic agenda");
-  assert.equal(draft.data.location, "Synthetic room");
-  assert.equal(draft.data.durationMinutes, 60);
-  assert.match(draft.data.memoryPolicy?.summary ?? "", /исходной встречи/);
-});
+}
 
 test("task choices require an unambiguous answer and expire on cancellation, account change and timeout", async () => {
   const s = setup();

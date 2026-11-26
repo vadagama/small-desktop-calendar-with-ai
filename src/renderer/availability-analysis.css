@@ -400,8 +400,6 @@
   background: #c8e8fa;
 }
 .availability-grid button.slot:focus-visible {
-  outline-offset: 0;
-  outline-width: 2px;
   z-index: 1;
 }
 .availability-grid .slot.selected {

@@ -371,7 +371,7 @@ test("organizer buffer near midnight requires adjacent-day busy coverage", async
   );
 });
 
-test("twenty participants intersect exact fractional boundaries and clip midnight", () => {
+test("one hundred participants intersect exact fractional boundaries and clip midnight", () => {
   const row = partitionAvailability(
     q.date,
     [{ start: "2026-11-09T23:30:00+05:00", end: at("12:00") }],
@@ -389,7 +389,7 @@ test("twenty participants intersect exact fractional boundaries and clip midnigh
     0,
   );
   const result = commonAvailability(
-    [...Array.from({ length: 19 }, () => row), narrow],
+    [...Array.from({ length: 99 }, () => row), narrow],
     60,
   );
   assert.deepEqual(result, [
@@ -400,7 +400,14 @@ test("twenty participants intersect exact fractional boundaries and clip midnigh
   assert.equal(
     analysisQuery.safeParse({
       ...q,
-      participantIds: Array.from({ length: 21 }, (_, i) => `p${i}`),
+      participantIds: Array.from({ length: 100 }, (_, i) => `p${i}`),
+    }).success,
+    true,
+  );
+  assert.equal(
+    analysisQuery.safeParse({
+      ...q,
+      participantIds: Array.from({ length: 101 }, (_, i) => `p${i}`),
     }).success,
     false,
   );
@@ -492,18 +499,29 @@ test("full busy response yields continuous free windows, not one-minute search s
   );
 });
 
-test("exact dashboard choice rechecks its interval instead of a sampled suggestions list", async () => {
+test("exact dashboard choice rechecks all 100 participants instead of a sampled suggestions list", async () => {
   const { AvailabilityService } =
     await import("../../src/main/availability.js");
   const paths: string[] = [];
+  const participantIds = Array.from({ length: 100 }, (_, i) => `p${i}`);
   const service = new AvailabilityService(
     {
       readCalendar: async (_account, action) =>
-        action(async (path) => {
+        action(async (path, body) => {
           paths.push(path);
+          assert.deepEqual(
+            (body as { participant_ids: string[] }).participant_ids,
+            participantIds,
+          );
           return Response.json(
             path.endsWith("busy-intervals")
-              ? { data: [{ type: "participant", id: "p", busy_slots: [] }] }
+              ? {
+                  data: participantIds.map((id) => ({
+                    type: "participant",
+                    id,
+                    busy_slots: [],
+                  })),
+                }
               : { data: { available_slots: [], has_more: true } },
           );
         }),
@@ -513,12 +531,13 @@ test("exact dashboard choice rechecks its interval instead of a sampled suggesti
   const exactInterval = { start: at("10:15"), end: at("11:15") };
   const result = await service.find({
     accountId: q.accountId,
-    participantIds: q.participantIds,
+    participantIds,
     date: q.date,
     durationMinutes: 60,
     exactInterval,
   });
   assert.deepEqual(result.slots, [exactInterval]);
+  assert.deepEqual(result.participantIds, participantIds);
   assert.equal(
     paths.some((p) => p.endsWith("find-slots")),
     false,

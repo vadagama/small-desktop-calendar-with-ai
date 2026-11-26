@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { MeetingJournal } from "../../src/main/meeting-journal.js";
+import { MeetingJournal } from "../fixtures/electron-profile/meeting-journal.js";
 const key = "a".repeat(64),
   digest = "b".repeat(64);
 test("claims once across instances and restores an uncertain attempt after restart", async () => {

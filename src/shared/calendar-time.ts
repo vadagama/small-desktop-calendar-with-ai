@@ -1,4 +1,4 @@
-import type { CalendarView } from "./calendar.js";
+import type { CalendarQuery, CalendarView } from "./calendar.js";
 
 export const calendarTimeZone = "Asia/Almaty";
 const formatter = new Intl.DateTimeFormat("en-CA", {
@@ -76,6 +76,22 @@ export function calendarRange(date: string, view: CalendarView) {
   }
   return { start: midnight(first), end: midnight(end) };
 }
+/**
+ * Key of one cached query: the real range (so any date inside one week shares an
+ * entry), the calendar selection, never the account.
+ */
+export function eventRangeKey(
+  query: Pick<CalendarQuery, "date" | "view" | "myCalendar" | "calendarIds">,
+) {
+  const range = calendarRange(query.date, query.view);
+  return JSON.stringify([
+    range.start,
+    range.end,
+    query.myCalendar,
+    [...new Set(query.calendarIds)].sort(),
+  ]);
+}
+
 export function splitEventDays(
   startsAt: string,
   endsAt: string,

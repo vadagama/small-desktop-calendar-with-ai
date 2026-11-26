@@ -7,6 +7,7 @@ import {
 import { calendarDateAt } from "../shared/calendar-time.js";
 import { CalendarError } from "./calendar.js";
 import type { AvailabilityService } from "./availability.js";
+import { meetingParticipantLimit } from "../shared/meeting-options.js";
 
 /** Preview only. This module has no event-write capability or confirmation state. */
 export async function prepareMeetingDraft(
@@ -29,6 +30,11 @@ export async function prepareMeetingDraft(
     q.participantIds = [
       ...new Set([...q.participantIds, organizer.participantId]),
     ];
+  if (q.participantIds.length > meetingParticipantLimit)
+    throw new CalendarError(
+      "invalid",
+      `Вместе с организатором допустимо до ${meetingParticipantLimit} участников.`,
+    );
   const start = Date.parse(q.startsAt);
   const end = start + q.durationMinutes * 60000;
   const result = await availability.find({

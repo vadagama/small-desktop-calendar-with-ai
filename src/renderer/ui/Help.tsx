@@ -41,12 +41,12 @@ export function Help({
     reading.current?.scrollTo(0, 0);
   }, [article?.id]);
   return (
-    <section className="help-section" aria-label="Руководство Small">
+    <section className="help-section" aria-label="Руководство Ordo">
       <div className="help-layout">
         <aside className="help-sidebar">
           <div className="help-guide-title">
             <BookOpen size={18} />
-            <strong>Руководство Small</strong>
+            <strong>Руководство Ordo</strong>
           </div>
           <p className="help-guide-intro">
             Изучайте возможности и пробуйте их в приложении.

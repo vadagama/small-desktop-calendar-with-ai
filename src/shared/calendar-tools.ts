@@ -2,6 +2,7 @@ import { eventEditQuery } from "./event-edit.js";
 import type { MeetingDraft } from "./meeting-draft.js";
 import { z } from "zod";
 import { validCalendarDate } from "./calendar-time.js";
+import { meetingParticipantLimit } from "./meeting-options.js";
 import type {
   CalendarReply,
   PeoplePage,
@@ -15,7 +16,7 @@ export const meetingParticipantsInput = z.strictObject({
   participantIds: z
     .array(z.string().regex(/^[A-Za-z0-9_-]{1,128}$/))
     .min(1)
-    .max(20),
+    .max(meetingParticipantLimit),
 });
 export const meetingParticipantsSchema = eventEditQuery
   .omit({ allowConflicts: true })
@@ -65,7 +66,7 @@ export const slotsToolInput = z.strictObject({
   participantIds: z
     .array(z.string().regex(/^[A-Za-z0-9_-]{1,128}$/))
     .min(0)
-    .max(20)
+    .max(meetingParticipantLimit)
     .refine((ids) => new Set(ids).size === ids.length),
   includeWeekends: z.boolean().optional(),
   timeFrom: z
@@ -145,7 +146,7 @@ export const selectParticipantsInput = z.strictObject({
         alias: z.string().trim().min(1).max(100),
       }),
     )
-    .max(20)
+    .max(meetingParticipantLimit)
     .optional(),
 });
 export const participantMemoryInput = z.strictObject({

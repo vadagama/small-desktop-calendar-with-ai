@@ -9,13 +9,13 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "types": ["node"],
-    "rootDir": ".",
-    "outDir": "dist"
+    "noEmit": true
   },
   "include": [
     "src/**/*.ts",
     "tests/**/*.ts",
-    "electron.vite.config.ts",
-    "playwright.desktop.config.ts"
+    "desktop-wails/assistant-host.ts",
+    "desktop-wails/*.config.ts",
+    "scripts/series-probe.ts"
   ]
 }

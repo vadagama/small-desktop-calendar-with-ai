@@ -12,9 +12,10 @@ import {
 } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { z } from "zod";
-import type { CalendarEvent, CalendarQuery } from "../shared/calendar.js";
+import type { CalendarEvent } from "../shared/calendar.js";
 import type { CalendarSnapshot } from "../shared/calendar-diff.js";
-import { calendarRange } from "../shared/calendar-time.js";
+import { cachedEventsSchema } from "../shared/calendar-cache-schema.js";
+export { eventRangeKey } from "../shared/calendar-time.js";
 import {
   invalidationAffects,
   type EventInvalidation,
@@ -44,72 +45,6 @@ const MAX_VALUE_BYTES = 4 * 1024 * 1024;
 const MAX_MEMORY_ENTRIES = 64;
 const ORPHAN_AGE_MS = 5 * 60 * 1000;
 
-const participant = z.strictObject({
-  id: z.string(),
-  name: z.string(),
-  status: z.string(),
-  organizer: z.boolean(),
-});
-const calendarEvent = z.strictObject({
-  attachments: z
-    .array(
-      z.strictObject({
-        id: z.string(),
-        name: z.string(),
-        size: z.number().optional(),
-        url: z.string().optional(),
-      }),
-    )
-    .optional(),
-  notificationRecipients: z
-    .array(
-      z.strictObject({
-        id: z.string(),
-        name: z.string(),
-      }),
-    )
-    .optional(),
-  recurrenceRule: z
-    .strictObject({
-      FREQ: z.string(),
-      INTERVAL: z.number().int().positive().optional(),
-      BYDAY: z.array(z.string()).optional(),
-      UNTIL: z.string().optional(),
-    })
-    .optional(),
-  participants: z.array(participant).optional(),
-  recurring: z.boolean().optional(),
-  originalEventId: z.string().optional(),
-  aliases: z.array(z.string()).optional(),
-  key: z.string(),
-  lookup: z.union([
-    z.strictObject({ id: z.string() }),
-    z.strictObject({ originalEventId: z.string(), date: z.string() }),
-  ]),
-  title: z.string(),
-  startsAt: z.string(),
-  endsAt: z.string(),
-  calendarIds: z.array(z.string()),
-  participation: z
-    .enum(["organizer", "invited", "informed", "unknown"])
-    .optional(),
-  accepted: z.boolean().optional(),
-  participationStatus: z.string().optional(),
-  organizer: z.string(),
-  organizerId: z.string().optional(),
-  description: z.string(),
-  location: z.string(),
-});
-const eventsValue = z.strictObject({
-  events: z.array(calendarEvent),
-  issues: z.array(
-    z.strictObject({
-      source: z.string(),
-      kind: z.enum(["auth", "denied", "network", "invalid", "not-found"]),
-      message: z.string(),
-    }),
-  ),
-});
 const kind = z.enum(["events", "catalog"]);
 type Kind = z.infer<typeof kind>;
 const payload = z.strictObject({
@@ -128,22 +63,6 @@ interface Entry {
 }
 const digest = (value: string) =>
   createHash("sha256").update(value).digest("hex");
-
-/**
- * Key of one cached query: the real range (so any date inside one week shares an
- * entry), the calendar selection, never the account.
- */
-export function eventRangeKey(
-  query: Pick<CalendarQuery, "date" | "view" | "myCalendar" | "calendarIds">,
-) {
-  const range = calendarRange(query.date, query.view);
-  return JSON.stringify([
-    range.start,
-    range.end,
-    query.myCalendar,
-    [...new Set(query.calendarIds)].sort(),
-  ]);
-}
 
 /**
  * Best-effort cache of calendar data. Disk files exist only when the cipher is
@@ -310,7 +229,7 @@ export class EventCache {
         this.now() - body.fetchedAt > maxAgeMs
       )
         throw new Error("Foreign or expired entry");
-      if (kind === "events") eventsValue.parse(body.value);
+      if (kind === "events") cachedEventsSchema.parse(body.value);
       const entry = {
         fetchedAt: body.fetchedAt,
         json: JSON.stringify(body.value),
@@ -442,7 +361,7 @@ export class EventCache {
   ): Promise<CalendarSnapshot | null> {
     const entry = await this.load("events", account, key, this.eventsMaxAgeMs);
     if (!entry) return null;
-    const value = eventsValue.parse(JSON.parse(entry.json));
+    const value = cachedEventsSchema.parse(JSON.parse(entry.json));
     return {
       events: value.events as CalendarEvent[],
       issues: value.issues,
@@ -456,7 +375,7 @@ export class EventCache {
     snapshot: Pick<CalendarSnapshot, "events" | "issues">,
   ) {
     const value = { events: snapshot.events, issues: [] };
-    if (snapshot.issues.length || !eventsValue.safeParse(value).success)
+    if (snapshot.issues.length || !cachedEventsSchema.safeParse(value).success)
       return Promise.resolve(false);
     return this.store("events", account, key, value);
   }
@@ -486,7 +405,7 @@ export class EventCache {
   async invalidateEvents(account: string, match: EventInvalidation) {
     this.epoch++;
     const affected = (key: string, value: unknown) => {
-      const events = eventsValue.safeParse(value);
+      const events = cachedEventsSchema.safeParse(value);
       if (!events.success) return true;
       let range: TimeWindow | null = null;
       try {

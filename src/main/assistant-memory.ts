@@ -11,6 +11,7 @@ import {
   assistantMemoryState,
   memoryWrite,
   type AssistantMemoryState,
+  emptyAssistantMemory,
   type MemoryChange,
   type MemorySource,
 } from "../shared/assistant-memory.js";
@@ -18,16 +19,6 @@ import {
 const envelope = z.strictObject({
   state: assistantMemoryState,
   requests: z.array(z.string().max(100)).max(100),
-});
-const empty = (): AssistantMemoryState => ({
-  version: 1,
-  revision: 0,
-  preferences: {},
-  preferenceSources: {},
-  entries: [],
-  groups: [],
-  presets: [],
-  participants: [],
 });
 const normalize = (name: string) =>
   name.normalize("NFKC").trim().toLocaleLowerCase();
@@ -69,7 +60,7 @@ export class AssistantMemoryStore {
         );
       }
     }
-    const state = empty();
+    const state = emptyAssistantMemory();
     state.participants = await new ParticipantMemory(this.directory).read(
       account,
     );
@@ -285,7 +276,7 @@ export class AssistantMemoryStore {
   reset(account: string, assertCurrent: () => void = () => {}) {
     return this.run(async () => {
       assertCurrent();
-      const state = empty();
+      const state = emptyAssistantMemory();
       state.revision = Date.now();
       await this.secrets.set(
         this.key(account),

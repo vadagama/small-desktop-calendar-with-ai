@@ -26,13 +26,15 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             prototype/package-lock.json
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version-file: desktop-wails/go.mod
+          cache-dependency-path: desktop-wails/go.sum
       - name: Install locked packages without dependency scripts
         run: |
           npm install --global npm@10.9.8 --ignore-scripts
           npm ci --ignore-scripts
           npm ci --prefix prototype --ignore-scripts
-      - name: Install the pinned Electron binary
-        run: node node_modules/electron/install.js
       - run: npm run format:check
       - run: npm run typecheck
       - run: npm test
@@ -40,16 +42,13 @@ jobs:
       - run: npm test --prefix prototype
       - name: Build pinned native Whisper runtime
         run: npm run voice:build
-      - run: npm run build:desktop
-      - run: npm run check:size
+      - run: npm run build
+      - run: go -C desktop-wails vet ./...
+      - name: Go tests with race detector
+        run: go -C desktop-wails test -race ./...
+      - name: Wails integration tests with synthetic services
+        run: npm run test:wails
       - run: npm audit --audit-level=high
       - run: npm audit --prefix prototype --audit-level=high
-      - name: Electron integration tests with synthetic services
-        run: ./node_modules/.bin/playwright test -c playwright.desktop.config.ts
-      - name: Package with production fuses and a temporary local signature
-        run: node scripts/package-mac.mjs --local-sign --hardened --out release/ci
-      - name: Verify archive, utility process and tamper rejection
-        run: |
-          node scripts/check-package.mjs 'release/ci/Small Calendar-darwin-arm64/Small Calendar.app/Contents/Resources/app.asar'
-          node scripts/smoke-package.mjs 'release/ci/Small Calendar-darwin-arm64/Small Calendar.app/Contents/MacOS/Small Calendar'
-          node scripts/test-package-integrity.mjs 'release/ci/Small Calendar-darwin-arm64/Small Calendar.app'
+      - name: Package and verify the locally signed Ordo DMG
+        run: node scripts/package-wails-mac.mjs --out release/ci

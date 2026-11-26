@@ -1,0 +1,224 @@
+.meeting-room-field,
+.meeting-until-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--font-body);
+}
+
+[data-slot="select-trigger"],
+.shadcn-date-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--font-body);
+  text-align: start;
+}
+
+[data-slot="select-trigger"] > span,
+.shadcn-date-trigger > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-slot="select-trigger"] svg,
+.shadcn-date-trigger svg,
+[data-slot="select-indicator"] svg,
+.shadcn-calendar svg {
+  width: 16px;
+  height: 16px;
+}
+
+[data-slot="select-trigger"] svg,
+.shadcn-date-trigger svg {
+  color: var(--muted);
+}
+
+.shadcn-date-trigger[aria-invalid="true"] {
+  border-color: var(--accent);
+}
+
+[data-slot="select-content"],
+[data-slot="popover-content"] {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 12%);
+}
+
+[data-slot="select-content"] {
+  width: var(--radix-select-trigger-width);
+  max-inline-size: var(--radix-select-content-available-width);
+  padding: 4px;
+  overflow: hidden;
+}
+
+[data-slot="select-content"] [data-slot="select-viewport"] {
+  max-block-size: min(
+    248px,
+    calc(var(--radix-select-content-available-height) - 10px)
+  );
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+[data-slot="select-content"] [data-slot="select-viewport"]::-webkit-scrollbar {
+  display: block;
+}
+
+[data-slot="select-item"] {
+  position: relative;
+  padding: 10px 34px 10px 12px;
+  border-radius: 6px;
+  font-size: var(--font-menu);
+  font-weight: 400;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  cursor: default;
+}
+
+[data-slot="select-item"][data-state="checked"] {
+  background: var(--soft);
+}
+
+[data-slot="select-item"][data-highlighted] {
+  background: var(--focus-fill);
+  outline-color: var(--focus-fill-outline);
+}
+
+[data-slot="select-indicator"] {
+  position: absolute;
+  inset-inline-end: 12px;
+  top: 50%;
+  translate: 0 -50%;
+  display: flex;
+}
+
+.new-meeting .meeting-form .recurrence-weekdays {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.new-meeting .recurrence-weekdays legend {
+  padding: 0;
+  color: var(--ink);
+  font-size: var(--font-body);
+}
+
+.recurrence-days label {
+  font-size: var(--font-body);
+  cursor: pointer;
+}
+
+[data-slot="checkbox"] {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: 1px solid var(--muted);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--surface);
+}
+
+[data-slot="checkbox"][data-state="checked"] {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+
+[data-slot="checkbox-indicator"] {
+  display: flex;
+}
+
+[data-slot="checkbox-indicator"] svg {
+  width: 11px;
+  height: 11px;
+}
+
+[data-slot="popover-content"] {
+  max-block-size: var(--radix-popover-content-available-height);
+  max-inline-size: var(--radix-popover-content-available-width);
+  padding: 8px;
+  overflow: auto;
+}
+
+.shadcn-calendar {
+  --calendar-day: 30px;
+  font-size: var(--font-menu);
+  line-height: 1.35;
+}
+
+.shadcn-calendar .rdp-months {
+  position: relative;
+}
+
+.shadcn-calendar .rdp-nav {
+  position: absolute;
+  inset-inline-end: 0;
+  display: flex;
+}
+
+.shadcn-calendar .rdp-month_caption {
+  display: flex;
+  align-items: center;
+  min-height: var(--calendar-day);
+  padding-inline: 4px calc(2 * var(--calendar-day));
+  font-weight: 550;
+}
+
+.shadcn-calendar .rdp-month_grid {
+  border-collapse: collapse;
+}
+
+.shadcn-calendar .rdp-weekday {
+  color: var(--muted);
+  height: var(--calendar-day);
+  font-size: var(--font-caption);
+  font-weight: 400;
+}
+
+.shadcn-calendar .rdp-day {
+  padding: 0;
+}
+
+.shadcn-calendar button {
+  display: grid;
+  place-items: center;
+  width: var(--calendar-day);
+  height: var(--calendar-day);
+  padding: 0;
+  border-radius: 6px;
+}
+
+.shadcn-calendar .rdp-day_button {
+  font-size: var(--font-compact);
+}
+
+.shadcn-calendar button:hover:not(:disabled),
+.shadcn-calendar .rdp-today button {
+  background: var(--soft);
+}
+
+.shadcn-calendar .rdp-outside button {
+  color: var(--muted);
+}
+
+.shadcn-calendar .rdp-selected button:not(:disabled) {
+  background: var(--primary);
+  color: var(--surface);
+}

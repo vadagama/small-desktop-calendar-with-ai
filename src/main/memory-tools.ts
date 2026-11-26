@@ -12,6 +12,7 @@ import type { AssistantMemoryStore } from "./assistant-memory.js";
 import type { MemoryProposals } from "./memory-proposals.js";
 import type { CalendarConversation } from "./calendar-conversation.js";
 import { MemoryError } from "./assistant-memory.js";
+import { meetingParticipantLimit } from "../shared/meeting-options.js";
 
 export interface MemoryToolContext {
   store: AssistantMemoryStore;
@@ -42,10 +43,13 @@ export async function useMemorySelection(
     savedPeople = group.people;
   }
   if (!ids?.length) return null;
-  if (new Set([...ids, ...(organizerId ? [organizerId] : [])]).size > 20)
+  if (
+    new Set([...ids, ...(organizerId ? [organizerId] : [])]).size >
+    meetingParticipantLimit
+  )
     throw new CalendarError(
       "invalid",
-      "Вместе с организатором допустимо до 20 участников.",
+      `Вместе с организатором допустимо до ${meetingParticipantLimit} участников.`,
     );
   const people: CalendarPerson[] = [];
   for (const id of ids) {

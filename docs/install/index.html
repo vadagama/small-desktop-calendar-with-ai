@@ -5,788 +5,656 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta
       name="description"
-      content="Установка Small Calendar на Mac: скачать DMG, разрешить первый запуск, войти в Small и настроить AI-ассистента."
+      content="Ordo для macOS: установка, вход в Small, настройка AI и голосового ввода. Подписанное приложение с обновлениями внутри Ordo."
     />
-    <title>Установка Small Calendar на Mac</title>
+    <title>Ordo — установка и обновление</title>
     <link rel="stylesheet" href="style.css" />
-    <link
-      rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233b82f6'/%3E%3Ctext x='16' y='23' text-anchor='middle' fill='white' font-size='24'%3ES%3C/text%3E%3C/svg%3E"
-    />
+    <link rel="icon" href="assets/ordo-icon.png" />
   </head>
   <body>
     <a class="skip" href="#content">К инструкции</a>
     <header>
       <a class="brand" href="#top"
-        ><span class="logo" aria-hidden="true">S</span> Small Calendar</a
+        ><img src="assets/ordo-icon.png" width="32" height="32" alt="" />
+        Ordo</a
       ><span class="header-label">Установка и первый запуск</span
       ><a
-        href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/tag/v0.2.0-rc.3"
+        href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/tag/v0.3.0"
         >Релиз ↗</a
       >
     </header>
     <div class="layout" id="top">
       <aside>
-        <nav aria-label="Шаги установки">
+        <nav aria-label="Разделы инструкции">
           <p class="eyebrow">НА ЭТОЙ СТРАНИЦЕ</p>
-          <a href="#download"><span>01</span> Скачать</a
-          ><a href="#install"><span>02</span> Установить</a
-          ><a href="#launch"><span>03</span> Первый запуск</a
-          ><a href="#permission"><span>04</span> Разрешить открытие</a
-          ><a href="#small"><span>05</span> Войти в Small</a
-          ><a href="#llm"><span>06</span> Настроить LLM</a>
-          <a href="#voice"><span>07</span> Настроить Voice</a>
-          <a href="#dictation"><span>08</span> Голосовой ввод</a>
-          <a href="#changelog"><span>↻</span> Changelog</a>
+          <a href="#install"><span>01</span> Установить Ordo</a
+          ><a href="#small"><span>02</span> Войти в Small</a
+          ><a href="#assistant"><span>03</span> Настроить AI</a
+          ><a href="#voice"><span>04</span> Голосовой ввод</a
+          ><a href="#updates"><span>↻</span> Обновления</a
+          ><a href="#changelog"><span>↻</span> Changelog</a>
         </nav>
         <div class="sidebar-note">
-          Для Mac с Apple Silicon<br /><span>M1, M2, M3, M4 и новее</span>
+          macOS 15.1 и новее<br /><span>Mac с Apple Silicon</span>
         </div>
       </aside>
       <main id="content">
         <section class="intro">
-          <p class="eyebrow blue">SMALL CALENDAR ДЛЯ macOS</p>
-          <h1>Календарь Small с AI-ассистентом</h1>
+          <p class="eyebrow blue">ORDO ДЛЯ macOS</p>
+          <h1>Рабочий календарь с AI-ассистентом</h1>
           <p class="lead">
-            Small Calendar — приложение для рабочего расписания команды на Mac.
-            Встречи и AI-ассистент находятся в одном окне: просматривайте
-            календарь, находите свободное время и планируйте встречи обычным
-            текстом или голосом.
+            Ordo — новое имя Small Calendar. Расписание Small, поиск свободного
+            времени, встречи и ассистент в одном окне. Приложение и установщик
+            подписаны Apple Developer ID и прошли нотариализацию Apple.
           </p>
-          <ul>
-            <li>
-              <strong>Расписание в удобном виде.</strong> День, неделя, месяц и
-              список событий; фильтры календарей и вашего участия, просмотр
-              карточек встреч.
-            </li>
-            <li>
-              <strong>Работа со встречами.</strong> Создание и редактирование
-              событий, выбор участников, проверка занятости и работа с
-              повторениями — с учётом ваших прав доступа.
-            </li>
-            <li>
-              <strong>Ассистент для планирования.</strong> Поиск событий, подбор
-              общего свободного времени и подготовка встреч по запросу. При
-              неоднозначных именах помощник уточняет участников.
-            </li>
-            <li>
-              <strong>Обзор нагрузки и напоминания.</strong> Аналитика встреч за
-              выбранный период и уведомления перед их началом.
-            </li>
-            <li>
-              <strong>Голос и память.</strong> Диктуйте запросы на русском,
-              проверяйте распознанный текст перед отправкой и сохраняйте в
-              памяти ассистента предпочтения и группы участников.
-            </li>
-          </ul>
-          <figure>
-            <a
-              href="assets/calendar-overview.png"
-              target="_blank"
-              rel="noopener"
-              aria-label="Открыть скриншот календаря и ассистента в полном размере"
-            >
-              <img
-                src="assets/calendar-overview.png"
-                alt="Small Calendar: тестовое расписание, фильтры календарей слева и AI-ассистент справа."
-                decoding="async"
-              />
-            </a>
-            <figcaption>
-              Календарь и ассистент в одном окне. Нажмите на изображение, чтобы
-              рассмотреть интерфейс.
-            </figcaption>
-          </figure>
-          <p>
-            Ниже — установка приложения, вход в Small и настройка моделей LLM и
-            Voice.
-          </p>
-          <div class="facts">
-            <span>macOS · Apple Silicon</span><span>8 простых шагов</span
-            ><span>Предварительная версия</span>
-          </div>
-        </section>
-        <section class="step" id="download">
-          <div class="step-heading">
-            <span class="number">01</span>
-            <div>
-              <p class="eyebrow">СКАЧИВАНИЕ</p>
-              <h2>Скачайте установщик</h2>
-            </div>
-          </div>
-          <p>
-            Нажмите кнопку ниже. Файл <strong>.dmg</strong> сохранится в папку
-            «Загрузки», если в браузере не выбрано другое место.
-          </p>
-          <a
-            class="button download"
-            href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/download/v0.2.0-rc.3/Small-Calendar-0.2.0-rc.3-arm64-local.dmg"
-            ><span aria-hidden="true">↓</span> Скачать Small Calendar
-            <small>DMG · 138 МБ</small></a
-          >
-          <p class="muted">
-            Релиз 0.2.0-rc.3 от 9 ноября 2026 · Только для Mac с чипом Apple
-            Silicon, не Intel.
-          </p>
-          <details>
-            <summary>Как узнать, какой у меня Mac?</summary>
-            <p>
-              Откройте меню Apple  → «Об этом Mac». В строке «Чип» должно быть
-              указано Apple M1, M2, M3, M4 или более новое поколение. Если
-              указан процессор Intel, эта сборка не подойдёт.
-            </p>
-          </details>
         </section>
         <section class="step" id="install">
           <div class="step-heading">
-            <span class="number">02</span>
+            <span class="number">01</span>
             <div>
               <p class="eyebrow">УСТАНОВКА</p>
-              <h2>Перетащите календарь в «Программы»</h2>
+              <h2>Скачайте и откройте Ordo</h2>
             </div>
           </div>
+          <a
+            class="button download"
+            href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/download/v0.3.0/Ordo-0.3.0-arm64.dmg"
+            ><span aria-hidden="true">↓</span> Скачать Ordo
+            <small>DMG · 50,5 МБ</small></a
+          >
+          <p class="muted">
+            Версия 0.3.0 от 26 ноября 2026 · macOS 15.1+ · Apple Silicon
+          </p>
           <ol>
-            <li>Дважды нажмите на скачанный файл <strong>.dmg</strong>.</li>
+            <li>Откройте скачанный <strong>Ordo-0.3.0-arm64.dmg</strong>.</li>
             <li>
-              В открывшемся окне перетащите значок
-              <strong>Small Calendar</strong> на папку
+              Перетащите <strong>Ordo.app</strong> в папку
               <strong>Applications («Программы»)</strong>.
             </li>
-            <li>
-              Дождитесь окончания копирования. Откройте Finder → «Программы».
-            </li>
+            <li>Запустите <strong>Ordo</strong> из «Программ».</li>
           </ol>
           <p class="note">
-            DMG — это образ диска: отдельно распаковывать его не нужно. Если
-            календарь уже установлен, сначала закройте старую версию.
-          </p>
-          <figure>
-            <a
-              href="assets/install-dmg.png"
-              target="_blank"
-              rel="noopener"
-              aria-label="Увеличить иллюстрацию установки"
-              ><img
-                src="assets/install-dmg.png"
-                width="1504"
-                height="1062"
-                alt="В окне DMG значок Small Calendar слева, папка Applications справа. Перетащите приложение по направлению стрелки."
-                fetchpriority="high"
-            /></a>
-            <figcaption>
-              Перетащите левый значок в правую папку. Нажмите на изображение,
-              чтобы увеличить.
-            </figcaption>
-          </figure>
-        </section>
-        <section class="step" id="launch">
-          <div class="step-heading">
-            <span class="number">03</span>
-            <div>
-              <p class="eyebrow">ПЕРВЫЙ ЗАПУСК</p>
-              <h2>Откройте Small Calendar</h2>
-            </div>
-          </div>
-          <p>
-            В папке «Программы» дважды нажмите <strong>Small Calendar</strong>.
-            macOS может показать предупреждение, что Apple не удалось проверить
-            приложение.
-          </p>
-          <div
-            class="system-example"
-            role="img"
-            aria-label="Пример предупреждения macOS: Apple не удалось проверить Small Calendar. Закройте предупреждение кнопкой Готово."
-          >
-            <span class="warning-symbol" aria-hidden="true">!</span
-            ><strong>Apple не удалось проверить<br />«Small Calendar»</strong>
-            <p>Первый запуск может быть заблокирован.</p>
-            <span class="mock-button">Готово</span
-            ><small>Схема · формулировка зависит от версии macOS</small>
-          </div>
-          <p>
-            Закройте предупреждение кнопкой <strong>«Готово»</strong> или «ОК» и
-            перейдите к следующему шагу. Не выбирайте «Переместить в Корзину».
-          </p>
-          <div class="note">
-            Эта предварительная сборка ещё не нотариализована Apple. Разрешайте
-            запуск только для приложения, скачанного по ссылке на этой странице,
-            если доверяете его источнику.
-          </div>
-        </section>
-        <section class="step" id="permission">
-          <div class="step-heading">
-            <span class="number">04</span>
-            <div>
-              <p class="eyebrow">РАЗРЕШЕНИЕ macOS</p>
-              <h2>Разрешите открытие приложения</h2>
-            </div>
-          </div>
-          <div class="path">
-             Apple <span>→</span> Системные настройки
-            <span>→</span> Конфиденциальность и безопасность
-          </div>
-          <ol>
-            <li>
-              Откройте указанный раздел и прокрутите вниз до блока
-              <strong>«Безопасность»</strong>.
-            </li>
-            <li>
-              Найдите сообщение о блокировке <strong>Small Calendar</strong> и
-              нажмите <strong>«Все равно открыть»</strong>.
-            </li>
-          </ol>
-          <figure>
-            <a
-              href="assets/allow-open.png"
-              target="_blank"
-              rel="noopener"
-              aria-label="Увеличить настройки безопасности"
-              ><img
-                src="assets/allow-open.png"
-                width="1894"
-                height="1474"
-                loading="lazy"
-                alt="Системные настройки, Конфиденциальность и безопасность. В разделе Безопасность рядом с Small Calendar есть кнопка Все равно открыть."
-            /></a>
-            <figcaption>
-              Нужная кнопка находится рядом с сообщением о блокировке Small
-              Calendar.
-            </figcaption>
-          </figure>
-          <ol start="3">
-            <li>
-              В следующем окне подтвердите действие:
-              <strong>«Открыть все равно»</strong> или «Открыть».
-            </li>
-            <li>
-              Если macOS запросит подтверждение, используйте Touch ID или пароль
-              администратора <strong>вашего Mac</strong>. Это не пароль Small.
-            </li>
-          </ol>
-          <figure class="compact-figure">
-            <a
-              href="assets/confirm-open.png"
-              target="_blank"
-              rel="noopener"
-              aria-label="Увеличить подтверждение запуска"
-              ><img
-                src="assets/confirm-open.png"
-                width="832"
-                height="914"
-                loading="lazy"
-                alt="Подтверждение macOS: Открыть файл Small Calendar? Выберите Открыть все равно."
-            /></a>
-            <figcaption>
-              Подтвердите запуск. Порядок окон может отличаться в разных версиях
-              macOS.
-            </figcaption>
-          </figure>
-          <details>
-            <summary>Не вижу кнопку «Все равно открыть»</summary>
-            <p>
-              Ещё раз попробуйте открыть приложение из «Программ», затем
-              вернитесь в настройки безопасности. На рабочем Mac разрешение
-              может ограничиваться политикой организации — в таком случае
-              обратитесь в ИТ-поддержку.
-            </p>
-          </details>
-          <p class="muted">
-            Если предупреждение прямо сообщает об обнаруженном вредоносном ПО
-            или повреждении приложения, не обходите его — обратитесь в
-            поддержку.
-            <a href="https://support.apple.com/ru-ru/102445"
-              >Инструкция Apple ↗</a
-            >
+            При переходе со старого Small Calendar или локальной сборки
+            установите Ordo через DMG один раз. Дальнейшие стабильные обновления
+            будут доступны внутри Ordo. Перед заменой приложения закройте старую
+            версию.
           </p>
         </section>
-        <div class="section-divider">
-          <span>ПРИЛОЖЕНИЕ УСТАНОВЛЕНО</span>
-          <h2>Теперь подключим ваши сервисы</h2>
-          <p>
-            Small открывает доступ к календарю. LLM нужен для работы ассистента.
-          </p>
-        </div>
         <section class="step" id="small">
           <div class="step-heading">
-            <span class="number">05</span>
+            <span class="number">02</span>
             <div>
-              <p class="eyebrow">РАБОЧАЯ УЧЁТНАЯ ЗАПИСЬ</p>
+              <p class="eyebrow">РАБОЧИЙ АККАУНТ</p>
               <h2>Войдите в Small</h2>
             </div>
           </div>
-          <ol>
-            <li>
-              В приложении нажмите <strong>«Войти в Small»</strong> на верхней
-              плашке. Также можно открыть <strong>«Профиль Small»</strong> внизу
-              левой панели.
-            </li>
-            <li>
-              Введите рабочий <strong>логин</strong> и
-              <strong>пароль</strong> от Team Small.
-            </li>
-            <li>
-              Нажмите <strong>«Войти в Small»</strong> и дождитесь загрузки
-              календаря.
-            </li>
-          </ol>
-          <div class="mock-stage">
-            <div
-              class="mock-dialog"
-              role="img"
-              aria-label="Схема окна Вход в Small: Логин, Пароль и кнопка Войти в Small. Данные вводятся в приложении, а не на странице инструкции."
-            >
-              <strong class="dialog-title">Вход в Small</strong>
-              <p>Используйте рабочую учётную запись Team Small.</p>
-              <div class="mock-label">Логин</div>
-              <div class="mock-field placeholder">Ваш рабочий логин</div>
-              <div class="mock-label">Пароль</div>
-              <div class="mock-field placeholder">Введите пароль</div>
-              <div class="mock-button dark">Войти в Small</div>
-              <small
-                >Сессия хранится в зашифрованном хранилище этого Mac. Пароль не
-                сохраняется.</small
-              >
-            </div>
-            <span class="illustration-label"
-              >Схема окна · вводите данные только в приложении</span
-            >
-          </div>
-          <details>
-            <summary>Появилось «Нет связи с Small»</summary>
-            <p>
-              Проверьте доступ к рабочей сети или VPN и нажмите «Повторить
-              проверку». Если войти всё ещё не удаётся, проверьте свою учётную
-              запись на
-              <a href="https://team.small.kz/calendar">team.small.kz</a> или
-              обратитесь в ИТ-поддержку.
-            </p>
-          </details>
+          <p>
+            Нажмите <strong>«Войти в Small»</strong> и введите рабочий логин и
+            пароль. После входа появятся ваши календари и встречи. Пароль не
+            сохраняется.
+          </p>
+          <figure>
+            <a
+              href="assets/ordo-login.png"
+              target="_blank"
+              rel="noopener"
+              aria-label="Увеличить скриншот входа в Ordo"
+              ><img
+                src="assets/ordo-login.png"
+                width="880"
+                height="894"
+                alt="Ordo: форма входа в Small с пустыми полями логина и пароля."
+            /></a>
+            <figcaption>
+              Актуальная версия Ordo, новый чистый профиль без учётных данных.
+            </figcaption>
+          </figure>
         </section>
-        <section class="step" id="llm">
+        <section class="step" id="assistant">
           <div class="step-heading">
-            <span class="number">06</span>
+            <span class="number">03</span>
             <div>
               <p class="eyebrow">AI-АССИСТЕНТ</p>
-              <h2>Настройте модель и API-ключ</h2>
+              <h2>Подключите модель</h2>
             </div>
           </div>
-          <p>
-            Заранее получите API-ключ и параметры модели у администратора
-            LLM-сервиса. Пароль от Small и API-ключ модели — разные данные.
-          </p>
           <ol>
             <li>
-              В панели «Ассистент» нажмите значок ползунков
-              <strong>«Настройки модели»</strong> в правом верхнем углу.
+              Откройте <strong>«Настройки модели»</strong> кнопкой справа в
+              заголовке ассистента.
             </li>
             <li>
-              Откройте вкладку <strong>LLM</strong>. Выберите профиль
-              <strong>Small vLLM</strong>, <strong>DeepSeek</strong> или
-              <strong>OpenAI Compatible</strong>. У каждого профиля отдельный
-              API-ключ.
+              На вкладке <strong>LLM</strong> выберите сервис. Проверьте Base
+              URL и Model ID и введите свой API-ключ.
             </li>
             <li>
-              Проверьте поля ниже и вставьте ваш <strong>API-ключ</strong>.
-            </li>
-            <li>
-              Нажмите <strong>«Сохранить»</strong>. Окно закроется, а
-              сохранённый профиль станет активным. Для переключения между
-              сохранёнными моделями нажмите название модели рядом с полем
-              сообщения.
+              Нажмите <strong>«Сохранить»</strong> и отправьте ассистенту
+              короткий запрос.
             </li>
           </ol>
-          <div class="mock-stage">
-            <div
-              class="mock-dialog"
-              role="img"
-              aria-label="Схема Настроек модели: профиль Small vLLM, Base URL https://ai.skiftrade.kz/v1, Model ID vllm/glm-5.3-flash, пустое поле API-ключ и кнопка Сохранить."
-            >
-              <strong class="dialog-title">Настройки модели</strong>
-              <div class="mock-label">LLM · Voice — выбрана LLM</div>
-              <div class="mock-label">Профиль</div>
-              <div class="mock-field">Small vLLM <span>⌄</span></div>
-              <div class="mock-label">Base URL</div>
-              <div class="mock-field mono">https://ai.skiftrade.kz/v1</div>
-              <div class="mock-label">Model ID</div>
-              <div class="mock-field mono">vllm/glm-5.3-flash</div>
-              <div class="mock-label">API-ключ</div>
-              <div class="mock-field placeholder">Ваш личный API-ключ</div>
-              <div class="mock-button dark">Сохранить</div>
-            </div>
-            <span class="illustration-label"
-              >Схема окна · значения корпоративного профиля из текущей
-              сборки</span
-            >
-          </div>
-          <dl class="field-guide">
-            <div>
-              <dt>Base URL</dt>
-              <dd>
-                Адрес API сервиса. Для Small —
-                <code>https://ai.skiftrade.kz/v1</code>. Для другого провайдера
-                используйте выданный им адрес.
-              </dd>
-            </div>
-            <div>
-              <dt>Model ID</dt>
-              <dd>
-                Точное имя доступной модели. В текущем профиле Small —
-                <code>vllm/glm-5.3-flash</code>. Уточните актуальное имя у
-                администратора.
-              </dd>
-            </div>
-            <div>
-              <dt>API-ключ</dt>
-              <dd>
-                Токен доступа к выбранному сервису. Не отправляйте его в чат.
-                При смене Base URL необходимо ввести ключ для нового адреса.
-              </dd>
-            </div>
-          </dl>
-          <div class="note">
-            Сохранение настроек ещё не подтверждает доступ к модели. Отправьте
-            ассистенту: <strong>«Покажи мои встречи на сегодня»</strong> и
-            дождитесь ответа. Автоматического переключения на другую модель нет.
-          </div>
-          <details>
-            <summary>Ассистент сообщает об ошибке</summary>
-            <p>
-              <strong>HTTP 401:</strong> проверьте ключ и его срок действия.
-              <strong>HTTP 403:</strong> уточните права доступа.
-              <strong>HTTP 404:</strong> проверьте Base URL и Model ID. При
-              ошибке сети проверьте соединение и VPN.
-            </p>
-          </details>
+          <figure>
+            <a
+              href="assets/ordo-model.png"
+              target="_blank"
+              rel="noopener"
+              aria-label="Увеличить скриншот настроек модели"
+              ><img
+                src="assets/ordo-model.png"
+                width="1200"
+                height="1220"
+                alt="Настройки модели Ordo: сервис, Base URL, Model ID и пустое поле API-ключа."
+            /></a>
+            <figcaption>
+              Ключ сервиса модели нужно указать самостоятельно; он не входит в
+              установщик.
+            </figcaption>
+          </figure>
+          <p>
+            Можно просматривать расписание, искать сотрудников и свободные
+            интервалы, готовить встречи и изменять состав участников. Запись
+            изменений в календарь требует вашего подтверждения.
+          </p>
+          <p>
+            В <strong>«Настройках AI-помощника»</strong> доступны стиль общения
+            и ваши инструкции. В новом профиле настроение нейтральное,
+            инструкции и пользовательская память пустые.
+          </p>
         </section>
         <section class="step" id="voice">
           <div class="step-heading">
-            <span class="number">07</span>
+            <span class="number">04</span>
             <div>
-              <p class="eyebrow">МОДЕЛЬ РЕЧИ</p>
-              <h2>Настройте Voice</h2>
+              <p class="eyebrow">ПО ЖЕЛАНИЮ</p>
+              <h2>Включите голосовой ввод</h2>
             </div>
           </div>
           <p>
-            В «Настройках модели» доступны две вкладки: <strong>LLM</strong> для
-            модели ответов и <strong>Voice</strong> для распознавания речи.
-            Голосовой ввод использует Whisper large-v3-turbo и не требует
-            API-ключа.
+            В настройках модели откройте <strong>Voice</strong> и скачайте
+            модель распознавания. Затем нажмите микрофон рядом с полем сообщения
+            и при первом использовании разрешите доступ к микрофону.
+            Распознавание выполняется на Mac; веса модели загружаются отдельно.
           </p>
-          <ol>
-            <li>
-              Откройте вкладку <strong>Voice</strong> и нажмите
-              <strong>«Скачать модель · 1,62 GB»</strong>. Модель скачивается
-              отдельно от приложения.
-            </li>
-            <li>
-              Следите за процентами, объёмом, скоростью и оставшимся временем.
-              Доступны пауза, продолжение и отмена. Дождитесь проверки и чипа
-              <strong>«Модель готова»</strong>.
-            </li>
-            <li>
-              В поле <strong>«Источник звука»</strong> выберите микрофон.
-              Нажмите <strong>«Проверить микрофон»</strong> и разрешите доступ в
-              macOS. Уровень звука показывается индикатором; проверка
-              автоматически закончится через 10 секунд.
-            </li>
-          </ol>
-          <p>
-            Распознавание выполняется локально. После установки модели для
-            диктовки интернет не нужен; для ответов ассистента нужен
-            подключённый LLM-сервис.
-          </p>
-          <details>
-            <summary>Микрофон не работает или модель больше не нужна</summary>
-            <p>
-              Проверьте «Системные настройки» → «Конфиденциальность и
-              безопасность» → «Микрофон» → Small Calendar. Если устройство
-              отключено, подключите его или выберите другой источник. Кнопка
-              «Удалить модель» освобождает место; для следующей диктовки модель
-              потребуется скачать снова.
-            </p>
-          </details>
+          <figure>
+            <a
+              href="assets/ordo-voice.png"
+              target="_blank"
+              rel="noopener"
+              aria-label="Увеличить скриншот настроек Voice"
+              ><img
+                src="assets/ordo-voice.png"
+                width="1200"
+                height="1010"
+                alt="Вкладка Voice в Ordo: модель распознавания ещё не установлена."
+            /></a>
+            <figcaption>
+              Проверьте распознанный текст перед отправкой ассистенту.
+            </figcaption>
+          </figure>
         </section>
-        <section class="step" id="dictation">
+        <section class="step" id="updates">
           <div class="step-heading">
-            <span class="number">08</span>
+            <span class="number">↻</span>
             <div>
-              <p class="eyebrow">РАБОТА С АССИСТЕНТОМ</p>
-              <h2>Как пользоваться голосовым вводом</h2>
+              <p class="eyebrow">НОВЫЕ ВЕРСИИ</p>
+              <h2>Обновляйтесь внутри Ordo</h2>
             </div>
           </div>
-          <ol>
-            <li>
-              После появления «Модель готова» закройте настройки. Рядом с
-              отправкой сообщения появится кнопка микрофона.
-            </li>
-            <li>
-              Поставьте курсор в поле сообщения и нажмите микрофон. В режиме
-              <strong>«Слушаю»</strong> надиктуйте запрос по-русски, например:
-              «Покажи мои встречи на завтра».
-            </li>
-            <li>
-              Нажмите кнопку с квадратом, чтобы закончить запись. Дождитесь
-              распознавания: текст вставится в позицию курсора или заменит
-              выделенный фрагмент.
-            </li>
-            <li>
-              Проверьте имена, даты и время, исправьте текст и нажмите отправку.
-              Диктовка сама сообщение не отправляет.
-            </li>
-          </ol>
-          <div class="note">
-            Крестик или Escape отменяют запись и распознавание без вставки
-            результата. Лимит записи — 120 секунд; затем запись автоматически
-            останавливается и распознаётся. Если текст длиннее 2000 символов,
-            сократите его перед отправкой.
-          </div>
+          <p>
+            Ordo проверяет новые версии после запуска и затем каждые 4 часа.
+            Проверить вручную можно в
+            <strong>«Настройки модели» → «Обновления»</strong>.
+          </p>
+          <p>
+            Новая версия скачивается автоматически. Когда она готова, выберите
+            <strong>«Установить и перезапустить»</strong> и подтвердите
+            перезапуск. Можно отложить установку. Перед перезапуском сохраните
+            незавершённые изменения.
+          </p>
+          <p>
+            Настройки, сессия Small, ключи и контекст Ordo сохраняются при
+            обновлении. Приложение проверяет подпись и контрольную сумму пакета.
+          </p>
         </section>
-        <section class="finish">
-          <span class="check" aria-hidden="true">✓</span>
-          <div>
-            <h2>Всё готово к работе</h2>
-            <p>
-              Календарь подключён, модель настроена. Начните с просмотра
-              расписания на сегодня.
-            </p>
-          </div>
-        </section>
-        <section class="step" id="changelog" aria-labelledby="changelog-title">
+        <section class="step" id="changelog">
           <div class="step-heading">
-            <span class="number" aria-hidden="true">↻</span>
+            <span class="number">↻</span>
             <div>
               <p class="eyebrow">ИСТОРИЯ ИЗМЕНЕНИЙ</p>
-              <h2 id="changelog-title">Changelog</h2>
+              <h2>Changelog</h2>
             </div>
           </div>
-          <h3>0.2.0-rc.3 · предварительный релиз</h3>
+          <h3>0.3.0 · Ordo</h3>
           <p class="muted">
-            <time datetime="2026-11-09">9 ноября 2026</time> · macOS · Apple
-            Silicon
+            <time datetime="2026-11-26">26 ноября 2026</time> · стабильный канал
           </p>
-          <dl class="field-guide">
-            <div>
-              <dt>Выбор времени</dt>
-              <dd>
-                В форме создания и редактирования события список открывается на
-                текущем времени. Шаг — 15 минут; точное время можно ввести
-                вручную. Стрелки перемещают выбор, Enter применяет время, Escape
-                закрывает список.
-              </dd>
-            </div>
-            <div>
-              <dt>Быстрая длительность</dt>
-              <dd>
-                Под датой и временем нажмите «15 мин», «Полчаса», «Час»,
-                «Полтора» или «2 часа». Окончание рассчитывается от начала.
-                Выбранная длительность выделяется; при переходе через полночь
-                появляется подпись о следующем дне. Проверки занятости и рабочих
-                часов Small продолжают действовать.
-              </dd>
-            </div>
-            <div>
-              <dt>Обновления календаря</dt>
-              <dd>
-                Откройте «Настройки модели» → «Обновления», чтобы увидеть версию
-                и доступность автообновлений. Для выпусков с Developer ID
-                реализованы проверка при запуске и каждые 4 часа, скачивание с
-                прогрессом, описание изменений и подтверждение перезапуска.
-                Можно отложить установку. Настройки, авторизация и контекст
-                сохраняются.
-              </dd>
-            </div>
-            <div>
-              <dt>Ограничение этого DMG</dt>
-              <dd>
-                В этой предварительной сборке с локальной подписью
-                автообновление отключено. Новую версию устанавливайте вручную
-                через DMG: закройте календарь, перенесите приложение в
-                «Программы» и подтвердите замену. Не удаляйте пользовательские
-                данные. Демонстрационное уведомление об обновлении в пакет не
-                включено.
-              </dd>
-            </div>
-          </dl>
+          <ul>
+            <li>Новое название Ordo и новая иконка приложения.</li>
+            <li>Нативная оболочка Go/Wails с системным WebKit.</li>
+            <li>
+              Подпись Apple Developer ID и нотариализация приложения и DMG.
+            </li>
+            <li>
+              Подписанные обновления внутри Ordo: автоматическое скачивание и
+              установка с подтверждением перезапуска.
+            </li>
+            <li>
+              Сохранены календарь Small, AI-ассистент, свободные слоты,
+              участники встреч и локальный голосовой ввод.
+            </li>
+            <li>
+              Упрощённая инструкция и новые скриншоты текущего интерфейса.
+            </li>
+          </ul>
           <p class="note">
-            Локальная ad-hoc подпись, без нотариализации Apple. Автообновление
-            требует первого вручную установленного выпуска с Developer ID и
-            опубликованного ZIP с метаданными; стабильный канал не устанавливает
-            предварительные версии. Для первого запуска используйте шаг 04.
-            SHA-256:
+            SHA-256 DMG:
             <code
-              >bcfe043e6d1323564d959c041e1e63d35b2ec7bcd8cae7254fd9662b12714588</code
+              >62ada50aedb730f682f9c4b6498c8e7f46a0cdccd05607c5b3cba27a9e923406</code
+            >.
+            <a
+              href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/download/v0.3.0/SHA256SUMS.txt"
+              >Контрольные суммы файлов релиза</a
             >.
           </p>
           <details>
-            <summary>Предыдущая версия — 0.2.0-rc.2, 9 ноября 2026</summary>
-            <h3>0.2.0-rc.2 · предварительный релиз</h3>
+            <summary>Архив Small Calendar — предыдущие версии</summary>
+            <h3>0.2.0-rc.7 · предварительный релиз</h3>
             <p class="muted">
-              <time datetime="2026-11-09">9 ноября 2026</time> · macOS · Apple
+              <time datetime="2026-11-20">20 ноября 2026</time> · macOS · Apple
               Silicon
             </p>
             <dl class="field-guide">
               <div>
-                <dt>Поиск сотрудников</dt>
+                <dt>Добавление участников через ассистента</dt>
                 <dd>
-                  Введите имя или должность. Поиск запускается через 300 мс
-                  после последнего ввода; Enter и кнопка запускают его сразу.
-                  Нажмите на сотрудника в выдаче — он появится чипом, а поле
-                  поиска очистится. Чекбоксов нет, уже выбранные люди скрыты из
-                  выдачи.
+                  Попросите найти существующую встречу и добавить сотрудников.
+                  Ассистент покажет карточку изменения: проверьте состав и
+                  нажмите «Добавить участников». Прежние участники, время и
+                  остальные параметры сохраняются. Доступно организатору разовой
+                  встречи; пересечения требуют отдельного подтверждения.
                 </dd>
               </div>
               <div>
-                <dt>Организатор встречи</dt>
+                <dt>Большие существующие встречи</dt>
                 <dd>
-                  Организатор включён в состав встречи и защищён от удаления при
-                  создании и редактировании. Остальных участников можно удалить
-                  крестиком на чипе.
+                  В редакторе можно выбрать до 100 участников и до 100
+                  информируемых. Ограничение 20 сотрудников для создания и
+                  подбора времени больше не мешает редактировать большой состав.
+                  При достижении лимита форма объяснит причину блокировки;
+                  удаление одного выбранного сотрудника снова разрешит
+                  добавление.
                 </dd>
               </div>
               <div>
-                <dt>Ссылки конференций</dt>
+                <dt>Ответы на приглашения</dt>
                 <dd>
-                  Новые адреса состоят ровно из трёх английских слов, например
-                  <code>funky-monkey-party</code>. Ссылка сохраняется в поле
-                  встречи через API Small, отдельно от описания. Ранее созданные
-                  ссылки сохраняются при редактировании.
+                  В карточке встречи доступны «Придёте?» и кнопки «Да» / «Нет».
+                  Согласие и отказ сохраняются и остаются выбранными после
+                  повторного открытия карточки. Организатор и информируемые
+                  сохраняют свои отдельные роли.
                 </dd>
               </div>
               <div>
-                <dt>Надёжность поиска</dt>
+                <dt>Обновление календаря</dt>
                 <dd>
-                  Быстрый ввод не создаёт запрос на каждую букву; ответы на уже
-                  изменённый или очищенный запрос не возвращают устаревшую
-                  выдачу. Поддерживаются поиск с клавиатуры и подгрузка
-                  следующих страниц.
+                  Ответ на приглашение больше не убирает встречу из сетки на
+                  время обновления. Фоновые изменения не перекрывают открытый
+                  диалог анимацией. Сохранены свободные слоты на день/неделю и
+                  исправление Escape в выборе времени.
                 </dd>
               </div>
             </dl>
             <p class="note">
-              Предварительная сборка с локальной подписью, без нотариализации
-              Apple. Для первого запуска может потребоваться подтверждение по
-              шагу 04. SHA-256:
+              Предварительная сборка с локальной ad-hoc подписью, без
+              нотариализации Apple. Автообновление отключено; обновите
+              приложение вручную через DMG. Новый профиль пустой, настроение —
+              нейтральное. Веса Whisper скачиваются отдельно. SHA-256:
               <code
-                >f8350673ecc6ddf1cf607f6db25c28c769a440b5553f8474b3bba50ff4673c63</code
-              >.
-            </p>
-          </details>
-          <details>
-            <summary>Предыдущая версия — 0.2.0-rc.1, 31 октября 2026</summary>
-            <h3>0.2.0-rc.1 · предварительный релиз</h3>
-            <p class="muted">
-              <time datetime="2026-10-31">31 октября 2026</time> · macOS · Apple
-              Silicon
-            </p>
-            <dl class="field-guide">
-              <div>
-                <dt>Добавлено</dt>
-                <dd>
-                  <ul>
-                    <li>
-                      <strong>Голосовой ввод на русском.</strong> Whisper
-                      large-v3-turbo распознаёт речь на Mac. Модель скачивается
-                      отдельно с прогрессом, паузой, продолжением и проверкой
-                      готовности. Доступны выбор и проверка микрофона.
-                    </li>
-                    <li>
-                      <strong>Профиль DeepSeek.</strong> Его можно настроить
-                      рядом со Small vLLM и OpenAI Compatible; ключи профилей
-                      хранятся отдельно.
-                    </li>
-                    <li>
-                      <strong>Справка внутри приложения.</strong> Инструкции,
-                      иллюстрации и примеры запросов доступны рядом с профилем.
-                      Пример подставляется в черновик для проверки перед
-                      отправкой.
-                    </li>
-                    <li>
-                      <strong>Шаблон поиска по организатору.</strong> В
-                      стартовые запросы добавлен пример поиска событий за месяц.
-                    </li>
-                  </ul>
-                </dd>
-              </div>
-              <div>
-                <dt>Изменено</dt>
-                <dd>
-                  <ul>
-                    <li>
-                      <strong
-                        >Настройки модели разделены на LLM и Voice.</strong
-                      >
-                      LLM содержит параметры сервиса и API-ключ; Voice — модель
-                      распознавания и источник звука. Голосовой ввод перенесён
-                      из настроек AI-помощника.
-                    </li>
-                    <li>
-                      <strong>Быстрое переключение LLM.</strong> Нажатие на
-                      название модели рядом с сообщением открывает меню
-                      сохранённых моделей. Поддерживаются клавиатура и
-                      сохранение выбора.
-                    </li>
-                    <li>
-                      <strong>Диктовка заполняет черновик.</strong> После
-                      остановки текст вставляется в позицию курсора или заменяет
-                      выделение. Отправка выполняется отдельно, отмена доступна
-                      по крестику и Escape. Лимит записи — 120 секунд.
-                    </li>
-                    <li>
-                      <strong>Инструкция обновлена.</strong> Добавлены настройка
-                      LLM/Voice, проверка микрофона и пошаговое использование
-                      голосового ввода.
-                    </li>
-                  </ul>
-                </dd>
-              </div>
-              <div>
-                <dt>Исправлено</dt>
-                <dd>
-                  Повышена совместимость инструментов просмотра встреч и
-                  аналитики с OpenAI-совместимыми сервисами: схемы запросов
-                  передаются как объекты, при этом проверка входных данных
-                  сохраняется.
-                </dd>
-              </div>
-            </dl>
-            <p class="note">
-              Предварительный релиз для Apple Silicon. Приложение подписано
-              локально и не нотариализовано Apple: при первом запуске macOS
-              может потребовать подтверждение открытия по шагу 04. SHA-256
-              установщика:
-              <code
-                >1356ffc61d4af6cce0e4da951cc09e477e3a2d7c3b4d2fd3cd1ff6bda7e69638</code
+                >891abd639b3c1e86774aaef144beb750b0607c177dfc4cd346815d4586ab1795</code
               >.
             </p>
             <details>
-              <summary>
-                Предыдущая версия — 0.1.0 snapshot, 31 октября 2026
-              </summary>
-              <p>
-                Представление «Список», поиск событий ассистентом и исправления
-                входа.
-                <a
-                  href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/tag/v0.1.0-snapshot.20261031.6dca9ca"
-                  >Открыть предыдущий релиз</a
+              <summary>Предыдущая версия — 0.2.0-rc.6, 10 ноября 2026</summary>
+              <h3>0.2.0-rc.6 · предварительный релиз</h3>
+              <p class="muted">
+                <time datetime="2026-11-10">10 ноября 2026</time> · macOS ·
+                Apple Silicon
+              </p>
+              <dl class="field-guide">
+                <div>
+                  <dt>Подтверждение пересечений</dt>
+                  <dd>
+                    Если выбранное время занято, форма создания или
+                    редактирования встречи показывает предупреждение и
+                    участников с пересечениями. Можно вернуться к форме без
+                    потери данных или явно подтвердить сохранение.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Встреча через ассистента</dt>
+                  <dd>
+                    Если вы повторяете просьбу на конкретное время или пишете
+                    «всё равно поставь», ассистент сохраняет время и состав и
+                    показывает карточку с предупреждением. Встреча создаётся
+                    только после нажатия «Да, поставить встречу».
+                  </dd>
+                </div>
+                <div>
+                  <dt>Сохранены свободные слоты</dt>
+                  <dd>
+                    Панель доступности на день и неделю, выбор участников и
+                    повторная проверка времени перед открытием формы остаются
+                    доступны рядом с чатом.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Исправлено: выбор времени</dt>
+                  <dd>
+                    При быстром открытии списка времени и нажатии Escape
+                    закрывается только список, без запроса отмены всей встречи.
+                    Клавиатурное управление использует фактическое состояние
+                    меню.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Размер интерфейса</dt>
+                  <dd>
+                    Из сборки исключены неиспользуемые темы оформления. Внешний
+                    вид и компактная плотность сохранены.
+                  </dd>
+                </div>
+              </dl>
+              <p class="note">
+                Предварительная сборка с локальной ad-hoc подписью, без
+                нотариализации Apple. Автообновление отключено; обновите
+                приложение вручную через DMG. Новый профиль пустой, настроение —
+                нейтральное. Веса Whisper скачиваются отдельно. SHA-256:
+                <code
+                  >29346edc2b1f13a2def170507fe6476794eb2f645dcd9f0cf6301fd689379a46</code
                 >.
               </p>
             </details>
+            <details>
+              <summary>Предыдущая версия — 0.2.0-rc.4, 10 ноября 2026</summary>
+              <h3>0.2.0-rc.4 · предварительный релиз</h3>
+              <p class="muted">
+                <time datetime="2026-11-10">10 ноября 2026</time> · macOS ·
+                Apple Silicon
+              </p>
+              <dl class="field-guide">
+                <div>
+                  <dt>Добавлено: свободные слоты</dt>
+                  <dd>
+                    Запрос ассистенту открывает панель доступности на день или
+                    неделю рядом с чатом. Поиск сотрудников, закреплённый
+                    организатор, длительность, рабочий диапазон, перерывы и
+                    выбор даты связаны с текущим запросом.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Проверка занятости</dt>
+                  <dd>
+                    Общие и личные окна рассчитываются по полному покрытию
+                    занятости. Неизвестные интервалы отмечаются отдельно. Перед
+                    открытием формы точное время повторно проверяется; создание
+                    встречи требует сохранения.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Продолжение работы</dt>
+                  <dd>
+                    Уточняйте состав и параметры в чате, переключайтесь между
+                    календарём и свободными слотами. Новый диалог очищает панель
+                    предыдущего запроса.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Установка и обновление</dt>
+                  <dd>
+                    Закройте календарь, установите новый DMG в «Программы» и
+                    подтвердите замену. Данные существующего профиля
+                    сохраняются. Новый профиль запускается без авторизации,
+                    ключей и пользовательской памяти, с нейтральным настроением.
+                    Веса Whisper скачиваются отдельно.
+                  </dd>
+                </div>
+              </dl>
+              <p class="note">
+                Предварительная сборка с локальной ad-hoc подписью, без
+                нотариализации Apple. Автообновление отключено; используйте
+                ручную установку через DMG. SHA-256:
+                <code
+                  >4e94c8f31834dedd86bdb36832f50e2b69902727f5bf8fb9f7d90c177bd71053</code
+                >.
+              </p>
+            </details>
+            <details>
+              <summary>Предыдущая версия — 0.2.0-rc.3, 9 ноября 2026</summary>
+              <h3>0.2.0-rc.3 · предварительный релиз</h3>
+              <p class="muted">
+                <time datetime="2026-11-09">9 ноября 2026</time> · macOS · Apple
+                Silicon
+              </p>
+              <dl class="field-guide">
+                <div>
+                  <dt>Выбор времени</dt>
+                  <dd>
+                    В форме создания и редактирования события список открывается
+                    на текущем времени. Шаг — 15 минут; точное время можно
+                    ввести вручную. Стрелки перемещают выбор, Enter применяет
+                    время, Escape закрывает список.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Быстрая длительность</dt>
+                  <dd>
+                    Под датой и временем нажмите «15 мин», «Полчаса», «Час»,
+                    «Полтора» или «2 часа». Окончание рассчитывается от начала.
+                    Выбранная длительность выделяется; при переходе через
+                    полночь появляется подпись о следующем дне. Проверки
+                    занятости и рабочих часов Small продолжают действовать.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Обновления календаря</dt>
+                  <dd>
+                    Откройте «Настройки модели» → «Обновления», чтобы увидеть
+                    версию и доступность автообновлений. Для выпусков с
+                    Developer ID реализованы проверка при запуске и каждые 4
+                    часа, скачивание с прогрессом, описание изменений и
+                    подтверждение перезапуска. Можно отложить установку.
+                    Настройки, авторизация и контекст сохраняются.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Ограничение этого DMG</dt>
+                  <dd>
+                    В этой предварительной сборке с локальной подписью
+                    автообновление отключено. Новую версию устанавливайте
+                    вручную через DMG: закройте календарь, перенесите приложение
+                    в «Программы» и подтвердите замену. Не удаляйте
+                    пользовательские данные. Демонстрационное уведомление об
+                    обновлении в пакет не включено.
+                  </dd>
+                </div>
+              </dl>
+              <p class="note">
+                Локальная ad-hoc подпись, без нотариализации Apple.
+                Автообновление требует первого вручную установленного выпуска с
+                Developer ID и опубликованного ZIP с метаданными; стабильный
+                канал не устанавливает предварительные версии. Для первого
+                запуска используйте шаг 04. SHA-256:
+                <code
+                  >bcfe043e6d1323564d959c041e1e63d35b2ec7bcd8cae7254fd9662b12714588</code
+                >.
+              </p>
+            </details>
+            <details>
+              <summary>Предыдущая версия — 0.2.0-rc.2, 9 ноября 2026</summary>
+              <h3>0.2.0-rc.2 · предварительный релиз</h3>
+              <p class="muted">
+                <time datetime="2026-11-09">9 ноября 2026</time> · macOS · Apple
+                Silicon
+              </p>
+              <dl class="field-guide">
+                <div>
+                  <dt>Поиск сотрудников</dt>
+                  <dd>
+                    Введите имя или должность. Поиск запускается через 300 мс
+                    после последнего ввода; Enter и кнопка запускают его сразу.
+                    Нажмите на сотрудника в выдаче — он появится чипом, а поле
+                    поиска очистится. Чекбоксов нет, уже выбранные люди скрыты
+                    из выдачи.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Организатор встречи</dt>
+                  <dd>
+                    Организатор включён в состав встречи и защищён от удаления
+                    при создании и редактировании. Остальных участников можно
+                    удалить крестиком на чипе.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Ссылки конференций</dt>
+                  <dd>
+                    Новые адреса состоят ровно из трёх английских слов, например
+                    <code>funky-monkey-party</code>. Ссылка сохраняется в поле
+                    встречи через API Small, отдельно от описания. Ранее
+                    созданные ссылки сохраняются при редактировании.
+                  </dd>
+                </div>
+                <div>
+                  <dt>Надёжность поиска</dt>
+                  <dd>
+                    Быстрый ввод не создаёт запрос на каждую букву; ответы на
+                    уже изменённый или очищенный запрос не возвращают устаревшую
+                    выдачу. Поддерживаются поиск с клавиатуры и подгрузка
+                    следующих страниц.
+                  </dd>
+                </div>
+              </dl>
+              <p class="note">
+                Предварительная сборка с локальной подписью, без нотариализации
+                Apple. Для первого запуска может потребоваться подтверждение по
+                шагу 04. SHA-256:
+                <code
+                  >f8350673ecc6ddf1cf607f6db25c28c769a440b5553f8474b3bba50ff4673c63</code
+                >.
+              </p>
+            </details>
+            <details>
+              <summary>Предыдущая версия — 0.2.0-rc.1, 31 октября 2026</summary>
+              <h3>0.2.0-rc.1 · предварительный релиз</h3>
+              <p class="muted">
+                <time datetime="2026-10-31">31 октября 2026</time> · macOS ·
+                Apple Silicon
+              </p>
+              <dl class="field-guide">
+                <div>
+                  <dt>Добавлено</dt>
+                  <dd>
+                    <ul>
+                      <li>
+                        <strong>Голосовой ввод на русском.</strong> Whisper
+                        large-v3-turbo распознаёт речь на Mac. Модель
+                        скачивается отдельно с прогрессом, паузой, продолжением
+                        и проверкой готовности. Доступны выбор и проверка
+                        микрофона.
+                      </li>
+                      <li>
+                        <strong>Профиль DeepSeek.</strong> Его можно настроить
+                        рядом со Small vLLM и OpenAI Compatible; ключи профилей
+                        хранятся отдельно.
+                      </li>
+                      <li>
+                        <strong>Справка внутри приложения.</strong> Инструкции,
+                        иллюстрации и примеры запросов доступны рядом с
+                        профилем. Пример подставляется в черновик для проверки
+                        перед отправкой.
+                      </li>
+                      <li>
+                        <strong>Шаблон поиска по организатору.</strong> В
+                        стартовые запросы добавлен пример поиска событий за
+                        месяц.
+                      </li>
+                    </ul>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Изменено</dt>
+                  <dd>
+                    <ul>
+                      <li>
+                        <strong
+                          >Настройки модели разделены на LLM и Voice.</strong
+                        >
+                        LLM содержит параметры сервиса и API-ключ; Voice —
+                        модель распознавания и источник звука. Голосовой ввод
+                        перенесён из настроек AI-помощника.
+                      </li>
+                      <li>
+                        <strong>Быстрое переключение LLM.</strong> Нажатие на
+                        название модели рядом с сообщением открывает меню
+                        сохранённых моделей. Поддерживаются клавиатура и
+                        сохранение выбора.
+                      </li>
+                      <li>
+                        <strong>Диктовка заполняет черновик.</strong> После
+                        остановки текст вставляется в позицию курсора или
+                        заменяет выделение. Отправка выполняется отдельно,
+                        отмена доступна по крестику и Escape. Лимит записи — 120
+                        секунд.
+                      </li>
+                      <li>
+                        <strong>Инструкция обновлена.</strong> Добавлены
+                        настройка LLM/Voice, проверка микрофона и пошаговое
+                        использование голосового ввода.
+                      </li>
+                    </ul>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Исправлено</dt>
+                  <dd>
+                    Повышена совместимость инструментов просмотра встреч и
+                    аналитики с OpenAI-совместимыми сервисами: схемы запросов
+                    передаются как объекты, при этом проверка входных данных
+                    сохраняется.
+                  </dd>
+                </div>
+              </dl>
+              <p class="note">
+                Предварительный релиз для Apple Silicon. Приложение подписано
+                локально и не нотариализовано Apple: при первом запуске macOS
+                может потребовать подтверждение открытия по шагу 04. SHA-256
+                установщика:
+                <code
+                  >1356ffc61d4af6cce0e4da951cc09e477e3a2d7c3b4d2fd3cd1ff6bda7e69638</code
+                >.
+              </p>
+              <details>
+                <summary>
+                  Предыдущая версия — 0.1.0 snapshot, 31 октября 2026
+                </summary>
+                <p>
+                  Представление «Список», поиск событий ассистентом и
+                  исправления входа.
+                  <a
+                    href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/tag/v0.1.0-snapshot.20261031.6dca9ca"
+                    >Открыть предыдущий релиз</a
+                  >.
+                </p>
+              </details>
+            </details>
+            <p>
+              <a href="#voice">Настроить Voice ↑</a> ·
+              <a href="#voice">Начать диктовку ↑</a>
+            </p>
           </details>
-          <p>
-            <a href="#voice">Настроить Voice ↑</a> ·
-            <a href="#dictation">Начать диктовку ↑</a>
-          </p>
         </section>
         <footer>
-          <p>Small Calendar 0.2.0-rc.3 · 09.11.2026</p>
-          <p>
-            В этой версии поиск по всем календарям может занимать до 120 секунд.
-            <a
-              href="https://github.com/vadagama/small-desktop-calendar-with-ai/releases/tag/v0.2.0-rc.3"
-              >Подробности релиза ↗</a
-            >
-          </p>
-          <a href="#top">Вернуться наверх ↑</a>
+          <p>Ordo 0.3.0 · 26.11.2026</p>
+          <p><a href="#top">К началу страницы ↑</a></p>
         </footer>
       </main>
     </div>

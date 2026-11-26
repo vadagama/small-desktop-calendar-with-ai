@@ -1,4 +1,4 @@
-import { editableEvent } from "../shared/event-edit.js";
+import { editableEvent, eventEditPeopleLimit } from "../shared/event-edit.js";
 import type { EventEditQuery } from "../shared/event-edit.js";
 import type { MeetingDraft } from "../shared/meeting-draft.js";
 import {
@@ -16,9 +16,13 @@ import {
   calendarToday,
   addDateDays,
   defaultMeetingSchedule,
+  validCalendarDate,
 } from "../shared/calendar-time.js";
 import type { MeetingView } from "../shared/meeting-operations.js";
-import type { MeetingOptions } from "../shared/meeting-options.js";
+import {
+  meetingNotificationRecipientLimit,
+  type MeetingOptions,
+} from "../shared/meeting-options.js";
 import type { SmallCalendar } from "../shared/calendar.js";
 export function useNewMeeting({
   account,
@@ -108,6 +112,13 @@ export function useNewMeeting({
     ),
     [repeat, setRepeat] = useState(false),
     [until, setUntil] = useState(addDateDays(initialDate, 28));
+  const recurrenceEndLimit = validCalendarDate(date)
+    ? addDateDays(date, 90)
+    : undefined;
+  const recurrenceEndInvalid =
+    !validCalendarDate(until) ||
+    (recurrenceEndLimit !== undefined &&
+      (until < date || until > recurrenceEndLimit));
   const [days, setDays] = useState<
     NonNullable<MeetingOptions["recurrence"]>["BYDAY"]
   >(["MO"]);
@@ -166,6 +177,8 @@ export function useNewMeeting({
         name: p.name,
         position: "",
       })),
+      [],
+      editing ? eventEditPeopleLimit : meetingNotificationRecipientLimit,
     );
   const snapshot = JSON.stringify({
     title,
@@ -318,6 +331,10 @@ export function useNewMeeting({
     setError("");
     setResult(null);
     try {
+      if (repeat && recurrenceEndInvalid)
+        throw new Error(
+          "Выберите дату окончания повторений в пределах 90 дней от начала.",
+        );
       if (date < calendarToday())
         throw new Error(
           editing
@@ -483,6 +500,8 @@ export function useNewMeeting({
     setRepeat,
     until,
     setUntil,
+    recurrenceEndLimit,
+    recurrenceEndInvalid,
     days,
     setDays,
     files,
