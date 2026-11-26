@@ -1,0 +1,5 @@
+schema_version: "1.0"
+name: Ordo
+purpose: Настольный календарь команды Small с AI-ассистентом для macOS.
+owners: []
+stage: development

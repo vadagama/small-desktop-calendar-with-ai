@@ -1,0 +1,33 @@
+# Пример для .workflow/config.yaml продукта. Заполнить все <...> перед применением.
+config_version: 1
+standard:
+  repository: https://github.com/vadagama/software-development-workflow
+  revision: "<полный-commit-SHA-стандарта>"
+  version: "0.1.0"
+upstream:
+  repository: https://github.com/addyosmani/agent-skills
+  revision: 8c99fa36d90068c82d547f7c12a9d67a3e95f4ee
+# Для платформенного продукта заменить null объектом:
+# repository: <URL>; revision: <полный SHA>; rules: <путь файла правил>
+platform: null
+profile: standard
+documentation:
+  language: ru
+  format: markdown-frontmatter
+  schema_version: 1
+capabilities: []
+required_artifacts: []
+task_tracking:
+  mode: local
+  path: tasks/todo.md
+# Для внешнего трекера вместо path: provider, project_url, mapping.
+# mapping — путь к документу отображения Markdown/frontmatter в трекер.
+paths:
+  hld: docs/architecture/hld/README.md
+  adr: docs/architecture/decisions
+  spec: spec
+  plan: tasks/plan.md
+  todo: tasks/todo.md
+exceptions: []
+# Каждое исключение: rule, reason, scope, owner, approval_ref,
+# compensating_control, review_on (дата YYYY-MM-DD в кавычках).

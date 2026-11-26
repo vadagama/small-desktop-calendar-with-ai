@@ -1,0 +1,3 @@
+interface:
+  display_name: "Go Product Modernization"
+  short_description: "Аудит, рефакторинг и миграция готового продукта"

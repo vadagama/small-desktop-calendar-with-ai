@@ -31,3 +31,6 @@ These extend the 25 Addy Osmani workflows; there are now 27 local skills. The ro
 production-приложение с чистыми настройками, GitHub Release, Changelog и
 GitLab Pages с актуальным DMG. Создан по требованиям пользователя; не является
 частью vendored upstream-коллекций выше и не меняет их ревизии и лицензии.
+## Профиль Go Product Platform
+
+Полный набор проекта, источники, ревизии и контрольные суммы перечислены в [engineering.yaml](../engineering.yaml). Зеркало для Claude находится в `.claude/`. Добавленный accessibility-engineering дополняет первоначальную коллекцию до 26 инженерных навыков. Порядок проверки описан в [MANUAL.md](../MANUAL.md).
