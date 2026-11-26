@@ -1,3 +1,4 @@
+import { buildInstaller } from "./package-wails-dmg.mjs";
 import { execFileSync } from "node:child_process";
 import {
   chmod,
@@ -8,7 +9,6 @@ import {
   readFile,
   readdir,
   rm,
-  symlink,
   writeFile,
 } from "node:fs/promises";
 import {
@@ -192,26 +192,24 @@ try {
   const files = await readdir(resources);
   if (files.some((file) => file.startsWith(".env")))
     throw new Error("Unexpected environment file in package");
-  await symlink("/Applications", join(source, "Applications"));
   const name = `${productName}-${version}-arm64${releasing ? "" : "-local"}.dmg`;
   const dmg = join(work, name);
-  run("/usr/bin/hdiutil", [
-    "create",
-    "-format",
-    "UDZO",
-    "-volname",
-    productName,
-    "-srcfolder",
-    source,
-    dmg,
-  ]);
+  await buildInstaller(app, dmg);
   if (releasing) {
     signBundle(dmg);
     notarize(dmg);
     staple(dmg);
   }
   run("/usr/bin/hdiutil", ["verify", dmg]);
-  await copyFile(dmg, join(out, name));
+  // Preserve the Finder file icon, which lives in extended attributes.
+  run("/usr/bin/ditto", [dmg, join(out, name)]);
+  run("/usr/bin/ditto", [
+    "-c",
+    "-k",
+    "--sequesterRsrc",
+    join(out, name),
+    join(out, `${name}.zip`),
+  ]);
   if (releasing) {
     const notes = values.notes ? await readFile(values.notes, "utf8") : "";
     if (Buffer.byteLength(notes) > 32 * 1024)

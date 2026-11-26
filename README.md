@@ -12,7 +12,7 @@
 
 ## Установка Ordo
 
-[Скачать Ordo 0.3.0 для Apple Silicon](https://github.com/vadagama/small-desktop-calendar-with-ai/releases/download/v0.3.0/Ordo-0.3.0-arm64.dmg).
+[Скачать Ordo 0.3.0 для Apple Silicon](https://github.com/vadagama/small-desktop-calendar-with-ai/releases/download/v0.3.0/Ordo-0.3.0-arm64-installer.2.dmg).
 Приложение и DMG подписаны Apple Developer ID и нотариализованы. Перенесите
 Ordo.app в «Программы» и запустите его. Последующие стабильные обновления
 доступны в приложении; установка требует подтверждения перезапуска.
@@ -25,7 +25,9 @@ Ordo использует Go и Wails, React и TypeScript, shadcn, Dockview Com
 Целевая платформа — macOS 15.1 и новее на Apple Silicon.
 
 Для сборки нужны Node.js ≥22.12.0, Go из `desktop-wails/go.mod`,
-Xcode Command Line Tools и CMake. Из корня репозитория:
+Xcode Command Line Tools, CMake и uv. Упаковщик DMG запускает закреплённый
+`dmgbuild 1.6.7` в изолированном окружении uv и сохраняет оформление Finder
+без открытия окон. Из корня репозитория:
 
 ```sh
 npm ci
