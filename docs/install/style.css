@@ -263,7 +263,7 @@ figure > a {
   border-radius: var(--radius);
   overflow: hidden;
 }
-img {
+figure img {
   display: block;
   width: 100%;
   height: auto;
@@ -577,6 +577,9 @@ footer p {
 }
 
 .brand img {
+  display: block;
+  width: 32px;
+  height: 32px;
   object-fit: contain;
   flex-shrink: 0;
 }
