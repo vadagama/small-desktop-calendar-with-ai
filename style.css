@@ -575,3 +575,8 @@ footer p {
     break-inside: avoid;
   }
 }
+
+.brand img {
+  object-fit: contain;
+  flex-shrink: 0;
+}
